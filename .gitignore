@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Local/generated artifacts
+artifacts/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+data/
+models/
+mlruns/
+target/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
