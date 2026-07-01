@@ -4,9 +4,25 @@
 
 `<classification and summary>`
 
-## Proposed Minimal Fix
+## Leading Root Cause
 
-`<fix summary>`
+`<H# and one-line root cause; note if evidence is mixed>`
+
+## Fix Directions Considered
+
+| # | Direction | Verdict |
+| --- | --- | --- |
+| D1 |  | Recommended / Fallback / Rejected |
+| D2 |  | Recommended / Fallback / Rejected |
+| D3 |  | Recommended / Fallback / Rejected |
+
+## Recommended Minimal Fix
+
+`<recommended direction summary>`
+
+## Fallbacks
+
+- `<D#>` — use if `<condition>`.
 
 ## Affected Zone
 
@@ -24,9 +40,10 @@
 
 Please confirm before I patch:
 
-- Proceed with the proposed minimal fix.
+- Proceed with the recommended direction.
+- Choose a fallback direction instead.
+- Run parallel `bug_hunter` mode first (extra token cost; only for Hard bugs).
 - Adjust the fix plan.
 - Stop and keep this as a report only.
 
 I will not use `git add .`. I will commit only if explicitly allowed.
-

@@ -8,12 +8,17 @@ Vietnamese note: Day la cac prompt ngan de copy vao agent. Nen bat dau bang `sta
 
 ## Recommended First Command
 
-Start with `start-session.md` for broad or unclear requests. It tells the agent to read only the short entry docs, route the task, warn about token/risk, and wait before writing files.
+Start with `start-here.md` when you do not know which team to use: type
+`@start-here` plus one line and the agent auto-routes with a token/risk warning
+and at most one clarifying question. Use `start-session.md` for a broader guided
+session that reads the short entry docs, routes the task, and waits before
+writing files.
 
 ## Command Selection
 
 | Command | Use when | Team |
 | --- | --- | --- |
+| `start-here.md` | You don't know which team to use | Auto-router |
 | `start-session.md` | Starting a new broad session | Router first |
 | `route-task.md` | Choosing the right team | Router first |
 | `analyze.md` | Idea, architecture, roadmap, options | `analyze-team/` |

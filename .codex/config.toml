@@ -1,0 +1,14 @@
+# Codex project config for the AI Agent Workspace Pack.
+#
+# Purpose: keep subagent fan-out bounded so parallel work stays cheap and
+# predictable. Codex already reads AGENTS.md at the repo root for routing, so
+# this file only constrains agent behavior.
+#
+# Fallback: if your Codex build does not support TOML subagents in
+# .codex/agents/, delete that folder and keep this file. The four roles can
+# still be invoked by prompt, and AGENTS.md documents them.
+
+[agents]
+max_threads = 4          # cap parallel subagents
+max_depth = 1            # no recursive fan-out (avoids token blowups)
+job_max_runtime_seconds = 1800

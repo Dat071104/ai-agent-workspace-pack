@@ -6,6 +6,16 @@ You do not need to read every folder in this pack. Start with this file, `README
 If the user attaches or pastes a long prompt/document, treat it as the task specification unless the user explicitly says it is only reference material.
 If the task is still ambiguous, ask one concise clarification question.
 
+## Fastest Entry: `@start-here`
+
+If you do not know which team to use, type `@start-here` plus one line about your
+goal. The agent auto-routes, warns about token/risk, and asks at most one
+clarifying question before doing anything. See `commands/start-here.md`.
+
+```text
+@start-here I want to <goal in one line>.
+```
+
 ## How This Should Work
 
 1. You describe what you want.

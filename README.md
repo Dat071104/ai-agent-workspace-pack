@@ -137,8 +137,11 @@ The agent should avoid jargon, explain expected results, give A/B/C choices, and
 | Folder/File | Purpose |
 | --- | --- |
 | `START_HERE.md` | Short user-first entry guide. |
+| `BOOTSTRAP.md` | One-time per-repo setup prompt (detects harness). |
 | `TEAM_ROUTER.md` | Routing table for choosing the right team. |
-| `AGENTS.md` | Short always-on agent rules. |
+| `AGENTS.md` | Short always-on agent rules + subagent + persona. |
+| `.claude/` | Claude Code adapter: subagents + discoverable skills. |
+| `.codex/` | Codex adapter: subagents + fan-out limits. |
 | `core-context/` | Project memory templates. |
 | `analyze-team/` | Clarification, options, architecture, roadmap. |
 | `prompting-team/` | Prompt and harness creation. |
@@ -258,6 +261,92 @@ Place `AGENTS.md` at the repository root. In a new session, reference `START_HER
 
 Use `AGENTS.md` as the always-on instruction source if supported. Otherwise paste `commands/start-session.md` or `commands/route-task.md`. Keep project memory in `_agent_ops/` so different agents can share context.
 
+See **Per-Harness Setup** below for exact per-tool invocation, including DeepSeek
+(deepcode) and Gemini (Antigravity), plus copy-paste examples.
+
+## Per-Harness Setup
+
+This pack is portable. The **team folders are the single source of truth**;
+`AGENTS.md` is the shared base rules every harness reads. Each harness gets a
+thin adapter (or just `@`-references) that points back to the team folders.
+
+### What "subagent" means here (read this first)
+
+A **real subagent** is a separate process the harness spawns and can run in
+**parallel**. This is a harness feature, not a prompt trick. Only **Codex** and
+**Claude Code** have a native subagent format in this pack. For every other tool,
+"subagent" is only a **role played sequentially** by one agent in one session —
+same SKILL, no parallelism. No prompt (including `@start-here`) can generate a
+real subagent for a tool that lacks the native format.
+
+### Capability matrix
+
+| Harness | Base rules | How to invoke a team | Real parallel subagents? | Discovery |
+| --- | --- | --- | --- | --- |
+| **Codex** | `AGENTS.md` (auto) | `@bug-fix-team/SKILL.md` or a `.codex` subagent | Yes (`.codex/agents/*.toml`, capped by `.codex/config.toml`) | Automatic |
+| **Claude Code** | `AGENTS.md` | Skill is discoverable, or spawn a `.claude` subagent | Yes (`.claude/agents/*.md`) | `.claude/skills/` |
+| **DeepSeek (deepcode CLI)** | `AGENTS.md` | `@tester-team/SKILL.md` (paste reference) | No — sequential role-play only | Manual `@`-reference |
+| **Gemini (Antigravity)** | `AGENTS.md` | `@tester-team/SKILL.md` (paste reference) | No — sequential role-play only | Manual `@`-reference |
+| **Cursor / Windsurf / other** | `AGENTS.md` | `@<team>/SKILL.md` (paste reference) | No — sequential role-play only | Manual `@`-reference |
+
+The four roles are: `tester` and `repo_hygiene_reviewer` (read-only),
+`bug_hunter` (read-only, probes one fix direction), `bug_fixer` (write, applies a
+confirmed fix). On Codex/Claude they run in parallel after a token warning; on
+prompt-based tools they run one after another in the same chat.
+
+### New repo, any harness
+
+Run `BOOTSTRAP.md` once: paste its prompt into your agent. It detects the harness,
+summarizes the rules, tells you exactly how to invoke teams there, and offers to
+initialize `_agent_ops/`. It will **not** fabricate subagent files for a tool that
+has no native format. Then, when unsure which team to use, type
+`@start-here <one line>` and the agent routes you and suggests the exact
+`@reference` for your harness.
+
+### Copy-paste per harness
+
+**Codex** — `AGENTS.md` is read automatically. Route, then invoke by reference or subagent:
+```text
+@start-here I need to audit this repo before release.
+```
+Parallel audit (Codex spawns real subagents; approve after the token warning):
+```text
+Run the tester and repo_hygiene_reviewer subagents in parallel on this repo,
+then merge into one prioritized list. Do not edit files.
+```
+If your Codex build lacks TOML subagents: delete `.codex/agents/`, keep
+`.codex/config.toml`, and invoke the roles by prompt instead.
+
+**Claude Code** — skills in `.claude/skills/` are discoverable; subagents in `.claude/agents/`:
+```text
+@start-here I found a bug where login sometimes returns 500.
+```
+Spawn a subagent explicitly when you want isolation/parallelism:
+```text
+Use the bug_hunter subagents to probe each fix direction in parallel, then have
+one bug_fixer apply the confirmed fix after I approve.
+```
+
+**DeepSeek (deepcode CLI)** — no native subagents. Load base rules, then reference the team:
+```text
+@AGENTS.md
+@tester-team/SKILL.md
+Audit the auth module. Report findings by severity. Do not edit files.
+Play the tester and repo_hygiene_reviewer roles sequentially (no parallelism here).
+```
+
+**Gemini (Antigravity)** — same pattern; `AGENTS.md` as base, `@`-reference the team:
+```text
+@AGENTS.md
+@bug-fix-team/SKILL.md
+Verify this bug first, give me 2-3 fix directions with trade-offs, recommend one.
+Do not edit until I confirm.
+```
+
+**Cursor / Windsurf / other** — set `AGENTS.md` as the always-on rules if
+supported, otherwise paste `commands/start-session.md`. Invoke teams with
+`@<team>/SKILL.md`. Keep project memory in `_agent_ops/` so tools share context.
+
 ## Pros and Cons
 
 | Pros | Cons |
@@ -312,7 +401,7 @@ v1.1 improves the user and agent experience without adding many folders. It adds
 - Add script unit tests.
 - Add more realistic examples.
 - Add optional CI for structure and script checks.
-- Add Cursor/Claude/Windsurf-specific adapter files.
-- Add optional packaging or installer if real use justifies it.
+- Done: Codex/Claude Code adapter files and real subagents (`.codex/`, `.claude/`).
+- Add optional packaging or plugin/marketplace distribution if real use justifies it.
 - Add prompt quality benchmarks and examples.
 
