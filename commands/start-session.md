@@ -1,7 +1,7 @@
 # Start Session Command
 
 ```text
-Read only README.md, AGENTS.md, and START_HERE.md first.
+Read only AGENTS.md and START_HERE.md first. Read TEAM_ROUTER.md for routing. Do not read README.md unless the user asks about the workspace pack itself.
 Do not read every team folder yet.
 
 User request:
@@ -22,4 +22,3 @@ Rules:
 - Ask before destructive or dangerous actions.
 - Keep the report concise and honest.
 ```
-
