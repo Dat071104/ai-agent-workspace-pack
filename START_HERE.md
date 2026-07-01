@@ -2,7 +2,7 @@
 
 Use this file when you want a simple entry point for an AI coding session.
 
-You do not need to read every folder in this pack. Start with this file, `README.md`, or `AGENTS.md`. Describe your goal in plain language. The agent should route your request to the right team, explain why, ask clarifying questions if needed, and ask before writing or modifying files.
+You do not need to read every folder in this pack. Start with this file and `AGENTS.md`. (`README.md` is a fuller guide for humans; the agent does not need to load it to route a task.) Describe your goal in plain language. The agent should route your request to the right team, explain why, ask clarifying questions if needed, and ask before writing or modifying files.
 If the user attaches or pastes a long prompt/document, treat it as the task specification unless the user explicitly says it is only reference material.
 If the task is still ambiguous, ask one concise clarification question.
 

@@ -95,8 +95,10 @@ Router-first rule: do not read every team folder. Route the request, explain why
 
 ## Recommended Startup Prompt
 
+Reference only the short entry files so the agent stays light on context. This
+README is a human guide; you do not need to attach it.
+
 ```text
-@README.md
 @AGENTS.md
 @START_HERE.md
 

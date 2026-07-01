@@ -5,7 +5,7 @@ portable across harnesses (Codex, Claude Code, Cursor, Gemini, DeepSeek). New to
 a repo? Run `BOOTSTRAP.md` once. Not sure which team to use? Type `@start-here`
 plus one line (see `commands/start-here.md`).
 
-For broad requests, read `START_HERE.md`, `TEAM_ROUTER.md`, and `README.md` first. Do not load every team folder. Route the task, recommend the best team, explain why, classify token/risk level, and ask whether to proceed.
+For broad requests, read `START_HERE.md` and `TEAM_ROUTER.md` first. `README.md` is a human guide, not required agent context; load it only if the user asks about the pack itself. Do not load every team folder. Route the task, recommend the best team, explain why, classify token/risk level, and ask whether to proceed.
 
 Use `core-context/` templates for project memory. Use the relevant team folder only when needed.
 
