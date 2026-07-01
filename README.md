@@ -253,6 +253,25 @@ These audits are suggested, not forced.
 4. Use `core-context/SESSION_BRIEF.template.md` in target projects to summarize the session.
 5. Ask for a chat report before file changes.
 
+## Failure-Mode Guards (Embedded Per Team)
+
+To keep global context light, guards against common agent failure modes live
+inside the team `SKILL.md` that needs them, not in a single always-loaded file.
+They only load when you enter that team:
+
+- `bug-fix-team/`: re-anchor to the original goal (anti-drift), verify a symbol
+  exists before calling it (anti-hallucination), and check base-branch
+  divergence before editing (merge safety).
+- `tester-team/`: security audit (secrets, injection, authz) and observability
+  gaps (missing logs/metrics on failure paths), report-only.
+- `clean-code-team/`: dependency-drift guard and a "improve structure, do not
+  copy-paste" rule.
+- `core-context/`: `PROJECT_CONTEXT_CARD` carries business rules and acceptance
+  criteria (anti "compiles but wrong"); `SESSION_BRIEF` pins the original goal.
+
+This is deliberate: one prompt per team means each guard is present exactly when
+relevant and absent when not.
+
 ## Use with Codex
 
 Place `AGENTS.md` at the repository root. In a new session, reference `START_HERE.md` and ask Codex to route the request before loading team folders. For long projects, initialize `_agent_ops/` and keep context cards current.

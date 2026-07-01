@@ -11,7 +11,9 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
 
 ## Workflow
 
-1. Read the bug report.
+1. Re-anchor: restate the original goal/task in one line before touching code.
+   Check for divergence with the base branch (`git fetch` then compare) and warn
+   if the working tree is behind. Read the bug report.
 2. Read relevant context and implementation logs.
 3. Reproduce or inspect.
 4. Classify the issue:
@@ -37,8 +39,11 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
       subagent probes one fix direction in isolation, then results are merged.
       Warn about the extra token cost FIRST. Run only if the user confirms.
 12. Ask for confirmation before editing. Let the user pick which direction to take.
-13. After confirmation, fix only the affected zone.
-14. Test.
+13. After confirmation, fix only the affected zone. Before calling any function,
+    API, import, or config key, confirm it actually exists in the codebase or a
+    real dependency. If unverified, say so and check; never invent a symbol.
+14. Test. Re-check that the fix still serves the original goal from step 1, and
+    that it did not push the affected module toward a new failure (under-edit).
 15. Update implementation log after permission.
 16. Commit only if user allowed it.
 
@@ -82,4 +87,14 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
   and spawn them only after the user confirms.
 - Reason across multiple hypotheses, but still commit to ONE recommended fix.
   Do not implement several fix directions at once.
+
+## Correctness Guards
+
+- Anti-drift: keep the original goal in view; if a fix drifts from it, stop and
+  flag before continuing.
+- Anti-hallucination: only reference functions, APIs, imports, and config keys
+  that are verified to exist. When unsure, verify or ask; do not guess a name.
+- Merge safety: check divergence with the base branch before editing; warn if
+  behind so the fix does not land on stale code.
+- Honesty: do not report a fix as done or tests as passed unless they ran.
 

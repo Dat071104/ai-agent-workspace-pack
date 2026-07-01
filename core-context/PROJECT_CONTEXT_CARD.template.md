@@ -26,6 +26,15 @@ Vietnamese: `<du an lam gi va phuc vu ai>`
 
 `<main modules, services, data flow, boundaries>`
 
+## Business Rules & Acceptance Criteria
+
+`<the domain rules the code must satisfy, and how to tell "correct" from "compiles">`
+
+- Rule: `<business rule>` -> Accept when: `<observable acceptance criterion>`
+
+Note: if this section is empty, the agent must ask before implementing logic, to
+avoid code that is syntactically right but semantically wrong.
+
 ## Key Decisions
 
 - `<decision and reason>`

@@ -73,3 +73,15 @@ Before starting, warn the user:
 - Do not claim a perfect full in-memory graph.
 - Do not commit or push unless user allowed it.
 
+## Refactor Guards
+
+- Dependency drift: do not add, remove, or upgrade a package as part of cleanup
+  unless the batch explicitly requires it. If it does, state the package,
+  version change, reason, and expected lockfile change, and confirm first.
+- Prefer improving structure over adding code. If a batch only adds a new layer
+  without reducing duplication or complexity, reconsider it.
+- Do not copy-paste an existing pattern to "clean up"; extract or reuse instead.
+- Anti-hallucination: only reference symbols and modules verified to exist.
+- Keep public behavior identical unless the batch is explicitly a behavior change
+  the user approved.
+

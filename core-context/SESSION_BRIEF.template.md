@@ -2,6 +2,13 @@
 
 Use this compact file at the start of an AI-agent session when you want to reduce token load. It should point the agent to only the first files it needs.
 
+## Original Goal (do not lose)
+
+`<the one-line goal for this work; re-read before each step to prevent drift>`
+
+The agent should re-anchor to this line before each edit. If the current work
+drifts from it, stop and flag instead of continuing.
+
 ## Project / User Goal
 
 `<what the user wants to accomplish>`

@@ -62,6 +62,25 @@ Rules:
 - Refactoring.
 - Creating major structure.
 
+## Security & Observability Audit
+
+Report only; do not fix. Route real defects to `bug-fix-team/`.
+
+Security checks (flag by severity, do not exploit):
+
+- Hardcoded secrets, tokens, or credentials in code or config.
+- Unsanitized input reaching SQL (string-concatenated queries vs parameterized),
+  shell/command execution, or file paths.
+- Missing authentication/authorization on sensitive routes or actions.
+- Unsafe deserialization, SSRF-prone requests, or overly broad CORS.
+
+Observability checks (report gaps):
+
+- Failure paths (catch blocks, error returns, external calls) without a log or
+  metric at the failure point.
+- No structured way to trace a request/operation end to end.
+- Silent failures that would be invisible in production.
+
 ## Expected Output Contract
 
 - Audit mode and scope.
@@ -69,6 +88,8 @@ Rules:
 - Commands run.
 - Findings ordered by severity.
 - Evidence and reproduction notes.
+- Security findings (secrets, injection, authz gaps) with severity.
+- Observability gaps (missing logs/metrics on failure paths).
 - UX/performance/integration/repo hygiene notes.
 - Test gaps.
 - Recommended next workflow.
