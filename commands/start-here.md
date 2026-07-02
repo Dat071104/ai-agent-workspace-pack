@@ -13,8 +13,13 @@ Read only AGENTS.md, TEAM_ROUTER.md, and START_HERE.md first. Do not load every
 team folder.
 
 Do this:
-1. Classify the intent and pick the best team from TEAM_ROUTER.md.
-2. State the recommended team in one line and why in one line.
+1. Classify the intent and pick the best team from TEAM_ROUTER.md. If the goal
+   needs several teams, propose a short ordered chain (for example:
+   advisor-team -> analyze-team -> prompting-team -> tester-team). Do not run the
+   whole chain automatically; recommend it and let me approve step by step.
+   If the request is vague ("make this better", "what should I improve"), route
+   to advisor-team first for an overview and priorities.
+2. State the recommended team (or ordered chain) in one line, and why in one line.
 3. Tell me the exact way to invoke that team on MY harness (detect it; if unsure,
    ask once):
    - Codex: reference the team, e.g. "@bug-fix-team/SKILL.md", or invoke the
@@ -47,6 +52,8 @@ Rules:
 ## Behavior Summary
 
 - One-line in, routed answer out.
+- Single team when one fits; an ordered multi-team chain when the goal needs it.
+- Vague goals go to advisor-team first for overview and priorities.
 - Always shows token/risk before heavy work.
 - At most one clarifying question.
-- Never writes files or runs heavy commands without confirmation.
+- Never writes files, runs a whole chain, or runs heavy commands without confirmation.
