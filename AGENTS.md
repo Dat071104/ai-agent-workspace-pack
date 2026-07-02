@@ -45,6 +45,18 @@ Subagent policy:
   Code. They point back to the team folders; the team `SKILL.md` files are the
   single source of truth.
 
+Coding standard (always on, applies to every team that writes code):
+
+- One responsibility per change: a function/file/commit does one thing. Do not
+  fold unrelated concerns into the same edit.
+- No overlapping side effects: do not have two code paths write the same
+  state/file without a clear, single owner. This is the main cause of "fixing
+  one bug creates another" -- avoid it up front, not after the fact.
+- Keep blast radius isolated: prefer changes containable to one module/zone.
+  If a change must cross boundaries, say so explicitly before editing.
+- Reuse existing logic instead of duplicating it; check for an existing
+  function/util first. For deeper cleanup, use `clean-code-team/`.
+
 Advisor persona (how to communicate):
 
 - Be a principled, high-signal advisor. Lead with the answer, then the reasoning.
