@@ -16,6 +16,18 @@ clarifying question before doing anything. See `commands/start-here.md`.
 @start-here I want to <goal in one line>.
 ```
 
+## Context Intake Tiers (load in order, only as needed)
+
+To keep context light on every agent, load files tier by tier and stop as soon
+as you can act:
+
+- Tier 0: `AGENTS.md`, `TEAM_ROUTER.md` (route the task).
+- Tier 1: the ONE selected team's `SKILL.md` -- not the whole team folder.
+- Tier 2: only the specific templates/prompts that `SKILL.md` references.
+- Tier 3: only the target project files needed for the task.
+
+Do not read every team folder, and do not pull in `README.md` to route.
+
 ## How This Should Work
 
 1. You describe what you want.
@@ -36,36 +48,31 @@ Vietnamese note: Ban co the mo ta y tuong bang ngon ngu binh thuong. Agent phai 
 ### Example 1: New Idea
 
 ```text
-@START_HERE.md
-I want to build a budget tracker app. Analyze the idea first. Do not create files yet.
+@start-here I want to build a budget tracker app. Analyze the idea first. Do not create files yet.
 ```
 
 ### Example 2: Phase Prompt
 
 ```text
-@START_HERE.md
-I already have a project. Help me create a strong Codex prompt for Phase 1.
+@start-here I already have a project. Help me create a strong Codex prompt for Phase 1.
 ```
 
 ### Example 3: Bug Report
 
 ```text
-@START_HERE.md
-I found a bug. Verify if it is real before fixing.
+@start-here I found a bug. Verify if it is real before fixing.
 ```
 
 ### Example 4: Messy Repo
 
 ```text
-@START_HERE.md
-My repo is messy. Audit cleanup opportunities only. Do not modify files.
+@start-here My repo is messy. Audit cleanup opportunities only. Do not modify files.
 ```
 
 ## Recommended First Prompt
 
 ```text
-@START_HERE.md
-I want to [describe goal].
-Please route me to the right team, ask clarifying questions, and do not write files until I confirm.
+@start-here I want to [describe goal].
+Route me to the right team, ask clarifying questions, and do not write files until I confirm.
 ```
 
