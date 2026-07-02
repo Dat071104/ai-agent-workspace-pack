@@ -37,7 +37,7 @@ drifts from it, stop and flag instead of continuing.
 
 ## Preferred Team
 
-`<analyze-team / prompting-team / tester-team / bug-fix-team / clean-code-team / repo-hygiene-team / handoff-team / unsure>`
+`<advisor-team / analyze-team / prompting-team / tester-team / bug-fix-team / clean-code-team / repo-hygiene-team / handoff-team / unsure>`
 
 ## Expected Output
 

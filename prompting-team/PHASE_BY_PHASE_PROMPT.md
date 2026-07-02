@@ -17,7 +17,7 @@ Non-goals:
 
 Initial inspection:
 1. Check git status.
-2. Read README.md, AGENTS.md, and project context files.
+2. Read the target project's own README.md (not this pack's), plus AGENTS.md and project context files.
 3. Read IMPLEMENTATION_LOG.md and PHASE_ROADMAP.md if present.
 4. Inspect only relevant files before editing.
 

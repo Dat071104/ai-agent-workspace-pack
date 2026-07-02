@@ -13,9 +13,8 @@ Most users should start with `START_HERE.md` or this README. You do not need to 
 Recommended first prompt:
 
 ```text
-@START_HERE.md
-I want to [describe goal].
-Please route me to the right team, ask clarifying questions, and do not write files until I confirm.
+@start-here I want to [describe goal].
+Route me to the right team, ask clarifying questions, and do not write files until I confirm.
 ```
 
 If you only want to chat with an agent, say that clearly:
@@ -96,15 +95,13 @@ Router-first rule: do not read every team folder. Route the request, explain why
 
 ## Recommended Startup Prompt
 
-Reference only the short entry files so the agent stays light on context. This
-README is a human guide; you do not need to attach it.
+Use the `@start-here` auto-router (see `commands/start-here.md`). It reads only
+the short entry files, so the agent stays light on context. This README is a
+human guide; you do not need to attach it.
 
 ```text
-@AGENTS.md
-@START_HERE.md
-
-I want to build a web app.
-Please route me to the right team, ask clarifying questions, classify token/risk level, and do not write files until I confirm.
+@start-here I want to build a web app.
+Route me to the right team, ask clarifying questions, classify token/risk level, and do not write files until I confirm.
 ```
 
 ## For Non-Technical Users

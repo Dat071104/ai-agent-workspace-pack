@@ -14,7 +14,7 @@ Scope:
 
 Steps:
 1. Check git status.
-2. Read README.md, AGENTS.md, project context cards, implementation logs, decision logs, and risk register if present.
+2. Read the target project's own README.md (not this pack's), plus AGENTS.md, project context cards, implementation logs, decision logs, and risk register if present.
 3. Inspect relevant code, tests, configuration, and docs.
 4. Run safe read-only commands and tests when appropriate.
 5. Report issues by severity with file/line references where possible.

@@ -12,7 +12,7 @@ Repo path:
 <repo path>
 
 Context intake:
-1. Read README.md, AGENTS.md, and available project context cards.
+1. Read the target project's own README.md (not this pack's), plus AGENTS.md and available project context cards.
 2. Read implementation logs and decision logs if present.
 3. Inspect relevant files only. Do not load unrelated folders.
 
