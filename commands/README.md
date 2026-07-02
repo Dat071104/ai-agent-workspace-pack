@@ -21,6 +21,7 @@ writing files.
 | `start-here.md` | You don't know which team to use | Auto-router |
 | `start-session.md` | Starting a new broad session | Router first |
 | `route-task.md` | Choosing the right team | Router first |
+| `advise.md` | Overview: what to improve next, priorities, ROI | `advisor-team/` |
 | `analyze.md` | Idea, architecture, roadmap, options | `analyze-team/` |
 | `prompt.md` | Create a phase, audit, harness, or handoff prompt | `prompting-team/` |
 | `test-full.md` | Full project audit | `tester-team/` |

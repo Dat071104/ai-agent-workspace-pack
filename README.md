@@ -74,6 +74,7 @@ Use `TEAM_ROUTER.md` before reading long team folders.
 
 | User intent | Recommended team | Token/risk | Writes files by default? |
 | --- | --- | --- | --- |
+| Overview: what to improve next, priorities, ROI | `advisor-team/` | Medium | No |
 | Idea, architecture, options, roadmap | `analyze-team/` | Medium | No |
 | Create prompt, harness, phase prompt | `prompting-team/` | Medium to Very Heavy | No |
 | Test, audit, QA, production readiness | `tester-team/` | Medium to Very Heavy | No |
@@ -118,6 +119,7 @@ I want to build a small app for tracking personal expenses. I am not sure what t
 
 The teams help like this:
 
+- `advisor-team/` acts like a senior mentor: what to improve first and how hard it is.
 - `analyze-team/` turns ideas into options and a plan.
 - `prompting-team/` creates strong prompts for Codex or another agent.
 - `tester-team/` checks the result like a QA/product team.
@@ -145,6 +147,7 @@ The agent should avoid jargon, explain expected results, give A/B/C choices, and
 | `.claude/` | Claude Code adapter: subagents + discoverable skills. |
 | `.codex/` | Codex adapter: subagents + fan-out limits. |
 | `core-context/` | Project memory templates. |
+| `advisor-team/` | Senior-advisor overview: prioritize improvements by value, estimate difficulty. |
 | `analyze-team/` | Clarification, options, architecture, roadmap. |
 | `prompting-team/` | Prompt and harness creation. |
 | `tester-team/` | Audit and testing only. |

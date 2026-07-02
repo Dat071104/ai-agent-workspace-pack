@@ -4,6 +4,7 @@ Use this file before loading any long team folder. Route first, then load only t
 
 | User intent | Recommended team | Token/risk | Writes files by default? | Subagent | Confirmation needed? |
 | --- | --- | --- | --- | --- | --- |
+| Overview: what to improve next, priorities, ROI | `advisor-team/` | Medium | No | — | Yes, before routing follow-up work |
 | Idea, architecture, options, roadmap | `analyze-team/` | Medium | No | — | Yes, before creating files or context cards |
 | Create prompt, harness, phase prompt | `prompting-team/` | Medium to Very Heavy | No | — | Yes, before writing prompt files or autonomous prompts |
 | Test, audit, QA, production readiness | `tester-team/` | Medium to Very Heavy | No | `tester` (read-only) | Yes, before running expensive checks |
