@@ -33,6 +33,16 @@ Use this gate before creating a large Codex, Cursor, Claude Code, Windsurf, or a
 - [ ] Clean-code work is routed to `clean-code-team/`.
 - [ ] Full audit or production readiness work is routed to `tester-team/`.
 
+## Target Agent / Harness
+
+- [ ] Target agent and harness are identified, or missing.
+- [ ] If target is DeepSeek, Gemini, Cursor, other prompt-based harness, or a
+      weaker/less-suited model, the prompt uses stricter scope.
+- [ ] The prompt names the exact context-intake order and required files to read.
+- [ ] Any extra teams are listed as an ordered sequence with stop/confirm gates.
+- [ ] Prompt-based harnesses are told to run roles sequentially, not as parallel
+      subagents.
+
 ## Optional Skills / Teams
 
 - [ ] Another team should be suggested only if useful.
@@ -43,4 +53,3 @@ Use this gate before creating a large Codex, Cursor, Claude Code, Windsurf, or a
 - [ ] User must confirm before writing prompt files.
 - [ ] User must confirm before autonomous execution.
 - [ ] User must confirm before commits, pushes, destructive actions, or broad changes.
-

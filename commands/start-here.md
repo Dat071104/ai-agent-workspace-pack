@@ -32,12 +32,17 @@ Do this:
      run sequentially in one session, not in parallel.
 4. Classify token/risk (Light / Medium / Heavy / Very Heavy) and warn if the
    work is Heavy or Very Heavy, per harness/TOKEN_RISK_MATRIX.md.
-5. Note whether a real subagent applies (tester, bug_hunter, bug_fixer,
+5. If the target harness is DeepSeek, Gemini, Cursor, other prompt-based, or a
+   weaker/less-suited model, recommend stricter scope by default: one phase,
+   one module, one bug direction, or one audit slice; name the exact context
+   files to read before work begins; and propose an ordered team chain only when
+   it improves quality.
+6. Note whether a real subagent applies (tester, bug_hunter, bug_fixer,
    repo_hygiene_reviewer) and whether parallel work would help. On prompt-based
    harnesses, say parallel is unavailable and offer sequential role-play instead.
-6. Ask the SINGLE most important clarifying question, only if one is needed.
-7. Show the expected output before starting.
-8. Wait for my confirmation before writing or modifying files.
+7. Ask the SINGLE most important clarifying question, only if one is needed.
+8. Show the expected output before starting.
+9. Wait for my confirmation before writing or modifying files.
 
 Rules:
 - Chat first, files later.

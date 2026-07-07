@@ -40,6 +40,25 @@ Check:
 8. Suggest optional teams/skills only when useful.
 9. Ask before writing prompt files.
 
+## Target-Agent Hardening
+
+When the target is DeepSeek, Gemini, Cursor, another prompt-based harness, or a
+model the user identifies as weaker or less suited to the task, default to a
+stricter prompt profile:
+
+- Narrow the scope to one phase, module, bug, or audit slice when possible.
+- Spell out the exact context-intake order: base rules, project context card,
+  implementation log, selected team `SKILL.md`, then only task-relevant files.
+- Add explicit checkpoints: report what was read before editing, stop if required
+  context is missing, and confirm before crossing scope.
+- Prefer an ordered team chain when it improves quality, for example
+  `advisor-team -> analyze-team -> prompting-team -> tester-team`.
+- On prompt-based harnesses, describe these as sequential roles in one session,
+  not parallel subagents.
+
+Use the normal prompt profile for strong/native-agent harnesses, but still keep
+scope, gates, tests, and honesty rules explicit.
+
 ## When to Use
 
 - Phase-by-phase implementation prompts.
@@ -72,4 +91,3 @@ Check:
 - Prompts must ask before destructive actions.
 - Prompts must require honest test reporting.
 - Prompts must keep public repos clean.
-

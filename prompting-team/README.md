@@ -4,6 +4,12 @@ Use `prompting-team/` to create strong execution prompts, audit prompts, handoff
 
 Prompts from this team should include goal, scope, repo path, initial inspection, context/log reading, phase gates, tests, audits, repo hygiene, implementation log updates, commit/push rules, final report format, and failure honesty.
 
+For DeepSeek, Gemini, Cursor, other prompt-based harnesses, or any model the user
+identifies as weaker or less suited, default to a stricter prompt: smaller scope,
+explicit context-read order, concrete stop/confirm gates, and optional ordered
+team chains. Do not describe those chains as parallel subagents unless the
+harness actually supports real subagents.
+
 Vietnamese note: Team nay tao prompt manh, co gate, test, hygiene va bao cao that.
 
 Files:

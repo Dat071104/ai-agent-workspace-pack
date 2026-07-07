@@ -34,7 +34,11 @@ Do this, in order, and stop for confirmation before any file write or install:
      python scripts/init_project_ops.py --target "<this repo path>"
    This creates _agent_ops/ (context card, logs, roadmap, rules). Run it ONLY if
    I confirm.
-7. Print a one-line "ready" summary and wait.
+7. If the current harness is DeepSeek, Gemini, Cursor, other prompt-based, or a
+   weaker/less-suited model, tell me you will use stricter prompts by default:
+   smaller scope, exact context-read order, explicit stop/confirm gates, and
+   sequential team roles when useful.
+8. Print a one-line "ready" summary and wait.
 
 Rules:
 - Do not modify code or configs without my confirmation.

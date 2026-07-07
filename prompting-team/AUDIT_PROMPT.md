@@ -12,12 +12,23 @@ Repo path:
 Scope:
 <full project, feature, folder, or phase>
 
+Target agent profile:
+- Target agent/harness: <Codex / Claude Code / DeepSeek / Gemini / Cursor / other>.
+- If target is DeepSeek, Gemini, Cursor, another prompt-based harness, or a
+  weaker/less-suited model: audit a smaller slice first, use explicit read lists,
+  and avoid broad conclusions without evidence.
+- If several teams would help, run them as ordered sequential roles unless the
+  harness has real subagents.
+
 Steps:
 1. Check git status.
-2. Read the target project's own README.md (not this pack's), plus AGENTS.md, project context cards, implementation logs, decision logs, and risk register if present.
-3. Inspect relevant code, tests, configuration, and docs.
-4. Run safe read-only commands and tests when appropriate.
-5. Report issues by severity with file/line references where possible.
+2. Read the target project's own AGENTS.md or always-on rules.
+3. Read project context cards, implementation logs, decision logs, and risk
+   register if present.
+4. Read only the selected team SKILL.md files needed for this audit.
+5. Inspect relevant code, tests, configuration, and docs.
+6. Run safe read-only commands and tests when appropriate.
+7. Report issues by severity with file/line references where possible.
 
 Audit areas:
 - functionality,
@@ -43,4 +54,3 @@ Final report:
 - Open questions.
 - Recommended next actions.
 ```
-

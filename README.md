@@ -315,6 +315,12 @@ The four roles are: `tester` and `repo_hygiene_reviewer` (read-only),
 confirmed fix). On Codex/Claude they run in parallel after a token warning; on
 prompt-based tools they run one after another in the same chat.
 
+For DeepSeek, Gemini, Cursor, other prompt-based harnesses, or a model you know
+is weaker or less suited to the task, use the stricter prompt profile from
+`prompting-team/`: smaller scope, explicit context-read order, concrete
+stop/confirm gates, and ordered team chains when useful. This costs more prompt
+text and more checkpoints, but reduces missed context and scope drift.
+
 ### New repo, any harness
 
 Run `BOOTSTRAP.md` once: paste its prompt into your agent. It detects the harness,
@@ -353,7 +359,9 @@ one bug_fixer apply the confirmed fix after I approve.
 @AGENTS.md
 @tester-team/SKILL.md
 Audit the auth module. Report findings by severity. Do not edit files.
-Play the tester and repo_hygiene_reviewer roles sequentially (no parallelism here).
+Use stricter scope: read AGENTS.md, project context card, implementation log,
+then only auth-related source/tests/config. Play tester and repo_hygiene_reviewer
+roles sequentially (no parallelism here). Stop before expanding scope.
 ```
 
 **Gemini (Antigravity)** — same pattern; `AGENTS.md` as base, `@`-reference the team:
@@ -361,7 +369,8 @@ Play the tester and repo_hygiene_reviewer roles sequentially (no parallelism her
 @AGENTS.md
 @bug-fix-team/SKILL.md
 Verify this bug first, give me 2-3 fix directions with trade-offs, recommend one.
-Do not edit until I confirm.
+Use stricter scope: read AGENTS.md, project context card, implementation log, and
+only the files needed to reproduce the bug. Do not edit until I confirm.
 ```
 
 **Cursor / Windsurf / other** — set `AGENTS.md` as the always-on rules if
@@ -425,4 +434,3 @@ v1.1 improves the user and agent experience without adding many folders. It adds
 - Done: Codex/Claude Code adapter files and real subagents (`.codex/`, `.claude/`).
 - Add optional packaging or plugin/marketplace distribution if real use justifies it.
 - Add prompt quality benchmarks and examples.
-
