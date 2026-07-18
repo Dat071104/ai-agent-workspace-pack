@@ -7,11 +7,13 @@ Before using a generated prompt, verify:
 - [ ] Repo path placeholder is present.
 - [ ] Initial inspection is included.
 - [ ] Context/log reading is included.
+- [ ] Managed-session hot context and the root-owned closure gate are included.
 - [ ] Target agent/harness is identified.
-- [ ] DeepSeek/Gemini/Cursor/other prompt-based or weaker-target prompts use tighter scope.
+- [ ] Native child-agent capability is detected; weaker or non-native targets use tighter scope.
 - [ ] The prompt says exactly which context files to read and in what order.
 - [ ] Extra teams, if useful, are ordered with explicit stop/confirm gates.
-- [ ] Prompt-based harness roles are sequential, not claimed as parallel subagents.
+- [ ] Non-native harness roles are sequential, not claimed as parallel subagents.
+- [ ] Subagents have bounded context capsules; root owns git, synthesis, and `_agent_ops/`.
 - [ ] Phase gates or acceptance checks are included.
 - [ ] Test requirements are included.
 - [ ] Audit or review step is included when needed.

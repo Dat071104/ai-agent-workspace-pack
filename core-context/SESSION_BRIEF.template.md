@@ -1,6 +1,8 @@
 # Session Brief / Tom tat phien lam viec
 
-Use this compact file at the start of an AI-agent session when you want to reduce token load. It should point the agent to only the first files it needs.
+Use this compact file as the hot context at the start of every managed
+AI-agent session. Keep it short (normally one or two pages). It points the
+agent to only the first files it needs; do not duplicate full logs here.
 
 ## Original Goal (do not lose)
 
@@ -17,6 +19,14 @@ drifts from it, stop and flag instead of continuing.
 
 `<current project state or milestone>`
 
+## Session Receipt
+
+- Managed session: `yes / no`
+- Harness and native child-agent capability: `<known / unknown / unavailable>`
+- Context read at session start: `<paths>`
+- Important context missing: `<none or paths/questions>`
+- Current work mode: `<solo / auto / parallel / sequential>`
+
 ## Active Task
 
 `<what this session should do>`
@@ -25,11 +35,15 @@ drifts from it, stop and flag instead of continuing.
 
 - `<time, budget, stack, safety, platform, or scope constraint>`
 
+## Non-Goals / Do Not Infer
+
+- `<work that is explicitly out of scope or requires user confirmation>`
+
 ## Files Allowed to Read First
 
-- `README.md`
 - `AGENTS.md`
-- `<specific context/log/team files>`
+- `_agent_ops/OPERATING_RULES.md`
+- `<specific context/log/team files only when needed>`
 
 ## Files Not to Edit Without Confirmation
 
@@ -50,4 +64,3 @@ drifts from it, stop and flag instead of continuing.
 ## Last Updated
 
 `YYYY-MM-DD`
-

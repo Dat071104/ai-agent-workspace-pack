@@ -8,6 +8,7 @@ Vietnamese note: Thu muc nay dung de tao bo nho du an: context, log, quyet dinh,
 
 - `PROJECT_CONTEXT_CARD.md`
 - `SESSION_BRIEF.md`
+- `SESSION_PROTOCOL.md`
 - `IMPLEMENTATION_LOG.md`
 - `DECISION_LOG.md`
 - `RISK_REGISTER.md`
@@ -29,6 +30,14 @@ Vietnamese note: Thu muc nay dung de tao bo nho du an: context, log, quyet dinh,
 
 This reduces token load and helps the agent avoid reading every folder.
 
+## Managed Session Protocol
+
+`SESSION_PROTOCOL.template.md` defines the lifecycle for a managed session:
+minimal first reads, advisor-style Session Receipt, mode selection, subagent
+ownership, and the closure gate for factual context updates. The root agent
+owns `_agent_ops/`; subagents never update it. Read it when initializing a
+target project or changing session behavior, not on every ordinary task.
+
 ## Rules
 
 - Keep logs append-only.
@@ -36,4 +45,3 @@ This reduces token load and helps the agent avoid reading every folder.
 - Do not include secrets or private data.
 - Update context before handoff.
 - Never stage files with `git add .`; stage explicit files only.
-

@@ -16,25 +16,26 @@ Do this, in order, and stop for confirmation before any file write or install:
    Vietnamese; keep repo files in English.
 3. Load the base rules from AGENTS.md. Summarize them back to me in 3-5 lines
    (chat-first, never git add ., token/risk warnings, ask before file writes).
-4. Tell me how routing works: I can type "@start-here <one line>" for auto-
-   routing, or name a team from TEAM_ROUTER.md.
-5. Report harness wiring. IMPORTANT: you cannot create a real subagent for a
-   harness that has no native subagent format. Do not generate fake subagent
-   files. Only report what the current harness actually supports:
+4. Tell me how one managed session works: I can type "@start-here <one line>"
+   once to initialize/refresh only `_agent_ops/`, receive a Session Receipt,
+   and route the task. Later requests continue from the Session Brief; source
+   and git changes still need confirmation. `--no-ops` is chat-only routing.
+5. Report harness wiring. IMPORTANT: capability-detect real child agents from
+   the current harness. Do not infer support from a model name, generate fake
+   subagent files, or claim parallel work that was not actually spawned:
    - Codex: reads AGENTS.md automatically; real subagents in .codex/agents/,
      limits in .codex/config.toml. Parallel work available.
    - Claude Code: real subagents in .claude/agents/, discoverable skills in
      .claude/skills/. Parallel work available.
-   - DeepSeek (deepcode) / Gemini (Antigravity) / Cursor / other: prompt-based.
-     Use AGENTS.md as base rules + @-references to team folders. No native
-     parallel subagents. The four roles (tester, bug_hunter, bug_fixer,
-     repo_hygiene_reviewer) can be played SEQUENTIALLY in one session by
-     following the same team SKILL.md, but not spawned in parallel.
-6. Offer to initialize project memory:
+   - Any other harness: use AGENTS.md as base rules plus @-references to team
+     folders. If real child-agent spawning is unavailable, run useful roles
+     sequentially in one session and say so plainly.
+6. Explain that the first managed `@start-here` will ensure `_agent_ops/`
+   without overwriting files. Do not initialize it during Bootstrap unless I
+   explicitly ask; the manual command remains available:
      python scripts/init_project_ops.py --target "<this repo path>"
-   This creates _agent_ops/ (context card, logs, roadmap, rules). Run it ONLY if
-   I confirm.
-7. If the current harness is DeepSeek, Gemini, Cursor, other prompt-based, or a
+7. If native spawning is unavailable, or the model is weaker/less suited to the
+   task, tell me you will use stricter prompts by default:
    weaker/less-suited model, tell me you will use stricter prompts by default:
    smaller scope, exact context-read order, explicit stop/confirm gates, and
    sequential team roles when useful.

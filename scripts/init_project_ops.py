@@ -10,6 +10,7 @@ from pathlib import Path
 
 TEMPLATE_MAP = {
     "PROJECT_CONTEXT_CARD.template.md": "PROJECT_CONTEXT_CARD.md",
+    "SESSION_PROTOCOL.template.md": "SESSION_PROTOCOL.md",
     "SESSION_BRIEF.template.md": "SESSION_BRIEF.md",
     "IMPLEMENTATION_LOG.template.md": "IMPLEMENTATION_LOG.md",
     "DECISION_LOG.template.md": "DECISION_LOG.md",

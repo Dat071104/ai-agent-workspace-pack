@@ -26,12 +26,14 @@ Check:
 - git safety,
 - token/risk level,
 - whether another team should be used first,
-- whether user confirmation is needed before autonomous work.
+- whether user confirmation is needed before autonomous work,
+- the session receipt, closure gate, and whether native child agents are truly
+  available for the requested work mode.
 
 ## Workflow
 
 1. Read only relevant context and logs.
-2. Identify target agent and mode.
+2. Identify target agent, managed-session state, and work mode.
 3. Classify token/risk level.
 4. Run the prompt readiness gate for large prompts.
 5. Define goal, scope, non-goals, repo path, constraints, and expected output.
@@ -53,8 +55,9 @@ stricter prompt profile:
   context is missing, and confirm before crossing scope.
 - Prefer an ordered team chain when it improves quality, for example
   `advisor-team -> analyze-team -> prompting-team -> tester-team`.
-- On prompt-based harnesses, describe these as sequential roles in one session,
-  not parallel subagents.
+- Capability-detect real child agents from the current harness rather than
+  inferring capability from a model name. When native spawning is unavailable,
+  describe these as sequential roles in one session, not parallel subagents.
 
 Use the normal prompt profile for strong/native-agent harnesses, but still keep
 scope, gates, tests, and honesty rules explicit.

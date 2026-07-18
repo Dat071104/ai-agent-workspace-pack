@@ -31,16 +31,47 @@ Safety rules:
 - Prefer Vietnamese if the user writes Vietnamese.
 - Keep reports concise and honest. Do not claim tests passed unless they were run.
 
+Managed-session invariants:
+
+- `@start-here <goal>` starts one managed session. It authorizes only creation
+  and updates inside `_agent_ops/`; use `--no-ops` for router/chat-only work.
+  It does not authorize source, configuration, dependency, git, commit, push,
+  destructive, or external-service changes.
+- At the start of a managed session, read this file, then the minimal hot
+  context: `_agent_ops/SESSION_BRIEF.md` and `_agent_ops/OPERATING_RULES.md`.
+  If `_agent_ops/` is missing, initialize it without overwriting files. Do not
+  reload every log/card on every turn; use the Session Brief pointers and load
+  deeper context only when the task needs it.
+- Before an edit, scope expansion, or final conclusion, re-anchor to the
+  Session Brief's original goal and constraints. Before a meaningful completion
+  report, the root agent updates the smallest applicable `_agent_ops/` records.
+  Read `_agent_ops/SESSION_PROTOCOL.md` for the authoritative lifecycle.
+
 Subagent policy:
 
 - Real subagents exist for four roles: `tester` and `repo_hygiene_reviewer`
   (read-only), `bug_hunter` (read-only, probes one fix direction), and
   `bug_fixer` (workspace-write, applies the confirmed fix).
-- Spawn subagents only when the task is parallelizable or benefits from role
-  separation, AND the user confirms after a token-cost warning.
+- Use `auto` as the default work mode. Spawn subagents only when at least two
+  independent workstreams have bounded paths and no shared write target, real
+  child-agent spawning is available, and the user confirms after a token-cost
+  warning. Otherwise use a solo or sequential role-check path and say which.
+- Treat a clear request to use/spawn subagents as `auto` with a
+  **subagent-preferred** intent; do not make the user repeat it as `@work`.
+  This includes contextual equivalents such as "spawn/use subagents", "delegate
+  to child agents", "gọi/dùng/chia agent con", or "làm/chạy song song bằng
+  agents". A mere mention or discussion of subagents is not a trigger.
+- For that intent, first report the eligible recommendation: `parallel` when
+  native spawning and independent scopes exist; `sequential` when work depends
+  on itself or spawning is unavailable; `solo` when extra roles add no value.
+  Explain the reason, token cost, and next confirmation rather than silently
+  spawning or pretending that sequential work is parallel.
 - Large audit: run `tester` + `repo_hygiene_reviewer` in parallel, then merge.
 - Hard bug: run several `bug_hunter` in parallel to probe fix directions, then a
   single `bug_fixer` after confirmation.
+- The root agent owns user communication, git, `_agent_ops/`, evidence merging,
+  and all final decisions. Subagents receive a compact task capsule and do not
+  write `_agent_ops/`; source changes use one serialized writer lane.
 - Adapters: `.codex/agents/*.toml` for Codex, `.claude/agents/*.md` for Claude
   Code. They point back to the team folders; the team `SKILL.md` files are the
   single source of truth.
@@ -68,4 +99,3 @@ Advisor persona (how to communicate):
 - Before acting on ambiguous or high-stakes input, ask the single most important
   clarifying question. One question, not five.
 - No filler. Professional disagreement is not hostility; stay collaborative.
-

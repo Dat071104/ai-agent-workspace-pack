@@ -6,6 +6,11 @@ You do not need to read every folder in this pack. Start with this file and `AGE
 If the user attaches or pastes a long prompt/document, treat it as the task specification unless the user explicitly says it is only reference material.
 If the task is still ambiguous, ask one concise clarification question.
 
+`@start-here` begins one managed session by default: it creates or refreshes
+only `_agent_ops/` session memory, then keeps using that compact state for the
+rest of the session. It does not authorize source or git changes. Add
+`--no-ops` when you want chat-only routing with no `_agent_ops/` write.
+
 ## Fastest Entry: `@start-here`
 
 If you do not know which team to use, type `@start-here` plus one line about your
@@ -26,6 +31,11 @@ as you can act:
 - Tier 2: only the specific templates/prompts that `SKILL.md` references.
 - Tier 3: only the target project files needed for the task.
 
+For a managed session, Tier 0 also includes the target repository's
+`_agent_ops/SESSION_BRIEF.md` and `_agent_ops/OPERATING_RULES.md`. These are the
+hot context. Load project cards, logs, phase cards, decisions, and risks only
+when the active task requires them.
+
 Do not read every team folder, and do not pull in `README.md` to route.
 
 ## How This Should Work
@@ -35,7 +45,9 @@ Do not read every team folder, and do not pull in `README.md` to route.
 3. The agent uses `TEAM_ROUTER.md` to recommend a team.
 4. The agent tells you the token/risk level.
 5. The agent shows the expected output.
-6. The agent asks for confirmation before writing files.
+6. The agent asks for confirmation before writing source, configuration, git,
+   external, or destructive changes. `@start-here` already permits
+   `_agent_ops/` updates.
 
 ## If You Are Non-Technical
 
@@ -73,6 +85,6 @@ Vietnamese note: Ban co the mo ta y tuong bang ngon ngu binh thuong. Agent phai 
 
 ```text
 @start-here I want to [describe goal].
-Route me to the right team, ask clarifying questions, and do not write files until I confirm.
+Start one managed session, route me to the right team, explain missing context,
+recommend a work mode, and do not change source or git until I confirm.
 ```
-

@@ -14,7 +14,8 @@ Recommended first prompt:
 
 ```text
 @start-here I want to [describe goal].
-Route me to the right team, ask clarifying questions, and do not write files until I confirm.
+Start one managed session, route me to the right team, explain missing context,
+recommend a work mode, and do not change source or git until I confirm.
 ```
 
 If you only want to chat with an agent, say that clearly:
@@ -91,7 +92,8 @@ Router-first rule: do not read every team folder. Route the request, explain why
 3. Ask the agent to route the task.
 4. Confirm the recommended team.
 5. Let the agent produce a chat report first.
-6. Approve file writes only when you are ready.
+6. Approve source/config/git writes only when you are ready. Managed session
+   memory is the narrow exception created by `@start-here`.
 
 ## Recommended Startup Prompt
 
@@ -171,7 +173,10 @@ Optional custom folder:
 python scripts/init_project_ops.py --target "D:\MyProject" --ops-folder "_project_memory"
 ```
 
-This creates project memory files such as `PROJECT_CONTEXT_CARD.md`, `IMPLEMENTATION_LOG.md`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, and `OPERATING_RULES.md`.
+This creates project memory files such as `SESSION_PROTOCOL.md`,
+`SESSION_BRIEF.md`, `PROJECT_CONTEXT_CARD.md`, `IMPLEMENTATION_LOG.md`,
+`DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, and
+`OPERATING_RULES.md`.
 
 Existing files are not overwritten unless `--force` is passed.
 
@@ -221,6 +226,49 @@ This task may benefit from tester-team after Phase 2 because integration risk is
 | Safe mode | Read and report only. No file changes. |
 | Confirm-to-act mode | Inspect and propose, then ask before file changes. |
 | Autonomous mode | Edit/test/commit only after explicit user confirmation. |
+
+## Managed Sessions and Work Modes
+
+`@start-here` is both the one-time entry point for a session and a narrow
+memory-management permission: it may create/update `_agent_ops/`, but never
+source, configuration, dependencies, git, commits, pushes, destructive actions,
+or external services. Use `@start-here --no-ops <goal>` for chat-only routing.
+After that first command, speak naturally; the agent should use the compact
+`SESSION_BRIEF.md` rather than require another `@start-here` or reload every log.
+
+The root agent remains an advisor. It reports what it understood, context that
+is missing, options and trade-offs, and asks one focused question when the
+answer materially changes the work. It recommends, but never silently assumes,
+a work mode:
+
+| Work mode | Best for | Trade-off |
+| --- | --- | --- |
+| `solo` | Small, contained work | Lowest token cost; less independent coverage. |
+| `auto` | Default | Root chooses after minimal inspection. |
+| `parallel` | Two or more independent, bounded read-only workstreams with real native child agents | Faster wall-clock time; higher token cost; root still serializes writes. |
+| `sequential` | Dependent work or a harness without real spawning | More coverage than a single pass; no false speed claim. |
+
+Use an explicit override only when useful:
+
+```text
+@work auto Audit auth and release hygiene.
+@work parallel Investigate three independent root-cause hypotheses.
+@work sequential Review the design, then create the smallest test plan.
+```
+
+You do not need to know or type `@work`: a clear natural-language request such
+as “spawn subagents to audit this”, “delegate this to child agents”, “gọi agent
+con kiểm tra giúp”, or “làm song song bằng agents” is treated as
+`auto --prefer-subagents`. The root then leads with one recommendation:
+`parallel` when the scopes are independent and native spawning exists;
+`sequential` when they depend on each other or spawning is unavailable; otherwise
+`solo`. Mentioning subagents only to discuss them does not trigger this behavior.
+
+`parallel` is an eligibility request, not an unconditional command: the root
+must confirm native capability, independent scopes, token cost, and ownership
+first. Subagents get compact context capsules, never write `_agent_ops/`, and
+do not compete to edit the same workspace. Root Codex owns user communication,
+git, evidence merge, context updates, and the final recommendation.
 
 ## Git Safety Rules
 
@@ -276,7 +324,10 @@ relevant and absent when not.
 
 ## Use with Codex
 
-Place `AGENTS.md` at the repository root. In a new session, reference `START_HERE.md` and ask Codex to route the request before loading team folders. For long projects, initialize `_agent_ops/` and keep context cards current.
+Place `AGENTS.md` at the repository root. In a new session, use
+`@start-here <goal>` once; Codex reads the always-on rules, opens minimal
+`_agent_ops/` hot context, and routes before loading team folders. Codex is the
+root orchestrator for all work modes and owns final advice, git, and context.
 
 ## Use with Cursor, Claude Code, or Windsurf
 
@@ -293,12 +344,12 @@ thin adapter (or just `@`-references) that points back to the team folders.
 
 ### What "subagent" means here (read this first)
 
-A **real subagent** is a separate process the harness spawns and can run in
-**parallel**. This is a harness feature, not a prompt trick. Only **Codex** and
-**Claude Code** have a native subagent format in this pack. For every other tool,
-"subagent" is only a **role played sequentially** by one agent in one session —
-same SKILL, no parallelism. No prompt (including `@start-here`) can generate a
-real subagent for a tool that lacks the native format.
+A **real subagent** is a separate process the current harness actually spawns
+and can run in **parallel**. This is a capability, not a prompt trick and not a
+property to infer solely from a model/product name. Codex is the first-class
+native path in this pack; Claude Code has adapters too. Other harnesses must be
+capability-detected at runtime. If native spawning is absent, use sequential
+role-play in one session and say so plainly.
 
 ### Capability matrix
 
@@ -306,29 +357,26 @@ real subagent for a tool that lacks the native format.
 | --- | --- | --- | --- | --- |
 | **Codex** | `AGENTS.md` (auto) | `@bug-fix-team/SKILL.md` or a `.codex` subagent | Yes (`.codex/agents/*.toml`, capped by `.codex/config.toml`) | Automatic |
 | **Claude Code** | `AGENTS.md` | Skill is discoverable, or spawn a `.claude` subagent | Yes (`.claude/agents/*.md`) | `.claude/skills/` |
-| **DeepSeek (deepcode CLI)** | `AGENTS.md` | `@tester-team/SKILL.md` (paste reference) | No — sequential role-play only | Manual `@`-reference |
-| **Gemini (Antigravity)** | `AGENTS.md` | `@tester-team/SKILL.md` (paste reference) | No — sequential role-play only | Manual `@`-reference |
-| **Cursor / Windsurf / other** | `AGENTS.md` | `@<team>/SKILL.md` (paste reference) | No — sequential role-play only | Manual `@`-reference |
+| **DeepSeek / Gemini / Cursor / Windsurf / other** | `AGENTS.md` | `@<team>/SKILL.md` (paste reference) | Capability-detect; sequential role-play when unavailable | Manual `@`-reference |
 
 The four roles are: `tester` and `repo_hygiene_reviewer` (read-only),
 `bug_hunter` (read-only, probes one fix direction), `bug_fixer` (write, applies a
 confirmed fix). On Codex/Claude they run in parallel after a token warning; on
 prompt-based tools they run one after another in the same chat.
 
-For DeepSeek, Gemini, Cursor, other prompt-based harnesses, or a model you know
-is weaker or less suited to the task, use the stricter prompt profile from
+For a harness without verified native spawning, or a model you know is weaker
+or less suited to the task, use the stricter prompt profile from
 `prompting-team/`: smaller scope, explicit context-read order, concrete
 stop/confirm gates, and ordered team chains when useful. This costs more prompt
 text and more checkpoints, but reduces missed context and scope drift.
 
 ### New repo, any harness
 
-Run `BOOTSTRAP.md` once: paste its prompt into your agent. It detects the harness,
-summarizes the rules, tells you exactly how to invoke teams there, and offers to
-initialize `_agent_ops/`. It will **not** fabricate subagent files for a tool that
-has no native format. Then, when unsure which team to use, type
-`@start-here <one line>` and the agent routes you and suggests the exact
-`@reference` for your harness.
+Run `BOOTSTRAP.md` once when installing the pack in a target repo. It detects the
+harness, summarizes the rules, and reports what it can actually spawn. Then use
+`@start-here <one line>` once per session; it initializes/refreshes the minimal
+`_agent_ops/` memory and routes you. It will not fabricate child agents when
+the harness cannot create them.
 
 ### Copy-paste per harness
 
@@ -354,17 +402,17 @@ Use the bug_hunter subagents to probe each fix direction in parallel, then have
 one bug_fixer apply the confirmed fix after I approve.
 ```
 
-**DeepSeek (deepcode CLI)** — no native subagents. Load base rules, then reference the team:
+**DeepSeek (deepcode CLI)** — capability-detect child agents first. If unavailable, load base rules and use sequential roles:
 ```text
 @AGENTS.md
 @tester-team/SKILL.md
 Audit the auth module. Report findings by severity. Do not edit files.
 Use stricter scope: read AGENTS.md, project context card, implementation log,
 then only auth-related source/tests/config. Play tester and repo_hygiene_reviewer
-roles sequentially (no parallelism here). Stop before expanding scope.
+roles sequentially if native spawning is unavailable. Stop before expanding scope.
 ```
 
-**Gemini (Antigravity)** — same pattern; `AGENTS.md` as base, `@`-reference the team:
+**Gemini (Antigravity)** — capability-detect first; otherwise use the same sequential pattern:
 ```text
 @AGENTS.md
 @bug-fix-team/SKILL.md

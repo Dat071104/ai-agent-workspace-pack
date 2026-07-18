@@ -8,6 +8,8 @@ Use this gate before creating a large Codex, Cursor, Claude Code, Windsurf, or a
 - [ ] Target repo path is known.
 - [ ] Project context card is available, or missing context is listed.
 - [ ] Implementation log is available, or missing history is listed.
+- [ ] Managed-session state is known: `_agent_ops/SESSION_BRIEF.md` and
+      `_agent_ops/OPERATING_RULES.md` were read, or their absence is stated.
 - [ ] Relevant phase/part scope is defined.
 - [ ] Non-goals are defined.
 
@@ -24,6 +26,8 @@ Use this gate before creating a large Codex, Cursor, Claude Code, Windsurf, or a
 - [ ] Audit gates are included when needed.
 - [ ] Repo hygiene checks are included.
 - [ ] Implementation log update is included.
+- [ ] The prompt names the root-owned closure gate and updates only the smallest
+      applicable `_agent_ops/` records.
 - [ ] Git safety is included, including never use `git add .`.
 
 ## Token and Risk
@@ -36,12 +40,21 @@ Use this gate before creating a large Codex, Cursor, Claude Code, Windsurf, or a
 ## Target Agent / Harness
 
 - [ ] Target agent and harness are identified, or missing.
+- [ ] The prompt recommends `solo`, `auto`, `parallel`, or `sequential` and
+      explains its cost/risk when relevant.
+- [ ] Native child-agent availability is capability-detected, not assumed from
+      a model name.
+- [ ] A clear user request to spawn/use subagents is treated as a
+      subagent-preferred `auto` request, then led to the eligible mode rather
+      than blindly fanned out.
 - [ ] If target is DeepSeek, Gemini, Cursor, other prompt-based harness, or a
       weaker/less-suited model, the prompt uses stricter scope.
 - [ ] The prompt names the exact context-intake order and required files to read.
 - [ ] Any extra teams are listed as an ordered sequence with stop/confirm gates.
-- [ ] Prompt-based harnesses are told to run roles sequentially, not as parallel
-      subagents.
+- [ ] If native spawning is unavailable, roles run sequentially and the prompt
+      does not claim parallel subagents.
+- [ ] Subagents receive bounded context capsules; root owns git, synthesis, and
+      `_agent_ops/` updates; source writes are serialized.
 
 ## Optional Skills / Teams
 

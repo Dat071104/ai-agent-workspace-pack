@@ -20,6 +20,7 @@ writing files.
 | --- | --- | --- |
 | `start-here.md` | You don't know which team to use | Auto-router |
 | `start-session.md` | Starting a new broad session | Router first |
+| `work.md` | Continue a managed session with an optional work-mode override | Root orchestrator |
 | `route-task.md` | Choosing the right team | Router first |
 | `advise.md` | Overview: what to improve next, priorities, ROI | `advisor-team/` |
 | `analyze.md` | Idea, architecture, roadmap, options | `analyze-team/` |
@@ -38,4 +39,3 @@ writing files.
 - Never use `git add .`.
 - Warn before Heavy or Very Heavy work.
 - Ask before file writes, commits, pushes, destructive actions, or broad changes.
-
