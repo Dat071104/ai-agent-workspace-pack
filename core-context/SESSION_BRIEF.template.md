@@ -43,7 +43,11 @@ drifts from it, stop and flag instead of continuing.
 
 - `AGENTS.md`
 - `_agent_ops/OPERATING_RULES.md`
+- `_agent_ops/CURRENT_TASK.md` (when a task is already in progress)
+- `_agent_ops/REPO_MAP.md` (before grepping the repository for code)
 - `<specific context/log/team files only when needed>`
+
+See `_agent_ops/INDEX.md` for the full read order and cost of each file.
 
 ## Files Not to Edit Without Confirmation
 
@@ -60,6 +64,14 @@ drifts from it, stop and flag instead of continuing.
 ## Risk / Token Level
 
 `Light / Medium / Heavy / Very Heavy`
+
+## Last Verified Commit
+
+`<short SHA of HEAD when this brief was last confirmed against the code>`
+
+Update this whenever the brief is refreshed. `scripts/session_start.py` diffs it
+against HEAD to report exactly what changed since this memory was written, so a
+stale value is what stops the agent from acting on an outdated mental model.
 
 ## Last Updated
 

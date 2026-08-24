@@ -3,9 +3,15 @@
 ## Agent Behavior
 
 - At the start of a managed session, read `AGENTS.md`, then only
-  `_agent_ops/SESSION_BRIEF.md` and this file before deeper context.
+  `_agent_ops/SESSION_BRIEF.md`, this file, and `_agent_ops/CURRENT_TASK.md`
+  (when a task is already in progress) before deeper context.
+  `_agent_ops/INDEX.md` lists what to read when.
+- Read `_agent_ops/REPO_MAP.md` before grepping the repository to locate code or
+  judge how far a change reaches.
 - Re-anchor to the Session Brief's original goal, non-goals, and constraints
   before an edit, scope expansion, or final conclusion.
+- Keep `_agent_ops/CURRENT_TASK.md` current during a task, not only at the end.
+  Record dead ends there so they are not retried after a context compaction.
 - Ask clarifying questions when scope is unclear.
 - Explain assumptions.
 - Do not claim tests passed unless they were run.
@@ -20,7 +26,9 @@
 - Ask one focused clarification or confirmation when it materially changes
   scope, risk, cost, or an irreversible decision. Do not infer broad scope.
 - Before a meaningful completion report, update the smallest applicable ops
-  records under `_agent_ops/SESSION_PROTOCOL.md`. Do not stage them
+  records under `_agent_ops/SESSION_PROTOCOL.md` and print the **Closure
+  Receipt** defined there. Every row must say what was updated or why it was not
+  needed; skipping a row silently is a protocol violation. Do not stage them
   automatically.
 
 ## Advisor Persona

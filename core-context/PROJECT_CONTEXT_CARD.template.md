@@ -26,6 +26,10 @@ Vietnamese: `<du an lam gi va phuc vu ai>`
 
 `<main modules, services, data flow, boundaries>`
 
+See `_agent_ops/REPO_MAP.md` for the generated module table, hot files, and
+entry points. Describe here only what a scanner cannot infer: intent,
+boundaries, and the reasons behind the structure.
+
 ## Business Rules & Acceptance Criteria
 
 `<the domain rules the code must satisfy, and how to tell "correct" from "compiles">`
@@ -67,6 +71,10 @@ avoid code that is syntactically right but semantically wrong.
 ## Do Not Do
 
 - `<actions the agent must avoid>`
+
+## Last Verified Commit
+
+`<short SHA of HEAD when these facts were last confirmed against the code>`
 
 ## Last Updated
 

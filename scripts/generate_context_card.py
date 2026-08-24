@@ -67,6 +67,17 @@ def render_card(args: argparse.Namespace, root: Path) -> str:
 
 <fill in main modules, services, data flow, and boundaries>
 
+See `_agent_ops/REPO_MAP.md` for the generated module and blast-radius view.
+
+## Business Rules & Acceptance Criteria
+
+<fill in the domain rules the code must satisfy, and how to tell "correct" from "compiles">
+
+- Rule: <business rule> -> Accept when: <observable acceptance criterion>
+
+Note: if this section is empty, the agent must ask before implementing logic, to
+avoid code that is syntactically right but semantically wrong.
+
 ## Key Decisions
 
 - <fill in decision and reason>
@@ -100,6 +111,10 @@ def render_card(args: argparse.Namespace, root: Path) -> str:
 
 - Do not commit secrets, private data, generated artifacts, or local logs.
 - Never use git add .
+
+## Last Verified Commit
+
+{commit}
 
 ## Last Updated
 

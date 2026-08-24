@@ -57,6 +57,27 @@ ARTIFACT_FILE_PATTERNS = [
 ]
 SKIP_SCAN_DIRS = {".git"}
 
+# Hybrid _agent_ops/ policy: durable project memory is tracked so it survives a
+# clone; session-scoped working memory stays local. See core-context/README.md.
+OPS_SESSION_SCOPED = {
+    "SESSION_BRIEF.md",
+    "CURRENT_TASK.md",
+    "LOG_SUMMARY.md",
+    "code_index.json",
+}
+OPS_SESSION_SCOPED_DIRS: set[str] = set()
+OPS_DURABLE = {
+    "INDEX.md",
+    "OPERATING_RULES.md",
+    "SESSION_PROTOCOL.md",
+    "PROJECT_CONTEXT_CARD.md",
+    "REPO_MAP.md",
+    "IMPLEMENTATION_LOG.md",
+    "DECISION_LOG.md",
+    "RISK_REGISTER.md",
+    "PHASE_ROADMAP.md",
+}
+
 
 def run_git(root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -91,6 +112,35 @@ def matches_forbidden(path: str) -> list[str]:
     return matches
 
 
+def ops_policy_violations(tracked: list[str], ops_folder: str) -> list[tuple[str, str]]:
+    """Session-scoped ops files that are tracked when they should stay local."""
+    prefix = f"{ops_folder}/"
+    violations: list[tuple[str, str]] = []
+    for path in tracked:
+        if not path.startswith(prefix):
+            continue
+        remainder = path[len(prefix) :]
+        head = remainder.split("/", 1)[0]
+        if remainder in OPS_SESSION_SCOPED:
+            violations.append((path, "session-scoped working memory"))
+        elif head in OPS_SESSION_SCOPED_DIRS:
+            violations.append((path, f"session-scoped folder {head}/"))
+    return violations
+
+
+def ops_untracked_durable(root: Path, tracked: list[str], ops_folder: str) -> list[str]:
+    """Durable memory that exists on disk but is not tracked, so a clone loses it."""
+    ops_dir = root / ops_folder
+    if not ops_dir.is_dir():
+        return []
+    tracked_set = set(tracked)
+    return [
+        f"{ops_folder}/{name}"
+        for name in sorted(OPS_DURABLE)
+        if (ops_dir / name).is_file() and f"{ops_folder}/{name}" not in tracked_set
+    ]
+
+
 def filesystem_artifacts(root: Path) -> list[tuple[str, str]]:
     findings: list[tuple[str, str]] = []
     for path in root.rglob("*"):
@@ -116,6 +166,11 @@ def main() -> int:
         action="store_true",
         help="Report filesystem artifacts without failing the command.",
     )
+    parser.add_argument(
+        "--ops-folder",
+        default="_agent_ops",
+        help="Agent ops folder to check against the hybrid tracking policy.",
+    )
     args = parser.parse_args()
 
     root = Path(args.root).expanduser().resolve()
@@ -124,6 +179,8 @@ def main() -> int:
 
     print(f"Root: {root}")
     failures: list[tuple[str, list[str]]] = []
+    ops_violations: list[tuple[str, str]] = []
+    ops_untracked: list[str] = []
     git_repo = is_git_repo(root)
     if not git_repo:
         print("WARN: Not a git repository. Tracked-file hygiene check skipped.")
@@ -133,6 +190,8 @@ def main() -> int:
             patterns = matches_forbidden(file_name)
             if patterns:
                 failures.append((file_name, patterns))
+        ops_violations = ops_policy_violations(files, args.ops_folder)
+        ops_untracked = ops_untracked_durable(root, files, args.ops_folder)
         print(f"Tracked files checked: {len(files)}")
 
     if failures:
@@ -144,6 +203,21 @@ def main() -> int:
     else:
         print("INFO: No tracked-file result because there is no git index.")
 
+    if git_repo and (root / args.ops_folder).is_dir():
+        if ops_violations:
+            print(f"FAIL: Session-scoped {args.ops_folder}/ files are tracked:")
+            for file_name, reason in ops_violations:
+                print(f"- {file_name} is {reason}; it should stay local")
+            print(
+                f"  Fix: git rm --cached <file>, and confirm {args.ops_folder}/.gitignore exists."
+            )
+        else:
+            print(f"PASS: No session-scoped {args.ops_folder}/ files are tracked.")
+        if ops_untracked:
+            print(f"INFO: Durable {args.ops_folder}/ memory exists but is not tracked:")
+            for file_name in ops_untracked:
+                print(f"- {file_name} would be lost on a fresh clone")
+
     artifacts = filesystem_artifacts(root)
     print(f"Filesystem artifact scan findings: {len(artifacts)}")
     if artifacts:
@@ -154,7 +228,7 @@ def main() -> int:
     else:
         print("PASS: No generated/private filesystem artifacts found.")
 
-    if failures or (artifacts and not args.warn_only_artifacts):
+    if failures or ops_violations or (artifacts and not args.warn_only_artifacts):
         return 1
     return 0
 
