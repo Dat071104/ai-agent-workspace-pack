@@ -29,7 +29,7 @@ Required behavior:
 
 Initial inspection:
 1. Read the target project's own AGENTS.md or always-on rules.
-2. Read `_agent_ops/SESSION_BRIEF.md` and `_agent_ops/OPERATING_RULES.md` first.
+2. Read `_agent_ops/SESSION_BRIEF.md`, `_agent_ops/OPERATING_RULES.md`, and `_agent_ops/CURRENT_TASK.md` (if a task is in progress) first. Use `_agent_ops/REPO_MAP.md` to locate code before grepping the repo.
 3. Read only relevant project context, log evidence, roadmap, and selected team
    SKILL.md files.
 4. Inspect existing tests or harness utilities.

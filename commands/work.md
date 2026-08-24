@@ -9,9 +9,12 @@ requests also use `auto`; this command is only for an explicit mode override.
 Continue the managed session defined by AGENTS.md and
 _agent_ops/SESSION_PROTOCOL.md.
 
-1. Re-read only _agent_ops/SESSION_BRIEF.md and the active task's minimal
-   context; do not reload every log or team folder.
+1. Re-read only _agent_ops/SESSION_BRIEF.md, _agent_ops/CURRENT_TASK.md, and the
+   active task's minimal context; do not reload every log or team folder. To
+   locate code, read _agent_ops/REPO_MAP.md before grepping the repository.
 2. Restate the goal, non-goals, constraints, and the relevant missing context.
+   Check CURRENT_TASK.md's "Ruled Out / Already Tried" first and do not retry
+   anything listed there.
 3. Recommend the smallest useful mode. Treat `parallel`, or a clear natural-
    language request to spawn/use subagents, as a request to assess eligibility,
    not permission to spawn blindly. The latter enters `auto --prefer-subagents`
@@ -23,9 +26,13 @@ _agent_ops/SESSION_PROTOCOL.md.
    say so plainly.
 6. Keep the advisor behavior: ask one focused clarification/confirmation when
    it materially changes the decision; do not infer broad scope.
-7. Before a meaningful completion report, let the root update the smallest
-   required _agent_ops records under SESSION_PROTOCOL.md. Do not stage, commit,
-   or push them automatically.
+7. Keep _agent_ops/CURRENT_TASK.md current as the task proceeds: files touched,
+   approaches ruled out with evidence, open questions, next step. Overwrite it;
+   do not append.
+8. Before a meaningful completion report, let the root update the smallest
+   required _agent_ops records under SESSION_PROTOCOL.md and print the Closure
+   Receipt: one row per ops file, each resolved as updated-with-what or
+   not-needed-with-why. Do not stage, commit, or push them automatically.
 
 Never use git add . Do not claim agents were spawned unless real child agents
 were created by the current harness.

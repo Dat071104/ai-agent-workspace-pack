@@ -8,6 +8,7 @@ Use this file before loading any long team folder. Route first, then load only t
 | Idea, architecture, options, roadmap | `analyze-team/` | Medium | No | — | Yes, before creating files or context cards |
 | Create prompt, harness, phase prompt | `prompting-team/` | Medium to Very Heavy | No | — | Yes, before writing prompt files or autonomous prompts |
 | Test, audit, QA, production readiness | `tester-team/` | Medium to Very Heavy | No | `tester` (read-only) | Yes, before running expensive checks |
+| Implement a new feature, endpoint, or module | `build-team/` | Medium to Heavy | No | `tester` (read-only, to verify) | Yes, before writing code |
 | Bug report or suspected broken behavior | `bug-fix-team/` | Medium | No | `bug_hunter` (read-only), `bug_fixer` (write) | Yes, before fixing |
 | Cleanup, refactor, repo is messy | `clean-code-team/` | Very Heavy | No | — | Yes, before every cleanup batch |
 | Git safety, public repo, release check | `repo-hygiene-team/` | Light to Medium | No | `repo_hygiene_reviewer` (read-only) | Yes, before deleting/staging/committing |
@@ -18,6 +19,25 @@ Use this file before loading any long team folder. Route first, then load only t
 independent workstreams, native spawning is available, and you confirm after a
 token-cost warning. Otherwise the root recommends solo or sequential roles.
 Not sure which team? Type `@start-here <one line>`.
+
+## Before Reading Code
+
+Whatever the team, locate code through `_agent_ops/REPO_MAP.md` before grepping
+the repository. It is a generated, size-capped map of modules, routes, and the
+files and symbols with the widest blast radius. For symbol-level questions:
+
+```bash
+python scripts/explore.py --symbol <name>   # definitions, callers, callees, flow
+python scripts/explore.py --path <a> <b>  # how control reaches a symbol
+python scripts/explore.py --impact <name>   # blast radius + tests to run
+```
+
+Edges are tagged `exact` / `heuristic` / `ambiguous` / `weak`; the last two need
+confirming by reading the code.
+
+Start a managed session with `python scripts/session_start.py --root .` for git
+state, memory staleness, and unfilled placeholders. Both have manual fallbacks
+in `core-context/SESSION_PROTOCOL.template.md` when Python is unavailable.
 
 ## Router-First Rule
 

@@ -86,6 +86,8 @@ scope, gates, tests, and honesty rules explicit.
 - Full copy-paste prompt preview.
 - Optional team suggestions.
 - Confirmation question before file writes.
+- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md` when prompt files were
+  written.
 
 ## Safety Rules
 

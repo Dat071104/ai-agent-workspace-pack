@@ -37,15 +37,40 @@ Managed-session invariants:
   and updates inside `_agent_ops/`; use `--no-ops` for router/chat-only work.
   It does not authorize source, configuration, dependency, git, commit, push,
   destructive, or external-service changes.
-- At the start of a managed session, read this file, then the minimal hot
-  context: `_agent_ops/SESSION_BRIEF.md` and `_agent_ops/OPERATING_RULES.md`.
-  If `_agent_ops/` is missing, initialize it without overwriting files. Do not
-  reload every log/card on every turn; use the Session Brief pointers and load
-  deeper context only when the task needs it.
+- At the start of a managed session, read this file, then run the read-only
+  `python scripts/session_start.py --root .` for session continuity, git state,
+  memory staleness, unfilled placeholders, and log size. If it reports
+  CONTINUATION, read `_agent_ops/HANDOFF.md` before anything else and mark it
+  `consumed` once absorbed; a swapped-in session finds its own handoff rather
+  than waiting to be told. If Python is unavailable, do those checks
+  by hand as described in `_agent_ops/SESSION_PROTOCOL.md`.
+- Then load the minimal hot context: `_agent_ops/SESSION_BRIEF.md`,
+  `_agent_ops/OPERATING_RULES.md`, and `_agent_ops/CURRENT_TASK.md` when a task
+  is already in progress. If `_agent_ops/` is missing, initialize it without
+  overwriting files. Do not reload every log/card on every turn; use the Session
+  Brief pointers and `_agent_ops/INDEX.md`, and load deeper context only when
+  the task needs it.
+- Read `_agent_ops/REPO_MAP.md` before grepping the repository to locate code or
+  judge blast radius. It is a generated, size-capped map (modules, routes,
+  highest fan-in files and symbols). For anything symbol-level -- who calls this,
+  how does control reach it, what breaks if I change it -- query the graph
+  instead of grepping:
+  `python scripts/explore.py --symbol <name>`, `--path <a> <b>`, `--impact <name>`.
+  Every edge carries a provenance tag: `exact`, `heuristic`, `ambiguous`, `weak`.
+  Treat `ambiguous` and `weak` as leads to verify by reading code, never as fact.
+  Static analysis cannot see dynamic dispatch, DI wiring, reflection, or runtime
+  registries, so an impact result is the MINIMUM blast radius, never the maximum.
+- Keep `_agent_ops/CURRENT_TASK.md` current *during* a task, not only at the
+  end: files touched, approaches ruled out with their evidence, next step. It is
+  what survives a mid-task context compaction and stops the agent from retrying
+  a dead end.
 - Before an edit, scope expansion, or final conclusion, re-anchor to the
   Session Brief's original goal and constraints. Before a meaningful completion
-  report, the root agent updates the smallest applicable `_agent_ops/` records.
-  Read `_agent_ops/SESSION_PROTOCOL.md` for the authoritative lifecycle.
+  report, the root agent updates the smallest applicable `_agent_ops/` records
+  and prints the **Closure Receipt**: one row per ops file, each resolved as
+  updated-with-what or not-needed-with-why. Omitting a row silently is a
+  protocol violation. Read `_agent_ops/SESSION_PROTOCOL.md` for the
+  authoritative lifecycle and the receipt format.
 
 Subagent policy:
 

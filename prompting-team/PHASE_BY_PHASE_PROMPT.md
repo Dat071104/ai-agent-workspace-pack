@@ -27,7 +27,7 @@ Target agent profile:
 Initial inspection:
 1. Check git status.
 2. Read the target project's own AGENTS.md or always-on rules.
-3. Read `_agent_ops/SESSION_BRIEF.md` and `_agent_ops/OPERATING_RULES.md` first.
+3. Read `_agent_ops/SESSION_BRIEF.md`, `_agent_ops/OPERATING_RULES.md`, and `_agent_ops/CURRENT_TASK.md` (if a task is in progress) first. Use `_agent_ops/REPO_MAP.md` to locate code before grepping the repo.
 4. Use their pointers to read only the relevant project card, current phase card,
    log entries, decisions, roadmap, or risks.
 5. Read the selected team SKILL.md only if it is needed for this task.

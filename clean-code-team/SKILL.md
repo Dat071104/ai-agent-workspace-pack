@@ -28,7 +28,21 @@ Before starting, warn the user:
 2. Check git state.
 3. Require clean git state or ask user how to proceed.
 4. Recommend recovery branch or tag.
-5. Build a dependency and behavior map based on imports, routes, tests, scripts, runtime flows, and logs.
+5. Build a dependency and behavior map based on imports, routes, tests, scripts,
+   runtime flows, and logs. Start from the generated view rather than a manual
+   scan: `_agent_ops/REPO_MAP.md` for modules, hot files, and entry points, then
+   `python scripts/scan_deps.py --root . --seed "<area>" --hops 2` per candidate
+   area. Regenerate the map first if it is stale
+   (`python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`).
+   For symbol-level dead code, `python scripts/explore.py --root . --entrypoints`
+   lists symbols nothing calls, and `--impact <symbol>` shows what breaks if you
+   remove one.
+
+   These cover static relative imports and statically resolvable calls only:
+   dynamic imports, DI wiring, routes, reflection, and runtime registries stay
+   invisible. "Nothing calls this" in the index is a CANDIDATE, never a verdict.
+   Confirm by search and by running the tests before deleting anything, and
+   never treat an `ambiguous` or `weak` edge as proof of either use or disuse.
 6. Identify cleanup candidates.
 7. Classify risk and value.
 8. Propose a batch cleanup plan.
@@ -64,6 +78,7 @@ Before starting, warn the user:
 - Batch plan.
 - Confirmation question.
 - After each batch: files changed, tests, results, rollback notes, continue question.
+- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md` after each batch.
 
 ## Safety Rules
 

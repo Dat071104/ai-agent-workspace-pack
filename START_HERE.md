@@ -32,9 +32,28 @@ as you can act:
 - Tier 3: only the target project files needed for the task.
 
 For a managed session, Tier 0 also includes the target repository's
-`_agent_ops/SESSION_BRIEF.md` and `_agent_ops/OPERATING_RULES.md`. These are the
-hot context. Load project cards, logs, phase cards, decisions, and risks only
-when the active task requires them.
+`_agent_ops/SESSION_BRIEF.md`, `_agent_ops/OPERATING_RULES.md`, and -- when a
+task is already in progress -- `_agent_ops/CURRENT_TASK.md`. These are the hot
+context. Load project cards, logs, phase cards, decisions, and risks only when
+the active task requires them. `_agent_ops/INDEX.md` is the read-order router
+for that folder.
+
+**Before grepping the target repository for code, read
+`_agent_ops/REPO_MAP.md`.** It is a generated, size-capped map: modules, routes,
+and the files and symbols with the widest blast radius. One read there replaces
+a scan of the tree.
+
+For symbol-level questions, query the code graph instead of grepping:
+
+```bash
+python scripts/explore.py --symbol <name>     # definitions, callers, callees, flow
+python scripts/explore.py --path <a> <b>      # how control reaches a symbol
+python scripts/explore.py --impact <name>     # blast radius + tests to run
+python scripts/explore.py --entrypoints       # routes and unreferenced symbols
+```
+
+Each relationship is tagged `exact`, `heuristic`, `ambiguous`, or `weak`. The
+last two are leads to confirm by reading code, not facts.
 
 Do not read every team folder, and do not pull in `README.md` to route.
 

@@ -22,17 +22,52 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
    - expected behavior,
    - feature request,
    - flaky environment.
-5. Map the affected zone.
+5. Map the affected zone. Do not start by grepping the tree. The symptom is
+   usually reported at one symbol while the fault lives at another, so work the
+   call graph rather than the filenames:
+
+   ```bash
+   python scripts/explore.py --root . --symbol <symbol from the report>
+   python scripts/explore.py --root . --path <entry point> <suspect symbol>
+   python scripts/explore.py --root . --impact <symbol you intend to change>
+   ```
+
+   `--symbol` returns definitions, callers, callees, and the path from an entry
+   point. `--path` shows how control actually reaches the failing code -- the
+   middleware or hook sitting on that path is frequently the real cause and
+   never appears in a grep for the symptom. Read `_agent_ops/REPO_MAP.md` for
+   modules and routes if you need orientation first.
+
+   **Read the provenance tag on every edge.** `exact` is resolved; `heuristic`
+   is inferred from a unique name; `ambiguous` means several definitions share
+   the name and you must confirm which one runs; `weak` is regex-extracted
+   JS/TS. Never build a root-cause argument on an `ambiguous` or `weak` edge
+   without opening the file.
+
+   If the index is missing or stale, rebuild it:
+   `python scripts/build_code_index.py --root .`
+
+   Fallback without Python: grep for the seed symbol, then follow its importers
+   one hop out by hand. Either way, state which files are in the zone before
+   proposing a fix, and treat an edit to a hot symbol as cross-module until
+   proven otherwise.
 6. Root-cause hypotheses: generate 2-4 candidate root causes. For each, record
    evidence for, evidence against, confidence (low/med/high), and the cheapest
-   way to disprove it. Use `ROOT_CAUSE_HYPOTHESES_TEMPLATE.md`.
+   way to disprove it. Use `ROOT_CAUSE_HYPOTHESES_TEMPLATE.md`. Check
+   `_agent_ops/CURRENT_TASK.md` -> "Ruled Out / Already Tried" first, and record
+   each hypothesis there as it is disproved. This is what stops a later session
+   -- or this one after a context compaction -- from re-testing a known dead end.
 7. Rank hypotheses and pick the most-supported one. State explicitly when the
    evidence is mixed instead of forcing a single answer.
 8. Fix directions: for the leading hypothesis, propose 2-3 fix approaches. Score
    each by blast radius, risk, effort, reversibility, and test cost. Use
    `FIX_DIRECTIONS_TEMPLATE.md`.
 9. Recommend ONE minimal fix and keep 1-2 fallbacks documented.
-10. Impact analysis for the recommended direction.
+10. Impact analysis for the recommended direction. Get the blast radius and the
+    tests to run from the graph rather than guessing:
+    `python scripts/explore.py --root . --impact <symbol being changed>`.
+    Treat its output as the MINIMUM blast radius: dynamic dispatch, DI wiring,
+    reflection, and runtime registries are invisible to a static index.
 11. Complexity gate: classify the bug as Medium (single-agent) or Hard/ambiguous.
     - Medium: proceed with in-chat multi-hypothesis reasoning.
     - Hard/ambiguous: OFFER parallel-subagent mode where each `bug_hunter`
@@ -75,6 +110,7 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
 - Risks and rollback notes.
 - Confirmation question (including which direction to take).
 - After fixing: files changed, tests, results, remaining risks.
+- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md`.
 
 ## Safety Rules
 

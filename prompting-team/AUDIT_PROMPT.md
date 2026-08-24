@@ -23,7 +23,7 @@ Target agent profile:
 Steps:
 1. Check git status.
 2. Read the target project's own AGENTS.md or always-on rules.
-3. Read `_agent_ops/SESSION_BRIEF.md` and `_agent_ops/OPERATING_RULES.md` first.
+3. Read `_agent_ops/SESSION_BRIEF.md`, `_agent_ops/OPERATING_RULES.md`, and `_agent_ops/CURRENT_TASK.md` (if a task is in progress) first. Use `_agent_ops/REPO_MAP.md` to locate code before grepping the repo.
 4. Read only context cards, log entries, decisions, and risks relevant to this
    audit; state any missing evidence.
 5. Read only the selected team SKILL.md files needed for this audit.

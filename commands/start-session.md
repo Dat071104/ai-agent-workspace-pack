@@ -1,7 +1,7 @@
 # Start Session Command
 
 ```text
-Read only AGENTS.md and START_HERE.md first. Read TEAM_ROUTER.md for routing. Do not read README.md unless the user asks about the workspace pack itself. This starts one managed session: check git status, ensure `_agent_ops/` exists without overwriting files, then read only `_agent_ops/SESSION_BRIEF.md` and `_agent_ops/OPERATING_RULES.md`. This permission applies only inside `_agent_ops/`.
+Read only AGENTS.md and START_HERE.md first. Read TEAM_ROUTER.md for routing. Do not read README.md unless the user asks about the workspace pack itself. This starts one managed session: check git status, ensure `_agent_ops/` exists without overwriting files, then read only `_agent_ops/SESSION_BRIEF.md`, `_agent_ops/OPERATING_RULES.md`, and `_agent_ops/CURRENT_TASK.md` if a task is already in progress. Use `_agent_ops/REPO_MAP.md` to locate code before grepping the repository. This permission applies only inside `_agent_ops/`.
 Do not read every team folder yet.
 
 User request:
@@ -20,7 +20,9 @@ Your job:
    independent bounded workstreams and native support exist, after a token-cost
    warning. Otherwise use sequential role checks when useful.
 9. Before meaningful completion, update the smallest applicable `_agent_ops/`
-   records. Root owns this; subagents never write `_agent_ops/`.
+   records and print the Closure Receipt from `SESSION_PROTOCOL.md`: one row per
+   ops file, each resolved as updated-with-what or not-needed-with-why. Root
+   owns this; subagents never write `_agent_ops/`.
 10. Wait for confirmation before source/config/git/external/destructive changes.
 
 Rules:

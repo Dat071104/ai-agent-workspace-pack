@@ -34,6 +34,13 @@ Do this, in order, and stop for confirmation before any file write or install:
    without overwriting files. Do not initialize it during Bootstrap unless I
    explicitly ask; the manual command remains available:
      python scripts/init_project_ops.py --target "<this repo path>"
+   Say what that creates: session memory, plus a generated `REPO_MAP.md` (the
+   code map read instead of grepping the repo), a `CURRENT_TASK.md` working
+   memory that survives context compaction, and an `_agent_ops/.gitignore` that
+   tracks durable memory while keeping session scratch local.
+   Also report whether Python is available here. If it is, the deterministic
+   session checks run as `python scripts/session_start.py --root .`; if not,
+   say that the manual fallback in `SESSION_PROTOCOL.md` will be used instead.
 7. If native spawning is unavailable, or the model is weaker/less suited to the
    task, tell me you will use stricter prompts by default:
    weaker/less-suited model, tell me you will use stricter prompts by default:

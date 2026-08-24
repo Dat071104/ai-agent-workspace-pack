@@ -27,6 +27,7 @@ writing files.
 | `prompt.md` | Create a phase, audit, harness, or handoff prompt | `prompting-team/` |
 | `test-full.md` | Full project audit | `tester-team/` |
 | `test-scoped.md` | Scoped feature/folder/phase audit | `tester-team/` |
+| `build.md` | Implement a new feature or module | `build-team/` |
 | `fix-bug.md` | Verify and plan a bug fix | `bug-fix-team/` |
 | `clean-code.md` | High-risk cleanup audit and batch plan | `clean-code-team/` |
 | `handoff.md` | End-session or next-session report | `handoff-team/` |
