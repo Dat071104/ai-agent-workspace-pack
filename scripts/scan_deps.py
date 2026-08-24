@@ -66,7 +66,51 @@ def imports_for(path: Path) -> list[str]:
     return js_imports(path)
 
 
+PY_SUFFIXES = [".py"]
+
+
+def _first_existing(root: Path, candidates: list[Path]) -> Path | None:
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            try:
+                candidate.relative_to(root)
+            except ValueError:
+                return None
+            return candidate
+    return None
+
+
+def resolve_python_import(root: Path, source: Path, import_name: str) -> Path | None:
+    """Resolve a Python import, which is a dotted module name, not a path.
+
+    `from ..models.user import User` arrives here as `..models.user`. Treating
+    that as a filesystem path (as the generic branch does) never matches, so
+    Python fan-in silently came out empty before this existed.
+    """
+    level = len(import_name) - len(import_name.lstrip("."))
+    remainder = import_name[level:]
+    parts = [part for part in remainder.split(".") if part]
+
+    if level:
+        base = source.parent
+        for _ in range(level - 1):
+            base = base.parent
+    else:
+        # Absolute import: only resolvable if it names a path inside the repo.
+        base = root
+    if not parts:
+        return _first_existing(root, [base / "__init__.py"])
+
+    target = base.joinpath(*parts)
+    return _first_existing(
+        root,
+        [target.with_suffix(suffix) for suffix in PY_SUFFIXES] + [target / "__init__.py"],
+    )
+
+
 def resolve_relative_import(root: Path, source: Path, import_name: str) -> Path | None:
+    if source.suffix == ".py":
+        return resolve_python_import(root, source, import_name)
     if not import_name.startswith((".", "/")):
         return None
     base = source.parent
