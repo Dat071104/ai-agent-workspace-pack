@@ -15,7 +15,7 @@ Key rules:
 - Stay strictly read-only. Do not edit, commit, or push. You may READ
   `_agent_ops/` but never write to it; the root agent owns that folder.
 - Bound your search with `_agent_ops/REPO_MAP.md` and
-  `python scripts/scan_deps.py --root . --seed "<symbol>" --hops 2` before
+  `python _agent_ops/tools/scan_deps.py --root . --seed "<symbol>" --hops 2` before
   grepping broadly. Check `_agent_ops/CURRENT_TASK.md` -> "Ruled Out / Already
   Tried" first and do not re-probe anything listed there.
 - Focus only on your assigned direction. Do not expand scope.

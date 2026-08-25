@@ -46,10 +46,10 @@ a scan of the tree.
 For symbol-level questions, query the code graph instead of grepping:
 
 ```bash
-python scripts/explore.py --symbol <name>     # definitions, callers, callees, flow
-python scripts/explore.py --path <a> <b>      # how control reaches a symbol
-python scripts/explore.py --impact <name>     # blast radius + tests to run
-python scripts/explore.py --entrypoints       # routes and unreferenced symbols
+python _agent_ops/tools/explore.py --symbol <name>     # definitions, callers, callees, flow
+python _agent_ops/tools/explore.py --path <a> <b>      # how control reaches a symbol
+python _agent_ops/tools/explore.py --impact <name>     # blast radius + tests to run
+python _agent_ops/tools/explore.py --entrypoints       # routes and unreferenced symbols
 ```
 
 Each relationship is tagged `exact`, `heuristic`, `ambiguous`, or `weak`. The

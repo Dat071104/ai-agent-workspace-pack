@@ -28,11 +28,11 @@ Warn that full audits and production-readiness audits can be Heavy or Very Heavy
    scope the audit surface and rank modules by fan-in, `_agent_ops/LOG_SUMMARY.md`
    before the full implementation log, then decision logs, risk register, and
    roadmap. For a scoped audit, bound the surface with
-   `python scripts/explore.py --root . --impact <entry symbol>` or
-   `python scripts/scan_deps.py --root . --seed "<feature>" --hops 2` instead of
+   `python _agent_ops/tools/explore.py --root . --impact <entry symbol>` or
+   `python _agent_ops/tools/scan_deps.py --root . --seed "<feature>" --hops 2` instead of
    reading the tree. `--impact` also names the test files that reach the code,
    which is the cheapest way to pick the narrowest meaningful test run.
-   `python scripts/explore.py --root . --entrypoints` enumerates routes, which
+   `python _agent_ops/tools/explore.py --root . --entrypoints` enumerates routes, which
    is a good coverage checklist for an API audit.
 4. Detect the test harness (see below). Report what exists vs what is missing.
 5. Inspect relevant files and tests.

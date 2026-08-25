@@ -31,10 +31,10 @@ Before starting, warn the user:
 5. Build a dependency and behavior map based on imports, routes, tests, scripts,
    runtime flows, and logs. Start from the generated view rather than a manual
    scan: `_agent_ops/REPO_MAP.md` for modules, hot files, and entry points, then
-   `python scripts/scan_deps.py --root . --seed "<area>" --hops 2` per candidate
+   `python _agent_ops/tools/scan_deps.py --root . --seed "<area>" --hops 2` per candidate
    area. Regenerate the map first if it is stale
-   (`python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`).
-   For symbol-level dead code, `python scripts/explore.py --root . --entrypoints`
+   (`python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`).
+   For symbol-level dead code, `python _agent_ops/tools/explore.py --root . --entrypoints`
    lists symbols nothing calls, and `--impact <symbol>` shows what breaks if you
    remove one.
 

@@ -18,7 +18,7 @@ Follow build-team/SKILL.md exactly. Do not write code yet.
    and whether the change lands in a hot file. Do not create a new module when
    an existing one owns the concern.
 4. Reuse scan: run
-   python scripts/scan_deps.py --root . --seed "<concept>" --hops 2
+   python _agent_ops/tools/scan_deps.py --root . --seed "<concept>" --hops 2
    and tell me what you will reuse versus what is genuinely new.
 5. Fill build-team/FEATURE_CONTRACT_TEMPLATE.md: interface, inputs, outputs,
    error cases, side effects and their single owner.

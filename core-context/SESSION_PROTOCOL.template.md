@@ -20,7 +20,7 @@ not create or update `_agent_ops/`.
 2. Run the deterministic checks. Prefer the script; it is read-only:
 
    ```bash
-   python scripts/session_start.py --root .
+   python _agent_ops/tools/session_start.py --root .
    ```
 
    It reports git state, what changed since the memory was last verified,
@@ -169,7 +169,7 @@ turning the folder that exists to save context into a context cost of its own.
   Tier 3.
 
 ```bash
-python scripts/summarize_implementation_log.py \
+python _agent_ops/tools/summarize_implementation_log.py \
     --log _agent_ops/IMPLEMENTATION_LOG.md \
     --rotate --keep 10 --output _agent_ops/LOG_SUMMARY.md --force
 ```

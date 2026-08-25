@@ -27,9 +27,9 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
    call graph rather than the filenames:
 
    ```bash
-   python scripts/explore.py --root . --symbol <symbol from the report>
-   python scripts/explore.py --root . --path <entry point> <suspect symbol>
-   python scripts/explore.py --root . --impact <symbol you intend to change>
+   python _agent_ops/tools/explore.py --root . --symbol <symbol from the report>
+   python _agent_ops/tools/explore.py --root . --path <entry point> <suspect symbol>
+   python _agent_ops/tools/explore.py --root . --impact <symbol you intend to change>
    ```
 
    `--symbol` returns definitions, callers, callees, and the path from an entry
@@ -45,7 +45,7 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
    without opening the file.
 
    If the index is missing or stale, rebuild it:
-   `python scripts/build_code_index.py --root .`
+   `python _agent_ops/tools/build_code_index.py --root .`
 
    Fallback without Python: grep for the seed symbol, then follow its importers
    one hop out by hand. Either way, state which files are in the zone before
@@ -65,7 +65,7 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
 9. Recommend ONE minimal fix and keep 1-2 fallbacks documented.
 10. Impact analysis for the recommended direction. Get the blast radius and the
     tests to run from the graph rather than guessing:
-    `python scripts/explore.py --root . --impact <symbol being changed>`.
+    `python _agent_ops/tools/explore.py --root . --impact <symbol being changed>`.
     Treat its output as the MINIMUM blast radius: dynamic dispatch, DI wiring,
     reflection, and runtime registries are invisible to a static index.
 11. Complexity gate: classify the bug as Medium (single-agent) or Hard/ambiguous.

@@ -15,7 +15,7 @@ Do not copy this blindly. Run tag or push commands only after explicit user conf
 
 ```bash
 git status --short
-python scripts/check_repo_hygiene.py --root .
+python _agent_ops/tools/check_repo_hygiene.py --root .
 git tag v0.1.0
 git push origin v0.1.0
 ```

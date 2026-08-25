@@ -36,11 +36,15 @@ Do this, in order, and stop for confirmation before any file write or install:
      python scripts/init_project_ops.py --target "<this repo path>"
    Say what that creates: session memory, plus a generated `REPO_MAP.md` (the
    code map read instead of grepping the repo), a `CURRENT_TASK.md` working
-   memory that survives context compaction, and an `_agent_ops/.gitignore` that
-   tracks durable memory while keeping session scratch local.
+   memory that survives context compaction, an `_agent_ops/.gitignore` that
+   tracks durable memory while keeping session scratch local, a copy of the
+   tools in `_agent_ops/tools/` so this repo runs them with no pack present,
+   and an `AGENTS.md` at the repo root if it does not already have one.
    Also report whether Python is available here. If it is, the deterministic
-   session checks run as `python scripts/session_start.py --root .`; if not,
-   say that the manual fallback in `SESSION_PROTOCOL.md` will be used instead.
+   session checks run as `python _agent_ops/tools/session_start.py --root .`
+   once `_agent_ops/` exists (`python scripts/session_start.py --root .` from
+   inside the pack before that); if not, say that the manual fallback in
+   `SESSION_PROTOCOL.md` will be used instead.
 7. If native spawning is unavailable, or the model is weaker/less suited to the
    task, tell me you will use stricter prompts by default:
    weaker/less-suited model, tell me you will use stricter prompts by default:

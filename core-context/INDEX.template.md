@@ -13,7 +13,7 @@ everything here defeats the purpose of the folder.
 | 0 | `CURRENT_TASK.md` | A task is already in progress. Files touched, dead ends, next step. | Light |
 | 0 | `HANDOFF.md` | **A previous session handed off.** Read it before anything else when its Status is `open`. | Light |
 | 1 | `REPO_MAP.md` | You need to locate code or judge blast radius. **Read before grepping the repo.** | Light |
-| 1 | `code_index.json` | Never read directly -- it is machine-sized. Query it with `scripts/explore.py`. | n/a |
+| 1 | `code_index.json` | Never read directly -- it is machine-sized. Query it with `tools/explore.py`. | n/a |
 | 1 | `LOG_SUMMARY.md` | You need recent history without the full log. | Light |
 | 2 | `PROJECT_CONTEXT_CARD.md` | Durable project facts: stack, architecture, business rules, run/test commands. | Medium |
 | 2 | `PHASE_ROADMAP.md` | Planning or checking phase order and gates. | Medium |
@@ -23,6 +23,7 @@ everything here defeats the purpose of the folder.
 | 3 | `phase_context_cards/` | Working inside one specific phase. | Medium |
 | 3 | `archive/` | Investigating something older than the retained log window. | Heavy |
 | ref | `SESSION_PROTOCOL.md` | Changing session behavior, or unsure about the closure gate. | Medium |
+| ref | `tools/` | The scripts below. Copies of the workspace pack, so this project runs them with no pack installed. Do not hand-edit. | n/a |
 
 ## Write Triggers
 
@@ -48,22 +49,30 @@ Enforced by `_agent_ops/.gitignore`.
 
 | Tracked -- durable memory, should survive a clone | Ignored -- session scratch, machine-local |
 | --- | --- |
-| `INDEX.md`, `OPERATING_RULES.md`, `SESSION_PROTOCOL.md`, `PROJECT_CONTEXT_CARD.md`, `REPO_MAP.md`, `HANDOFF.md`, `IMPLEMENTATION_LOG.md`, `archive/`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, `phase_context_cards/` | `SESSION_BRIEF.md`, `CURRENT_TASK.md`, `LOG_SUMMARY.md` |
+| `INDEX.md`, `OPERATING_RULES.md`, `SESSION_PROTOCOL.md`, `PROJECT_CONTEXT_CARD.md`, `REPO_MAP.md`, `HANDOFF.md`, `IMPLEMENTATION_LOG.md`, `archive/`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, `phase_context_cards/`, `tools/` | `SESSION_BRIEF.md`, `CURRENT_TASK.md`, `LOG_SUMMARY.md`, `code_index.json`, `__pycache__/` |
+
+`tools/` is tracked on purpose: a teammate who clones this project then has
+working tooling without installing the workspace pack. `code_index.json` is
+not -- it is rebuilt from source, can reach tens of MB, and would conflict on
+every merge.
 
 Tracked files are visible to anyone who can read the repository. Never put
 secrets, private data, or unverified claims in any file here.
 
 ## Helper Scripts
 
+Run from the project root. These live in `_agent_ops/tools/`, so they work with
+no workspace pack installed.
+
 ```bash
-python scripts/session_start.py --root .                     # read-only session checks
-python scripts/generate_repo_map.py --root . \
+python _agent_ops/tools/session_start.py --root .                     # read-only session checks
+python _agent_ops/tools/generate_repo_map.py --root . \
     --output _agent_ops/REPO_MAP.md --force                  # refresh the code map
-python scripts/build_code_index.py --root .                  # rebuild the symbol graph
-python scripts/explore.py --symbol <name>                    # callers, callees, flow
-python scripts/explore.py --impact <name>                    # blast radius + tests
-python scripts/scan_deps.py --root . --seed "<keyword>" --hops 2   # file-level zone
-python scripts/summarize_implementation_log.py \
+python _agent_ops/tools/build_code_index.py --root .                  # rebuild the symbol graph
+python _agent_ops/tools/explore.py --symbol <name>                    # callers, callees, flow
+python _agent_ops/tools/explore.py --impact <name>                    # blast radius + tests
+python _agent_ops/tools/scan_deps.py --root . --seed "<keyword>" --hops 2   # file-level zone
+python _agent_ops/tools/summarize_implementation_log.py \
     --log _agent_ops/IMPLEMENTATION_LOG.md --rotate --keep 10 \
     --output _agent_ops/LOG_SUMMARY.md --force               # summarize + archive
 ```

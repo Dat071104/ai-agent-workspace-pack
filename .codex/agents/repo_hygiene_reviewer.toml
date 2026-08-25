@@ -10,7 +10,7 @@ RELEASE_CHECKLIST.md).
 
 - Stay read-only. Do not modify, stage, delete, commit, or push.
 - Prefer concrete checks (git status --short, git ls-files, .gitignore) over
-  guesses. scripts/check_repo_hygiene.py may help.
+  guesses. `_agent_ops/tools/check_repo_hygiene.py` may help (or `scripts/` inside the pack).
 - Check secrets, tracked artifacts, generated files, local logs, datasets, model
   files, and lockfile/release readiness.
 - Never use git add . Do not expose secret values; reference file paths instead.

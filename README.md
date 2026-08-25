@@ -41,18 +41,36 @@ This pack fixes three things:
 ## Install
 
 ```bash
-# 1. Copy this pack next to (or into) your project
+# 1. Clone this pack anywhere -- it does not need to live inside your project
 git clone https://github.com/Dat071104/ai-agent-workspace-pack.git
+cd ai-agent-workspace-pack
 
-# 2. Set up memory + code graph for your project (one time, per repo)
+# 2. Install into your project (one time, per repo)
 python scripts/init_project_ops.py --target "D:\MyProject"
 
-# 3. Tell your agent to read BOOTSTRAP.md once
+# 3. From then on, work from your project. The pack is no longer needed.
+cd "D:\MyProject"
+python _agent_ops/tools/session_start.py --root .
 ```
 
-Step 2 creates `_agent_ops/` in your project, scans your code into a graph, and
-writes a `.gitignore` so the right things are shared and the rest stays local.
-It never overwrites existing files.
+Step 2 puts four things in your project:
+
+| What | Where | Why |
+| --- | --- | --- |
+| Memory files | `_agent_ops/*.md` | Brief, task state, decisions, risks, log |
+| Code graph | `_agent_ops/REPO_MAP.md` + `code_index.json` | Locate code without grepping |
+| The tools themselves | `_agent_ops/tools/` | So the project runs on its own |
+| Agent instructions | `AGENTS.md` at your project root | The file Codex/Claude/Cursor read first |
+
+It never overwrites an existing file. `AGENTS.md` in particular is written only
+if your project does not already have one.
+
+**The tools are copied on purpose.** Cloning the pack "next to" a project used
+to leave that project unable to run anything: `python scripts/session_start.py`
+only works from inside the pack. Now every command runs from your project root,
+and a teammate who clones your project gets working tooling without ever hearing
+about this pack. Re-run step 2 any time to refresh the copies (`_agent_ops/tools/`
+is always overwritten; your memory files are not).
 
 ---
 
@@ -102,17 +120,17 @@ cost, and never edits anything without asking.
 Instead of grepping, the agent **queries a pre-built map of your code**.
 
 ```bash
-python scripts/build_code_index.py --root .    # build once, rebuild when code changes
+python _agent_ops/tools/build_code_index.py --root .    # build once, rebuild when code changes
 ```
 
 Then:
 
 ```bash
-python scripts/explore.py --symbol charge          # who calls it, what it calls
-python scripts/explore.py --path checkout charge   # how control actually gets there
-python scripts/explore.py --impact getUser         # what breaks + which tests to run
-python scripts/explore.py --entrypoints            # all routes, and unused-looking code
-python scripts/explore.py --file src/auth.py       # what is inside, who imports it
+python _agent_ops/tools/explore.py --symbol charge          # who calls it, what it calls
+python _agent_ops/tools/explore.py --path checkout charge   # how control actually gets there
+python _agent_ops/tools/explore.py --impact getUser         # what breaks + which tests to run
+python _agent_ops/tools/explore.py --entrypoints            # all routes, and unused-looking code
+python _agent_ops/tools/explore.py --file src/auth.py       # what is inside, who imports it
 ```
 
 ### Why this matters
@@ -178,7 +196,7 @@ Project history is shared; per-machine scratch and rebuildable artifacts are not
 
 > On a **public** repo the committed files are public. Keep secrets, customer
 > names, and internal URLs out of the implementation log and handoff.
-> `python scripts/check_repo_hygiene.py --root .` fails if a local-only file
+> `python _agent_ops/tools/check_repo_hygiene.py --root .` fails if a local-only file
 > gets tracked by mistake.
 
 ### The log never gets huge
@@ -186,7 +204,7 @@ Project history is shared; per-machine scratch and rebuildable artifacts are not
 An append-only log becomes a context problem of its own. So it rotates:
 
 ```bash
-python scripts/summarize_implementation_log.py --log _agent_ops/IMPLEMENTATION_LOG.md \
+python _agent_ops/tools/summarize_implementation_log.py --log _agent_ops/IMPLEMENTATION_LOG.md \
     --rotate --keep 10 --output _agent_ops/LOG_SUMMARY.md --force
 ```
 
@@ -261,7 +279,10 @@ Two teams have safety gates worth knowing about:
 
 ## Scripts
 
-All standard-library Python, cross-platform, no install.
+All standard-library Python, cross-platform, no install. After step 2 of the
+install they live in your project at `_agent_ops/tools/`, so run them from your
+project root: `python _agent_ops/tools/<script> ...`. Only `init_project_ops.py`
+stays in the pack -- it needs the pack's templates.
 
 | Question | Command |
 | --- | --- |
@@ -282,8 +303,9 @@ written out in `core-context/SESSION_PROTOCOL.template.md`.
 
 ## Setting up your agent
 
-Put `AGENTS.md` at your repo root — most tools read it automatically. Then run
-`BOOTSTRAP.md` once and the agent wires up the rest.
+The install writes `AGENTS.md` at your repo root for you — most tools read it
+automatically, and it already points at `_agent_ops/` and the tools. Then run
+`BOOTSTRAP.md` once if you also want the team folders wired up.
 
 | Tool | Base rules | Invoke a team | Real parallel subagents |
 | --- | --- | --- | --- |
@@ -347,6 +369,8 @@ Being straight with you:
 | Fixing a bug before reproducing it | Let `bug-fix-team` verify first |
 | Full audit when a scoped one works | Ask for a scoped audit |
 | Grepping a repo you already indexed | `explore.py --symbol <name>` |
+| Letting one file grow past ~400 lines | Check **Oversized Files** in `REPO_MAP.md`, split by responsibility |
+| Hand-editing `_agent_ops/tools/` | Fix the pack and re-run the install |
 | Trusting an `ambiguous` edge | Open the file and confirm |
 
 ---
@@ -363,7 +387,7 @@ TEAM_ROUTER.md       Which team for which task
 core-context/        Templates copied into your project's _agent_ops/
 commands/            Copy-paste prompts
 harness/             Checklists and risk matrices
-scripts/             Python helpers (stdlib only)
+scripts/             Python helpers (stdlib only); copied into each project
 examples/            Neutral, public-safe examples
 
 .claude/  .codex/    Thin adapters — the team folders are the source of truth

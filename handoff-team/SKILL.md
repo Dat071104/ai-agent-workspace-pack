@@ -34,7 +34,7 @@ Creates complete or compact handoff artifacts for continuity across sessions, ag
    `_agent_ops/CURRENT_TASK.md` (unfinished work, dead ends, open questions),
    and `_agent_ops/LOG_SUMMARY.md` before the full implementation log. Rotate
    the log first if it has grown past its retention window:
-   `python scripts/summarize_implementation_log.py --log _agent_ops/IMPLEMENTATION_LOG.md --rotate --keep 10 --output _agent_ops/LOG_SUMMARY.md --force`
+   `python _agent_ops/tools/summarize_implementation_log.py --log _agent_ops/IMPLEMENTATION_LOG.md --rotate --keep 10 --output _agent_ops/LOG_SUMMARY.md --force`
 2. Check git state and recent commit if available.
 3. Summarize architecture and current status.
 4. List what was built and files touched.

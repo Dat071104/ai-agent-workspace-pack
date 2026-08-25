@@ -41,13 +41,13 @@ request like "add feature X" has a destination instead of detouring through
    which module owns this concern, its routes and entry points, and whether the
    change lands in a hot file or a most-called symbol. Do not invent a new
    module when an existing one owns the concern.
-   `python scripts/explore.py --root . --entrypoints` lists the routes already
+   `python _agent_ops/tools/explore.py --root . --entrypoints` lists the routes already
    wired up, which is the fastest way to see where a new endpoint belongs.
 4. **Reuse scan.** Before writing a function, look for an existing one:
 
    ```bash
-   python scripts/explore.py --root . --symbol <concept>
-   python scripts/explore.py --root . --file <the module that owns this>
+   python _agent_ops/tools/explore.py --root . --symbol <concept>
+   python _agent_ops/tools/explore.py --root . --file <the module that owns this>
    ```
 
    `--symbol` finds definitions that already carry the name or concept;
@@ -60,7 +60,7 @@ request like "add feature X" has a destination instead of detouring through
 6. **Impact statement.** Name the files to be created and modified, the blast
    radius, and any cross-boundary effect. When the change modifies an existing
    symbol rather than only adding one, get the radius from the graph:
-   `python scripts/explore.py --root . --impact <symbol>`. If the change must
+   `python _agent_ops/tools/explore.py --root . --impact <symbol>`. If the change must
    cross a module boundary, say so before editing, not after.
 7. **Plan and confirm.** Present steps 3-6 as a short plan with a token/risk
    level. Get confirmation before writing code. Offer to split into slices when
@@ -75,8 +75,8 @@ request like "add feature X" has a destination instead of detouring through
 10. Update `_agent_ops/CURRENT_TASK.md` as you go: files touched, approaches
     ruled out, next step. If you added or moved files, rebuild the index and map
     so the next session is not reasoning on a stale graph:
-    `python scripts/build_code_index.py --root .` and
-    `python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
+    `python _agent_ops/tools/build_code_index.py --root .` and
+    `python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
 11. Report the slice: files changed, tests run with real output, what is still
     unimplemented. Ask before starting the next slice.
 12. Print the Closure Receipt from `_agent_ops/SESSION_PROTOCOL.md`. Commit only

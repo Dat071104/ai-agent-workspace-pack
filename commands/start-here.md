@@ -14,7 +14,7 @@ Read only AGENTS.md, TEAM_ROUTER.md, and START_HERE.md first. Do not load every
 team folder. Unless `--no-ops` was supplied, ensure `_agent_ops/` exists without
 overwriting files, then run the deterministic checks:
 
-  python scripts/session_start.py --root .
+  python _agent_ops/tools/session_start.py --root .
 
 That is read-only and reports git state, what changed since the memory was last
 verified, whether REPO_MAP.md is stale, unfilled template placeholders, and

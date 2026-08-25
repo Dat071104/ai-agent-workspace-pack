@@ -6,6 +6,12 @@ generating starter context cards, and summarizing/rotating implementation logs.
 
 All scripts use the Python standard library only.
 
+`init_project_ops.py` copies every other script here into the target project as
+`_agent_ops/tools/`. Inside a project, run them as
+`python _agent_ops/tools/<script> ...`; the `python scripts/<script> ...` form
+below is for working on the pack itself. Only `init_project_ops.py` does not
+travel -- it needs `core-context/`.
+
 These are the deterministic half of a managed session. Running them keeps the
 model from having to remember mechanical bookkeeping, which matters most on
 weaker or prompt-only harnesses. Every one of them has a manual fallback
@@ -15,9 +21,14 @@ without Python.
 ## Commands
 
 ```bash
-# One-time per repo: create _agent_ops/, generate REPO_MAP.md, write the
-# hybrid _agent_ops/.gitignore. Never overwrites without --force.
+# One-time per repo: create _agent_ops/, copy the tools in, build the code
+# index, generate REPO_MAP.md, write the hybrid _agent_ops/.gitignore, and add
+# an AGENTS.md if the project has none. Never overwrites without --force.
 python scripts/init_project_ops.py --target "D:\MyProject"
+#   --no-tools      do not copy the tools into <target>/_agent_ops/tools/
+#   --no-agents-md  do not create AGENTS.md at the target root
+#   --no-index      skip code_index.json    --no-repo-map  skip REPO_MAP.md
+#   --force         overwrite memory files (tools/ are always refreshed)
 
 # Start of every managed session. Read-only: git state, what changed since the
 # memory was last verified, repo-map staleness, unfilled placeholders, log size.

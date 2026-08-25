@@ -27,15 +27,15 @@ the repository. It is a generated, size-capped map of modules, routes, and the
 files and symbols with the widest blast radius. For symbol-level questions:
 
 ```bash
-python scripts/explore.py --symbol <name>   # definitions, callers, callees, flow
-python scripts/explore.py --path <a> <b>  # how control reaches a symbol
-python scripts/explore.py --impact <name>   # blast radius + tests to run
+python _agent_ops/tools/explore.py --symbol <name>   # definitions, callers, callees, flow
+python _agent_ops/tools/explore.py --path <a> <b>  # how control reaches a symbol
+python _agent_ops/tools/explore.py --impact <name>   # blast radius + tests to run
 ```
 
 Edges are tagged `exact` / `heuristic` / `ambiguous` / `weak`; the last two need
 confirming by reading the code.
 
-Start a managed session with `python scripts/session_start.py --root .` for git
+Start a managed session with `python _agent_ops/tools/session_start.py --root .` for git
 state, memory staleness, and unfilled placeholders. Both have manual fallbacks
 in `core-context/SESSION_PROTOCOL.template.md` when Python is unavailable.
 

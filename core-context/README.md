@@ -29,7 +29,7 @@ For a starter context card pre-filled from repo inspection (stack, branch,
 commit) instead of the blank template:
 
 ```bash
-python scripts/generate_context_card.py --root . --name "<project>" --output _agent_ops/PROJECT_CONTEXT_CARD.md
+python _agent_ops/tools/generate_context_card.py --root . --name "<project>" --output _agent_ops/PROJECT_CONTEXT_CARD.md
 ```
 
 It leaves `<fill in ...>` markers where a human must decide. Those are blanks to
@@ -68,7 +68,7 @@ do this job -- it is scoped to the session, not the task.
 `REPO_MAP.md` is generated, not copied from a template:
 
 ```bash
-python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force
+python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force
 ```
 
 It gives a module table, the highest fan-in files (widest blast radius), and
