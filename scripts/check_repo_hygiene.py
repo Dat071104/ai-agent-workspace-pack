@@ -30,20 +30,27 @@ FORBIDDEN_PATTERNS = [
     "*.pem",
     "*.key",
 ]
+# Unambiguous at any depth: these names mean "generated" wherever they appear.
 ARTIFACT_DIR_NAMES = {
     "__pycache__",
     ".pytest_cache",
+    ".mypy_cache",
     "node_modules",
+    "mlruns",
+    "coverage",
+    "playwright-report",
+    "test-results",
+}
+# Only artifacts at the repository root. Nested, these are ordinary source
+# directories: `src/app/models/` is a Django/FastAPI convention, `lib/data/` is
+# a package, and flagging them made every MVC project fail this check.
+ROOT_ONLY_ARTIFACT_DIRS = {
     "dist",
     "build",
     "target",
     "data",
     "models",
-    "mlruns",
     "artifacts",
-    "coverage",
-    "playwright-report",
-    "test-results",
 }
 ARTIFACT_FILE_PATTERNS = [
     ".env",
@@ -147,8 +154,12 @@ def filesystem_artifacts(root: Path) -> list[tuple[str, str]]:
         if any(part in SKIP_SCAN_DIRS for part in path.parts):
             continue
         rel = path.relative_to(root).as_posix()
-        if path.is_dir() and path.name in ARTIFACT_DIR_NAMES:
-            findings.append((rel + "/", f"directory {path.name}/"))
+        if path.is_dir():
+            at_root = path.parent == root
+            if path.name in ARTIFACT_DIR_NAMES or (
+                at_root and path.name in ROOT_ONLY_ARTIFACT_DIRS
+            ):
+                findings.append((rel + "/", f"directory {path.name}/"))
             continue
         if path.is_file():
             for pattern in ARTIFACT_FILE_PATTERNS:
