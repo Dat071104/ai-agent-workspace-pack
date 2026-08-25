@@ -16,9 +16,12 @@ import re
 import sys
 from pathlib import Path
 
+# Running a tool must never leave __pycache__ inside someone else's repository.
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
+from scan_deps import tool_prefix  # noqa: E402
 from summarize_implementation_log import split_entries  # noqa: E402
 
 
@@ -28,6 +31,19 @@ PLACEHOLDER_RES = [
 ]
 ROTATE_THRESHOLD = 12
 CODE_SUFFIXES = (".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".rb", ".php", ".cs")
+
+
+def is_project_code(path: str) -> bool:
+    """A changed file that should make the code map look stale.
+
+    Excludes the agent's own folder: `_agent_ops/tools/` holds copies of these
+    very scripts, and counting them made a fresh install report nine changed
+    "code files" the moment the ops folder was committed.
+    """
+    cleaned = path.strip().replace("\\", "/")
+    if cleaned.startswith("_agent_ops/") or "/_agent_ops/" in cleaned:
+        return False
+    return cleaned.endswith(CODE_SUFFIXES)
 
 
 def read_text(path: Path) -> str:
@@ -167,6 +183,7 @@ def continuity_block(brief: str, task: str, handoff: str) -> list[str]:
 
 
 def render(root: Path, ops: Path, log_keep: int) -> str:
+    tools = tool_prefix(root)
     brief_path = ops / "SESSION_BRIEF.md"
     task_path = ops / "CURRENT_TASK.md"
     card_path = ops / "PROJECT_CONTEXT_CARD.md"
@@ -212,8 +229,13 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             f"`{ops}` does not exist. Initialize it before a managed session:",
             "",
             "```bash",
-            f'python scripts/init_project_ops.py --target "{root}"',
+            f'python <pack>/scripts/init_project_ops.py --target "{root}"',
             "```",
+            "",
+            "That one script lives in the workspace pack, not in the project: it",
+            "needs the pack's core-context/ templates. It copies the rest of the",
+            "tools into `_agent_ops/tools/`, and everything after it runs from the",
+            "project with no pack present.",
             "",
         ]
         return "\n".join(out).rstrip() + "\n"
@@ -236,7 +258,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         commits = [line for line in delta.splitlines() if line.strip()] if delta != "not available" else []
         files = git_value(root, ["diff", "--name-only", f"{verified}..HEAD"])
         changed = [line for line in files.splitlines() if line.strip()] if files != "not available" else []
-        code = [line for line in changed if line.endswith(CODE_SUFFIXES)]
+        code = [line for line in changed if is_project_code(line)]
         other = [line for line in changed if line not in code]
         out += [
             f"- SESSION_BRIEF was verified at `{verified}`; HEAD is `{head}`.",
@@ -266,7 +288,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             "- `REPO_MAP.md` is missing. Generate it before grepping the repository:",
             "",
             "```bash",
-            "python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force",
+            f"python {tools}/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force",
             "```",
         ]
     else:
@@ -278,7 +300,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         else:
             code = git_value(root, ["diff", "--name-only", f"{map_sha}..HEAD"])
             code_files = [
-                line for line in code.splitlines() if line.strip().endswith(CODE_SUFFIXES)
+                line for line in code.splitlines() if is_project_code(line)
             ]
             if code_files:
                 out += [
@@ -297,7 +319,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             "  questions fall back to grepping. Build it once:",
             "",
             "```bash",
-            "python scripts/build_code_index.py --root .",
+            f"python {tools}/build_code_index.py --root .",
             "```",
         ]
     else:
@@ -314,17 +336,17 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         else:
             changed = git_value(root, ["diff", "--name-only", f"{index_sha}..HEAD"])
             code_files = [
-                line for line in changed.splitlines() if line.strip().endswith(CODE_SUFFIXES)
+                line for line in changed.splitlines() if is_project_code(line)
             ]
             if code_files:
                 out += [
                     f"- STALE: {len(code_files)} code file(s) changed since `{index_sha}`.",
                     "  Rebuild before trusting call paths:",
-                    "  `python scripts/build_code_index.py --root .`",
+                    f"  `python {tools}/build_code_index.py --root .`",
                 ]
             else:
                 out.append(f"- Built at `{index_sha}`; no code changed since ({counts}).")
-        out.append("- Query it with `python scripts/explore.py --symbol <name>` before grepping.")
+        out.append(f"- Query it with `python {tools}/explore.py --symbol <name>` before grepping.")
     out.append("")
 
     out += ["## Session Brief", ""]
@@ -389,7 +411,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
                 f"- Over the rotation threshold ({log_keep}). Rotate before it becomes a context cost:",
                 "",
                 "```bash",
-                "python scripts/summarize_implementation_log.py --log _agent_ops/IMPLEMENTATION_LOG.md \\",
+                f"python {tools}/summarize_implementation_log.py --log _agent_ops/IMPLEMENTATION_LOG.md \\",
                 f"    --rotate --keep {log_keep} --output _agent_ops/LOG_SUMMARY.md --force",
                 "```",
             ]

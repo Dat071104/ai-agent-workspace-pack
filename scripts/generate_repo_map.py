@@ -18,10 +18,12 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
+# Running a tool must never leave __pycache__ inside someone else's repository.
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import detect_stack, git_value  # noqa: E402
-from scan_deps import build_graph, reverse_edges  # noqa: E402
+from scan_deps import build_graph, reverse_edges, tool_prefix  # noqa: E402
 
 
 ENTRY_STEMS = {"main", "index", "app", "cli", "__main__", "server", "start"}
@@ -127,6 +129,7 @@ def symbol_section(root: Path) -> list[str]:
     that is the level bugs actually live at. This stays optional so the map still
     works on a repo that was never indexed.
     """
+    tools = tool_prefix(root)
     index_path = root / "_agent_ops" / "code_index.json"
     if not index_path.exists():
         return [
@@ -135,8 +138,8 @@ def symbol_section(root: Path) -> list[str]:
             "Not built. For symbol-level callers, call paths, and blast radius:",
             "",
             "```bash",
-            "python scripts/build_code_index.py --root .",
-            "python scripts/explore.py --root . --symbol <name>",
+            f"python {tools}/build_code_index.py --root .",
+            f"python {tools}/explore.py --root . --symbol <name>",
             "```",
             "",
         ]
@@ -149,9 +152,9 @@ def symbol_section(root: Path) -> list[str]:
     fan_in: dict[str, int] = defaultdict(int)
     conf_counts: dict[str, int] = defaultdict(int)
     for edge in index.get("edges", []):
+        conf_counts[edge.get("conf", "?")] += 1
         if edge.get("kind") == "CALLS":
             fan_in[edge["to"]] += 1
-            conf_counts[edge.get("conf", "?")] += 1
 
     routes = [
         (info.get("route", ""), info["file"], info["line"], info["qualname"])
@@ -193,13 +196,32 @@ def symbol_section(root: Path) -> list[str]:
         "Query it instead of grepping:",
         "",
         "```bash",
-        "python scripts/explore.py --root . --symbol <name>    # callers, callees, flow",
-        "python scripts/explore.py --root . --impact <name>    # blast radius + tests",
-        "python scripts/explore.py --root . --path <a> <b>     # how a reaches b",
+        f"python {tools}/explore.py --root . --symbol <name>    # callers, callees, flow",
+        f"python {tools}/explore.py --root . --impact <name>    # blast radius + tests",
+        f"python {tools}/explore.py --root . --path <a> <b>     # how a reaches b",
         "```",
         "",
     ]
     return out
+
+
+def long_files(root: Path, graph: dict[str, dict[str, list[str]]], limit: int, threshold: int) -> list[tuple[str, int]]:
+    """Files big enough that an agent will struggle to hold them in context.
+
+    Agents left alone tend to grow one file until it is thousands of lines. This
+    is the factual list that makes "split this" a specific instruction instead of
+    a slogan.
+    """
+    sized: list[tuple[str, int]] = []
+    for rel in graph:
+        try:
+            count = sum(1 for _ in (root / rel).open(encoding="utf-8", errors="ignore"))
+        except OSError:
+            continue
+        if count >= threshold:
+            sized.append((rel, count))
+    sized.sort(key=lambda item: -item[1])
+    return sized[:limit]
 
 
 def render_map(
@@ -213,6 +235,7 @@ def render_map(
     modules = collect_modules(graph, reverse, depth)
     hot = hot_files(graph, reverse, max_hot)
     entries = sorted(path for path in graph if is_entry_point(path))
+    tools = tool_prefix(root)
     commit = git_value(root, ["rev-parse", "--short", "HEAD"])
     branch = git_value(root, ["branch", "--show-current"])
 
@@ -220,7 +243,7 @@ def render_map(
         "# Repo Map / Ban do ma nguon",
         "",
         "Generated file. Do not hand-edit; regenerate with",
-        "`python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.",
+        f"`python {tools}/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.",
         "",
         "Read this BEFORE grepping the repository. It answers \"where does the code",
         "live\" and \"what breaks if I touch this\" in one Tier-1 read.",
@@ -294,6 +317,21 @@ def render_map(
         lines.append("- None detected by filename convention. Confirm manually.")
     lines.append("")
 
+    oversized = long_files(root, graph, 10, 400)
+    if oversized:
+        lines += [
+            "## Oversized Files",
+            "",
+            "Files past 400 lines. Long files are where agents lose the thread and",
+            "where unrelated responsibilities collect. Split along a responsibility",
+            "boundary before adding to one of these.",
+            "",
+            "| File | Lines |",
+            "| --- | --- |",
+        ]
+        lines += [f"| `{rel}` | {count} |" for rel, count in oversized]
+        lines.append("")
+
     isolated = count_isolated(graph, reverse)
     lines += [
         "## Isolated Files",
@@ -307,13 +345,15 @@ def render_map(
         "This map is deliberately shallow. For the affected zone of a specific change:",
         "",
         "```bash",
-        "python scripts/scan_deps.py --root . --seed \"<keyword>\" --hops 2 --output markdown",
+        f"python {tools}/scan_deps.py --root . --seed \"<keyword>\" --hops 2 --output markdown",
         "```",
         "",
         "## Limits",
         "",
         "- Covers `.py`, `.js`, `.jsx`, `.ts`, `.tsx` only.",
-        "- Resolves relative imports only; package-name imports are not followed.",
+        "- Relative imports resolve exactly. Absolute Python imports and JS path",
+        "  aliases are inferred by probing parent directories, so they can be wrong;",
+        "  package imports (`react`, `numpy`) are not followed at all.",
         "- Dynamic imports, DI wiring, and runtime registries are invisible here.",
         "  Verify before claiming a file is unused.",
         "",

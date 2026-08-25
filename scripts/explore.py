@@ -27,6 +27,12 @@ import sys
 from collections import defaultdict, deque
 from pathlib import Path
 
+# Running a tool must never leave __pycache__ inside someone else's repository.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from scan_deps import tool_prefix  # noqa: E402
+
 
 CONF_NOTE = {
     "exact": "",
@@ -38,12 +44,12 @@ TEST_HINTS = ("test", "spec", "__tests__")
 MAX_LIST = 25
 
 
-def load_index(path: Path) -> dict:
+def load_index(path: Path, root: Path) -> dict:
     if not path.exists():
         sys.exit(
             f"No index at {path}\n"
             "Build it first:\n"
-            "  python scripts/build_code_index.py --root . "
+            f"  python {tool_prefix(root)}/build_code_index.py --root . "
             "--output _agent_ops/code_index.json"
         )
     return json.loads(path.read_text(encoding="utf-8"))
@@ -363,7 +369,7 @@ def main() -> int:
     index_path = Path(args.index)
     if not index_path.is_absolute():
         index_path = root / index_path
-    graph = Graph(load_index(index_path))
+    graph = Graph(load_index(index_path, root))
 
     if args.symbol:
         lines = render_symbol(graph, root, args.symbol, args.source_lines)
@@ -381,7 +387,7 @@ def main() -> int:
     stamp = graph.index.get("commit", "unknown")
     print("\n".join(lines).rstrip())
     print(f"\n---\nIndex built at commit `{stamp}` ({graph.index.get('generated')}). "
-          "Rebuild after code changes: python scripts/build_code_index.py --root .")
+          f"Rebuild after code changes: python {tool_prefix(root)}/build_code_index.py --root .")
     return 0
 
 
