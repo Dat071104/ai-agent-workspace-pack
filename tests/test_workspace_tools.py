@@ -90,6 +90,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(0, first.returncode, first.stderr)
         self.assertEqual(8, len(list((self.root / "_agent_ops" / "tools").glob("*.py"))))
         self.assertTrue((self.root / "AGENTS.md").is_file())
+        self.assertIn("## Pack Mode: Runtime-only", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
 
         repo_map = (self.root / "_agent_ops" / "REPO_MAP.md").read_text(encoding="utf-8")
         self.assertIn("## Symbol Graph", repo_map)
@@ -173,6 +174,12 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         ordinary_scan = self.run_tool(SCRIPTS / "scan_deps.py", "--root", str(ordinary), "--output", "json", cwd=PACK_ROOT)
         self.assertEqual(["src/app.py"], sorted(json.loads(embedded_scan.stdout)["graph"]))
         self.assertEqual(["scripts/app.py"], sorted(json.loads(ordinary_scan.stdout)["graph"]))
+
+        embedded_init = self.run_tool(SCRIPTS / "init_project_ops.py", "--target", str(embedded), cwd=PACK_ROOT)
+        self.assertEqual(0, embedded_init.returncode, embedded_init.stderr)
+        agents = (embedded / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("## Pack Mode: Embedded", agents)
+        self.assertIn("START_HERE.md", agents)
 
     def test_force_never_replaces_existing_agents_file(self) -> None:
         self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")

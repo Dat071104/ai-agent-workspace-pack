@@ -72,6 +72,20 @@ and a teammate who clones your project gets working tooling without ever hearing
 about this pack. Re-run step 2 any time to refresh the copies (`_agent_ops/tools/`
 is always overwritten; your memory files are not).
 
+### Choose one installation mode
+
+- **Embedded pack (default for multi-team or weaker agents):** copy this whole
+  pack into the project before initialization. `AGENTS.md`, `START_HERE.md`,
+  `TEAM_ROUTER.md`, and the nine team folders stay available; `@start-here` can
+  route lazily to one selected `SKILL.md`. In this mode, `scripts/` is a valid
+  local pack path.
+- **Runtime-only:** keep the pack elsewhere and run step 2 above. The target
+  gets `_agent_ops/` and its tools, but no team folders; its generated
+  `AGENTS.md` says so rather than pretending named-team routing is available.
+
+Do not mix the two descriptions: embedded mode is the complete operating kit;
+runtime-only mode is the self-contained tooling and memory layer.
+
 ---
 
 ## Daily use: one command
