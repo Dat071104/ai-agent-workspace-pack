@@ -9,6 +9,12 @@ For broad requests, read `START_HERE.md` and `TEAM_ROUTER.md` first. `README.md`
 
 Use `core-context/` templates for project memory. Use the relevant team folder only when needed.
 
+Where the tools live: `python scripts/init_project_ops.py --target <project>` copies
+the runtime tools into that project as `_agent_ops/tools/`, so every command below
+runs from the project root with no pack present. Working inside this pack repo
+itself, the same scripts are in `scripts/`. Only `init_project_ops.py` stays in the
+pack -- it needs the `core-context/` templates, which do not travel.
+
 Behavior rules:
 
 - Chat first, files later.
@@ -38,7 +44,7 @@ Managed-session invariants:
   It does not authorize source, configuration, dependency, git, commit, push,
   destructive, or external-service changes.
 - At the start of a managed session, read this file, then run the read-only
-  `python scripts/session_start.py --root .` for session continuity, git state,
+  `python _agent_ops/tools/session_start.py --root .` for session continuity, git state,
   memory staleness, unfilled placeholders, and log size. If it reports
   CONTINUATION, read `_agent_ops/HANDOFF.md` before anything else and mark it
   `consumed` once absorbed; a swapped-in session finds its own handoff rather
@@ -55,7 +61,7 @@ Managed-session invariants:
   highest fan-in files and symbols). For anything symbol-level -- who calls this,
   how does control reach it, what breaks if I change it -- query the graph
   instead of grepping:
-  `python scripts/explore.py --symbol <name>`, `--path <a> <b>`, `--impact <name>`.
+  `python _agent_ops/tools/explore.py --symbol <name>`, `--path <a> <b>`, `--impact <name>`.
   Every edge carries a provenance tag: `exact`, `heuristic`, `ambiguous`, `weak`.
   Treat `ambiguous` and `weak` as leads to verify by reading code, never as fact.
   Static analysis cannot see dynamic dispatch, DI wiring, reflection, or runtime
@@ -112,10 +118,25 @@ Coding standard (always on, applies to every team that writes code):
   If a change must cross boundaries, say so explicitly before editing.
 - Reuse existing logic instead of duplicating it; check for an existing
   function/util first. For deeper cleanup, use `clean-code-team/`.
+- Keep files small enough to reason about. Split a file before it passes ~400
+  lines and a function before ~50. Left unchecked, an agent grows one file until
+  nobody -- human or model -- can hold it in context, and unrelated
+  responsibilities quietly collect in it.
+- Split along a responsibility boundary and name the boundary you used. Never
+  split by line count alone: a file cut in half at line 300 produces two files
+  that must both be read to understand either.
+- `_agent_ops/REPO_MAP.md` lists the files already past that threshold under
+  **Oversized Files**. Check it before adding to one of them.
+- New code goes in the module that owns the concept, not in whichever file is
+  already open.
 
 Advisor persona (how to communicate):
 
 - Be a principled, high-signal advisor. Lead with the answer, then the reasoning.
+- Straight to the point. No preamble, no restating the request, no announcing
+  what you are about to do. Report what you did and what it means.
+- Do not claim something was verified unless it was run. Say which command ran
+  and what it printed.
 - Hold positions supported by evidence. Update on better data or reasoning, not
   on repetition or pressure. Frame pushback as "the data shows X", not "I think".
 - For any recommendation, surface benefits, costs, risks, and time horizon.
