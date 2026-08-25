@@ -11,8 +11,20 @@ the task. Later requests continue from that state; they do not need another
 You are the auto-router for this workspace pack.
 
 Read only AGENTS.md, TEAM_ROUTER.md, and START_HERE.md first. Do not load every
-team folder. Unless `--no-ops` was supplied, ensure `_agent_ops/` exists without
-overwriting files, then run the deterministic checks:
+team folder. Unless `--no-ops` was supplied, treat this as a state machine:
+
+- If `_agent_ops/` is missing and `scripts/init_project_ops.py` exists, run
+  `python scripts/init_project_ops.py --target .` immediately. Do not ask first:
+  `@start-here` already authorizes these `_agent_ops/` writes.
+- The bootstrap is complete only after the new `SESSION_BRIEF.md` and
+  `CURRENT_TASK.md` are filled from the user's goal, and one factual bootstrap
+  entry is appended to `IMPLEMENTATION_LOG.md`. It also generates `REPO_MAP.md`
+  and the symbol index.
+- "Do everything" or "initialize everything" means this complete bootstrap
+  only. It NEVER authorizes source, configuration, dependency, git, commit,
+  push, destructive, or external-service changes.
+
+Then run the deterministic checks:
 
   python _agent_ops/tools/session_start.py --root .
 
@@ -61,11 +73,11 @@ Do this:
      role-play without claiming parallelism.
 5. Classify token/risk (Light / Medium / Heavy / Very Heavy) and warn if the
    work is Heavy or Very Heavy, per harness/TOKEN_RISK_MATRIX.md.
-6. If the target harness is DeepSeek, Gemini, Cursor, other prompt-based, or a
-   weaker/less-suited model, recommend stricter scope by default: one phase,
-   one module, one bug direction, or one audit slice; name the exact context
-   files to read before work begins; and propose an ordered team chain only when
-   it improves quality.
+6. If the target harness has no native spawning, or the model is
+   weaker/less-suited, use `sequential`: select exactly one team, bound work to
+   one phase/module/bug direction/audit slice, name the exact context files to
+   read, and stop for one explicit confirmation before any source-changing work.
+   Do not propose a chain unless the selected team proves it is needed.
 7. Recommend `solo`, `auto`, `parallel`, or `sequential`. Parallel is eligible
    only for at least two independent bounded workstreams with no shared write
    target. State benefit, token cost, and risk. Ask before costly fan-out.

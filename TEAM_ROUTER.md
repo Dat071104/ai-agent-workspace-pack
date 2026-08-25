@@ -18,6 +18,9 @@ Use this file before loading any long team folder. Route first, then load only t
 `_agent_ops/` context. Subagents run only when the task has at least two truly
 independent workstreams, native spawning is available, and you confirm after a
 token-cost warning. Otherwise the root recommends solo or sequential roles.
+When native spawning is unavailable or the model is weaker/less-suited, use
+`sequential`: exactly one selected team, one bounded slice, and one explicit
+stop gate before source-changing work.
 Not sure which team? Type `@start-here <one line>`.
 
 ## Before Reading Code

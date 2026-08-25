@@ -43,6 +43,16 @@ Managed-session invariants:
   and updates inside `_agent_ops/`; use `--no-ops` for router/chat-only work.
   It does not authorize source, configuration, dependency, git, commit, push,
   destructive, or external-service changes.
+- Treat `@start-here` as a state machine, not merely a routing hint. Unless the
+  user supplied `--no-ops`, if `_agent_ops/` is missing and this embedded pack's
+  `scripts/init_project_ops.py` exists, bootstrap it immediately with
+  `python scripts/init_project_ops.py --target .` -- do not ask first, because
+  those writes are already authorized. That bootstrap means: create the ops
+  records, build `REPO_MAP.md` and the symbol index, then fill the new session's
+  `SESSION_BRIEF.md` and `CURRENT_TASK.md` from the stated goal and append one
+  factual bootstrap entry to `IMPLEMENTATION_LOG.md`. "Do everything" in a
+  start-here request means this complete `_agent_ops/` bootstrap only; it NEVER
+  authorizes source, configuration, dependency, git, or external changes.
 - At the start of a managed session, read this file, then run the read-only
   `python _agent_ops/tools/session_start.py --root .` for session continuity, git state,
   memory staleness, unfilled placeholders, and log size. If it reports
