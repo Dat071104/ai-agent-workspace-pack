@@ -46,6 +46,39 @@ def is_project_code(path: str) -> bool:
     return cleaned.endswith(CODE_SUFFIXES)
 
 
+def git_changed_paths(root: Path, args: list[str]) -> set[str]:
+    """Normalized paths from one git listing command, or an empty set on failure."""
+    output = git_value(root, args)
+    if output == "not available":
+        return set()
+    return {line.strip().replace("\\", "/") for line in output.splitlines() if line.strip()}
+
+
+def working_tree_code_files(root: Path) -> list[str]:
+    """Project code changed outside HEAD, including staged and untracked files.
+
+    A map or index stamped at HEAD is not fresh when a task has edited source
+    without committing it. `_agent_ops/tools/` remains excluded through
+    `is_project_code`, so copying the runtime cannot make every session stale.
+    """
+    paths: set[str] = set()
+    for args in (
+        ["diff", "--name-only"],
+        ["diff", "--cached", "--name-only"],
+        ["ls-files", "--others", "--exclude-standard"],
+    ):
+        paths.update(git_changed_paths(root, args))
+    return sorted(path for path in paths if is_project_code(path))
+
+
+def code_files_since(root: Path, stamp: str) -> list[str]:
+    """Committed and working-tree project code newer than a map/index stamp."""
+    committed = git_changed_paths(root, ["diff", "--name-only", f"{stamp}..HEAD"])
+    combined = {path for path in committed if is_project_code(path)}
+    combined.update(working_tree_code_files(root))
+    return sorted(combined)
+
+
 def read_text(path: Path) -> str:
     if not path.exists() or not path.is_file():
         return ""
@@ -202,6 +235,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
     branch = git_value(root, ["branch", "--show-current"])
     status = git_value(root, ["status", "--short"])
     is_git = head != "not available"
+    worktree_code = working_tree_code_files(root) if is_git else []
 
     out: list[str] = ["# Session Start (deterministic checks)", ""]
 
@@ -252,13 +286,19 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             "memory as UNVERIFIED against the current tree."
         )
     elif verified.startswith(head) or head.startswith(verified):
-        out.append(f"- SESSION_BRIEF is current with HEAD (`{head}`).")
+        if worktree_code:
+            out.append(
+                f"- SESSION_BRIEF matches HEAD (`{head}`), but {len(worktree_code)} "
+                "uncommitted code file(s) make its behavioral memory stale."
+            )
+        else:
+            out.append(f"- SESSION_BRIEF is current with HEAD (`{head}`).")
     else:
         delta = git_value(root, ["log", "--oneline", f"{verified}..HEAD"])
         commits = [line for line in delta.splitlines() if line.strip()] if delta != "not available" else []
-        files = git_value(root, ["diff", "--name-only", f"{verified}..HEAD"])
-        changed = [line for line in files.splitlines() if line.strip()] if files != "not available" else []
-        code = [line for line in changed if is_project_code(line)]
+        files = git_changed_paths(root, ["diff", "--name-only", f"{verified}..HEAD"])
+        changed = sorted(files)
+        code = code_files_since(root, verified)
         other = [line for line in changed if line not in code]
         out += [
             f"- SESSION_BRIEF was verified at `{verified}`; HEAD is `{head}`.",
@@ -296,12 +336,15 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         if not is_git or not commit_exists(root, map_sha):
             out.append("- Present; freshness unknown (no usable commit stamp).")
         elif map_sha.startswith(head) or head.startswith(map_sha):
-            out.append(f"- Current with HEAD (`{head}`).")
+            if worktree_code:
+                out += [
+                    f"- STALE: {len(worktree_code)} uncommitted code file(s) changed after `{map_sha}`.",
+                    "  Regenerate with `--force` before trusting the module table.",
+                ]
+            else:
+                out.append(f"- Current with HEAD (`{head}`).")
         else:
-            code = git_value(root, ["diff", "--name-only", f"{map_sha}..HEAD"])
-            code_files = [
-                line for line in code.splitlines() if is_project_code(line)
-            ]
+            code_files = code_files_since(root, map_sha)
             if code_files:
                 out += [
                     f"- STALE: {len(code_files)} code file(s) changed since `{map_sha}`.",
@@ -332,12 +375,16 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         if not is_git or not commit_exists(root, index_sha):
             out.append(f"- Present ({counts}); freshness unknown.")
         elif index_sha.startswith(head) or head.startswith(index_sha):
-            out.append(f"- Current with HEAD ({counts}).")
+            if worktree_code:
+                out += [
+                    f"- STALE: {len(worktree_code)} uncommitted code file(s) changed after `{index_sha}`.",
+                    "  Rebuild before trusting call paths:",
+                    f"  `python {tools}/build_code_index.py --root .`",
+                ]
+            else:
+                out.append(f"- Current with HEAD ({counts}).")
         else:
-            changed = git_value(root, ["diff", "--name-only", f"{index_sha}..HEAD"])
-            code_files = [
-                line for line in changed.splitlines() if is_project_code(line)
-            ]
+            code_files = code_files_since(root, index_sha)
             if code_files:
                 out += [
                     f"- STALE: {len(code_files)} code file(s) changed since `{index_sha}`.",
