@@ -213,7 +213,7 @@ def write_tools(ops_dir: Path) -> list[str]:
     return results
 
 
-def write_target_agents_md(target: Path, force: bool) -> str:
+def write_target_agents_md(target: Path) -> str:
     """Drop an AGENTS.md at the project root if it has none.
 
     This is the file Codex, Claude Code, Cursor, and friends pick up on their
@@ -222,7 +222,7 @@ def write_target_agents_md(target: Path, force: bool) -> str:
     project that already has one has already made this decision.
     """
     destination = target / "AGENTS.md"
-    return write_if_absent(destination, TARGET_AGENTS_MD, force)
+    return write_if_absent(destination, TARGET_AGENTS_MD, False)
 
 
 def write_code_index(target: Path, ops_dir: Path, force: bool) -> str:
@@ -379,7 +379,7 @@ def main() -> int:
     if args.no_agents_md:
         print(f"SKIP AGENTS.md (--no-agents-md): {target / 'AGENTS.md'}")
     else:
-        print(write_target_agents_md(target, args.force))
+        print(write_target_agents_md(target))
 
     print("")
     print("Done. Existing files were preserved unless --force was used.")
