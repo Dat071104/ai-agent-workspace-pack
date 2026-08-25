@@ -35,10 +35,12 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
+# Running a tool must never leave __pycache__ inside someone else's repository.
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
-from scan_deps import SKIP_DIRS, resolve_relative_import  # noqa: E402
+from scan_deps import SKIP_DIRS, resolve_import  # noqa: E402
 
 
 PY_SUFFIXES = {".py"}
@@ -311,18 +313,32 @@ def build_index(root: Path, max_files: int = 0) -> dict:
     edges: list[dict] = []
 
     # IMPORTS: file -> file, reusing the resolver that scan_deps already has.
+    # The resolver reports its own provenance: a relative import names its base
+    # directory (exact), while an absolute one depends on runtime sys.path and is
+    # only inferred (heuristic).
     import_targets: dict[str, set[str]] = defaultdict(set)
+    import_conf: dict[tuple[str, str], str] = {}
     for rel, data in per_file.items():
         source = root / rel
         for name in data["imports"]:
-            target = resolve_relative_import(root, source, name)
+            target, conf = resolve_import(root, source, name)
             if target:
                 target_rel = target.relative_to(root).as_posix()
                 if target_rel != rel:
                     import_targets[rel].add(target_rel)
+                    key = (rel, target_rel)
+                    if import_conf.get(key) != "exact":
+                        import_conf[key] = conf
     for rel, targets in import_targets.items():
         for target in sorted(targets):
-            edges.append({"from": rel, "to": target, "kind": "IMPORTS", "conf": "exact"})
+            edges.append(
+                {
+                    "from": rel,
+                    "to": target,
+                    "kind": "IMPORTS",
+                    "conf": import_conf.get((rel, target), "heuristic"),
+                }
+            )
 
     # EXTENDS: class -> base class.
     for ident, info in symbols.items():

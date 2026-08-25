@@ -21,10 +21,36 @@ SKIP_DIRS = {
     "build",
     "__pycache__",
     ".pytest_cache",
+    ".mypy_cache",
+    "site-packages",
+    # The agent's own memory folder. It holds a copy of these very tools, and
+    # indexing them would put the tooling at the top of the project's own hot
+    # files. A non-default --ops-folder name is not skipped automatically.
+    "_agent_ops",
 }
 JS_IMPORT_RE = re.compile(
     r"""(?:from\s+["']([^"']+)["']|import\s*\(?\s*["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\))"""
 )
+
+
+def tool_prefix(root: Path) -> str:
+    """Path to invoke these tools with, as seen from `root`.
+
+    They run both from the pack (`scripts/`) and from the copy installed inside
+    a project (`_agent_ops/tools/`). A hard-coded `scripts/` in printed advice
+    sends the reader of an installed project to a folder that is not there.
+    """
+    here = Path(__file__).resolve().parent
+    try:
+        return here.relative_to(root).as_posix()
+    except ValueError:
+        pass
+    # Generated from the pack against a project that has the tools installed:
+    # print the path the reader of THAT project can actually run.
+    installed = root / "_agent_ops" / "tools"
+    if (installed / Path(__file__).name).exists():
+        return "_agent_ops/tools"
+    return "scripts"
 
 
 def iter_code_files(root: Path) -> list[Path]:
@@ -80,12 +106,43 @@ def _first_existing(root: Path, candidates: list[Path]) -> Path | None:
     return None
 
 
-def resolve_python_import(root: Path, source: Path, import_name: str) -> Path | None:
+def import_bases(root: Path, source: Path) -> list[Path]:
+    """Directories that could act as the import root for an absolute import.
+
+    A repo's modules are almost never importable from the repository root alone.
+    A flat `scripts/` folder imports its siblings, a `src/` layout imports from
+    `src/`, and a monorepo package imports from its own package root. Rather
+    than guess which layout this is, walk every ancestor of the source file,
+    nearest first, and stop at the repository root. Nearest-first matters: it
+    prefers the sibling module over a same-named file higher up the tree.
+    """
+    bases: list[Path] = []
+    current = source.parent
+    while True:
+        bases.append(current)
+        if current == root or current.parent == current:
+            break
+        current = current.parent
+        try:
+            current.relative_to(root)
+        except ValueError:
+            break
+    if root not in bases:
+        bases.append(root)
+    return bases
+
+
+def resolve_python_import(root: Path, source: Path, import_name: str) -> tuple[Path | None, str]:
     """Resolve a Python import, which is a dotted module name, not a path.
 
     `from ..models.user import User` arrives here as `..models.user`. Treating
     that as a filesystem path (as the generic branch does) never matches, so
     Python fan-in silently came out empty before this existed.
+
+    A relative import names its own base directory, so a hit is `exact`. An
+    absolute import (`from scan_deps import ...`, `from app.models import ...`)
+    depends on what is on `sys.path` at runtime, which static analysis cannot
+    know; a hit there is a `heuristic` lead, not a proof.
     """
     level = len(import_name) - len(import_name.lstrip("."))
     remainder = import_name[level:]
@@ -95,37 +152,72 @@ def resolve_python_import(root: Path, source: Path, import_name: str) -> Path | 
         base = source.parent
         for _ in range(level - 1):
             base = base.parent
+        bases, confidence = [base], "exact"
     else:
-        # Absolute import: only resolvable if it names a path inside the repo.
-        base = root
-    if not parts:
-        return _first_existing(root, [base / "__init__.py"])
+        if not parts:
+            return None, "exact"
+        bases, confidence = import_bases(root, source), "heuristic"
 
-    target = base.joinpath(*parts)
-    return _first_existing(
-        root,
-        [target.with_suffix(suffix) for suffix in PY_SUFFIXES] + [target / "__init__.py"],
-    )
+    for base in bases:
+        if not parts:
+            hit = _first_existing(root, [base / "__init__.py"])
+        else:
+            target = base.joinpath(*parts)
+            hit = _first_existing(
+                root,
+                [target.with_suffix(suffix) for suffix in PY_SUFFIXES] + [target / "__init__.py"],
+            )
+        if hit is not None:
+            return hit, confidence
+    return None, confidence
+
+
+JS_SUFFIXES = [".py", ".js", ".jsx", ".ts", ".tsx"]
+
+
+def resolve_js_import(root: Path, source: Path, import_name: str) -> tuple[Path | None, str]:
+    """Resolve a JS/TS specifier.
+
+    `./x` and `/x` are paths, so a hit is `exact`. A bare specifier containing a
+    slash (`components/Button`) is usually a `baseUrl`/`paths` alias, which is
+    configured outside the source file; probing ancestors finds it but the hit is
+    a `heuristic`. A single-word specifier (`react`, `fs`) is a package name and
+    is never probed -- that is where false edges would come from.
+    """
+    if import_name.startswith((".", "/")):
+        if import_name.startswith("/"):
+            candidate_base = (root / import_name.lstrip("/")).resolve()
+        else:
+            candidate_base = (source.parent / import_name).resolve()
+        candidates = [candidate_base]
+        candidates += [candidate_base.with_suffix(suffix) for suffix in JS_SUFFIXES]
+        candidates += [candidate_base / f"index{suffix}" for suffix in JS_SUFFIXES]
+        return _first_existing(root, candidates), "exact"
+
+    if "/" not in import_name or import_name.startswith("@"):
+        return None, "exact"
+
+    for base in import_bases(root, source):
+        candidate_base = base / import_name
+        candidates = [candidate_base]
+        candidates += [candidate_base.with_suffix(suffix) for suffix in JS_SUFFIXES]
+        candidates += [candidate_base / f"index{suffix}" for suffix in JS_SUFFIXES]
+        hit = _first_existing(root, candidates)
+        if hit is not None:
+            return hit, "heuristic"
+    return None, "heuristic"
+
+
+def resolve_import(root: Path, source: Path, import_name: str) -> tuple[Path | None, str]:
+    """Resolve one import to a file in this repo, with a provenance tag."""
+    if source.suffix == ".py":
+        return resolve_python_import(root, source, import_name)
+    return resolve_js_import(root, source, import_name)
 
 
 def resolve_relative_import(root: Path, source: Path, import_name: str) -> Path | None:
-    if source.suffix == ".py":
-        return resolve_python_import(root, source, import_name)
-    if not import_name.startswith((".", "/")):
-        return None
-    base = source.parent
-    candidate_base = (base / import_name).resolve() if not import_name.startswith("/") else (root / import_name.lstrip("/")).resolve()
-    suffixes = [".py", ".js", ".jsx", ".ts", ".tsx"]
-    candidates = [candidate_base] + [candidate_base.with_suffix(suffix) for suffix in suffixes]
-    candidates += [candidate_base / f"index{suffix}" for suffix in suffixes]
-    for candidate in candidates:
-        if candidate.exists() and candidate.is_file():
-            try:
-                candidate.relative_to(root)
-            except ValueError:
-                return None
-            return candidate
-    return None
+    """Path-only view of `resolve_import`, kept for callers that ignore provenance."""
+    return resolve_import(root, source, import_name)[0]
 
 
 def build_graph(root: Path) -> dict[str, dict[str, list[str]]]:
