@@ -28,6 +28,33 @@ SKIP_DIRS = {
     # files. A non-default --ops-folder name is not skipped automatically.
     "_agent_ops",
 }
+# A manually embedded workspace pack is infrastructure, not the target
+# project's application. Without this exclusion, its own `scripts/*.py` crowd
+# the map and graph of a small project. Detect the complete pack signature
+# first; never skip a generic directory such as `scripts/` by name alone.
+EMBEDDED_PACK_MARKERS = (
+    "TEAM_ROUTER.md",
+    "core-context",
+    "scripts/init_project_ops.py",
+)
+EMBEDDED_PACK_DIRS = {
+    ".claude",
+    ".codex",
+    "advisor-team",
+    "analyze-team",
+    "bug-fix-team",
+    "build-team",
+    "clean-code-team",
+    "commands",
+    "core-context",
+    "examples",
+    "handoff-team",
+    "harness",
+    "prompting-team",
+    "repo-hygiene-team",
+    "scripts",
+    "tester-team",
+}
 JS_IMPORT_RE = re.compile(
     r"""(?:from\s+["']([^"']+)["']|import\s*\(?\s*["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\))"""
 )
@@ -53,10 +80,27 @@ def tool_prefix(root: Path) -> str:
     return "scripts"
 
 
+def is_embedded_pack(root: Path) -> bool:
+    """True only when this root contains a complete manually embedded pack."""
+    return all((root / marker).exists() for marker in EMBEDDED_PACK_MARKERS)
+
+
+def should_skip_path(root: Path, path: Path, embedded_pack: bool) -> bool:
+    """Keep project code, excluding generic artifacts and detected pack internals."""
+    try:
+        rel_parts = path.relative_to(root).parts
+    except ValueError:
+        return True
+    if any(part in SKIP_DIRS for part in rel_parts):
+        return True
+    return bool(embedded_pack and rel_parts and rel_parts[0] in EMBEDDED_PACK_DIRS)
+
+
 def iter_code_files(root: Path) -> list[Path]:
     files: list[Path] = []
+    embedded_pack = is_embedded_pack(root)
     for path in root.rglob("*"):
-        if any(part in SKIP_DIRS for part in path.parts):
+        if should_skip_path(root, path, embedded_pack):
             continue
         if path.is_file() and path.suffix in CODE_SUFFIXES:
             files.append(path)
