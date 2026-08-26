@@ -17,7 +17,8 @@ Before using a generated prompt, verify:
 - [ ] Phase gates or acceptance checks are included.
 - [ ] Test requirements are included.
 - [ ] Audit or review step is included when needed.
-- [ ] Implementation log update is required.
+- [ ] Prompt-independent implementation-log and durable-state update triggers
+      are required; an omitted filename is not a waiver.
 - [ ] Git safety says never use `git add .`.
 - [ ] Commit and push rules are explicit.
 - [ ] Public repo hygiene is included.

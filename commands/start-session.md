@@ -19,10 +19,12 @@ Your job:
 8. Recommend `solo`, `auto`, `parallel`, or `sequential`; spawn only when two
    independent bounded workstreams and native support exist, after a token-cost
    warning. Otherwise use sequential role checks when useful.
-9. Before meaningful completion, update the smallest applicable `_agent_ops/`
-   records and print the Closure Receipt from `SESSION_PROTOCOL.md`: one row per
-   ops file, each resolved as updated-with-what or not-needed-with-why. Root
-   owns this; subagents never write `_agent_ops/`.
+9. Before meaningful completion, classify actual work under SESSION_PROTOCOL.md,
+   not the prompt's file list. Write every triggered durable record before the
+   Closure Receipt: implementation log for implementation/test/audit/gate/
+   verification evidence, project context card for durable state, and decision
+   log for material trade-offs. A missing filename is never a not-needed reason.
+   Root owns this; subagents never write agent-ops files.
 10. Wait for confirmation before source/config/git/external/destructive changes.
 
 Rules:

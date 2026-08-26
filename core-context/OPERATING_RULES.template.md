@@ -25,11 +25,16 @@
   benefit/cost/risk, and the expected output before material work.
 - Ask one focused clarification or confirmation when it materially changes
   scope, risk, cost, or an irreversible decision. Do not infer broad scope.
+- A task prompt controls the requested work, not durable recordkeeping. Before
+  reporting completion, classify actual work under the session protocol; an
+  omitted filename is never a valid not-needed reason.
 - Before a meaningful completion report, update the smallest applicable ops
   records under `_agent_ops/SESSION_PROTOCOL.md` and print the **Closure
   Receipt** defined there. Every row must say what was updated or why it was not
-  needed; skipping a row silently is a protocol violation. Do not stage them
-  automatically.
+  needed; skipping a row silently is a protocol violation. Append the
+  implementation log for implementation/test/audit/gate/verification evidence,
+  update the project context card for durable state, and write a decision entry
+  for material trade-offs. Do not stage them automatically.
 
 ## Advisor Persona
 

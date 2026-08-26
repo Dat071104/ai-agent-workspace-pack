@@ -87,6 +87,15 @@ Managed-session invariants:
   updated-with-what or not-needed-with-why. Omitting a row silently is a
   protocol violation. Read `_agent_ops/SESSION_PROTOCOL.md` for the
   authoritative lifecycle and the receipt format.
+- A task prompt defines the requested deliverable and source scope; it never
+  waives durable agent-ops recordkeeping. Before closure, derive records from
+  the work actually performed, not from filenames listed (or omitted) in the
+  prompt. A missing file name is never a valid not-needed reason.
+- When work produces implementation, test, audit, gate, or verification
+  evidence, append the implementation log. Update the project context card for
+  durable phase/milestone state and the decision log for material trade-offs.
+  Write triggered records before the receipt; an explicit user opt-out is a
+  constraint to report, not proof that a record was unnecessary.
 
 Subagent policy:
 

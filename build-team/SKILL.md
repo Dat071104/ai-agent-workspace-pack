@@ -79,8 +79,10 @@ request like "add feature X" has a destination instead of detouring through
     `python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
 11. Report the slice: files changed, tests run with real output, what is still
     unimplemented. Ask before starting the next slice.
-12. Print the Closure Receipt from `_agent_ops/SESSION_PROTOCOL.md`. Commit only
-    if the user allowed it.
+12. Before the Closure Receipt, classify actual work under
+    `_agent_ops/SESSION_PROTOCOL.md`; the prompt's file list never waives a
+    triggered implementation-log, project-context, or decision record. Commit
+    only if the user allowed it.
 
 ## Expected Output Contract
 

@@ -27,7 +27,10 @@ Use this gate before creating a large Codex, Cursor, Claude Code, Windsurf, or a
 - [ ] Repo hygiene checks are included.
 - [ ] Implementation log update is included.
 - [ ] The prompt names the root-owned closure gate and updates only the smallest
-      applicable `_agent_ops/` records.
+       applicable `_agent_ops/` records.
+- [ ] The closure block says that prompt file lists do not waive triggered
+      records, and maps evidence, durable state, decisions, and risks to their
+      respective agent-ops records.
 - [ ] Git safety is included, including never use `git add .`.
 
 ## Token and Risk

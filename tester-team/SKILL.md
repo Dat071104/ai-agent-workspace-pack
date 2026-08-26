@@ -102,8 +102,9 @@ Observability checks (report gaps):
 - UX/performance/integration/repo hygiene notes.
 - Test gaps.
 - Recommended next workflow.
-- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md` when the audit produced
-  real evidence.
+- When the audit produces real evidence, apply the prompt-independent
+  implementation-log, project-state, decision, and risk triggers in
+  `_agent_ops/SESSION_PROTOCOL.md`, then print its Closure Receipt.
 
 ## Safety Rules
 

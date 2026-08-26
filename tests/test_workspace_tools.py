@@ -114,6 +114,30 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(8, second.stdout.count("UPDATE: "))
         self.assertIn("SKIP existing: " + str(self.root / "AGENTS.md"), second.stdout)
 
+    def test_init_propagates_prompt_independent_closure_gate(self) -> None:
+        self.assertEqual(0, self.init_project().returncode)
+
+        agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        protocol = (self.root / "_agent_ops" / "SESSION_PROTOCOL.md").read_text(encoding="utf-8")
+        rules = (self.root / "_agent_ops" / "OPERATING_RULES.md").read_text(encoding="utf-8")
+        index = (self.root / "_agent_ops" / "INDEX.md").read_text(encoding="utf-8")
+        task = (self.root / "_agent_ops" / "CURRENT_TASK.md").read_text(encoding="utf-8")
+        log = (self.root / "_agent_ops" / "IMPLEMENTATION_LOG.md").read_text(encoding="utf-8")
+        card = (self.root / "_agent_ops" / "PROJECT_CONTEXT_CARD.md").read_text(encoding="utf-8")
+
+        self.assertIn("A task prompt defines deliverable scope, not durable recordkeeping.", agents)
+        self.assertIn("## Prompt-Independence Invariant", protocol)
+        self.assertIn("A task prompt controls the requested work, not durable recordkeeping.", rules)
+        self.assertIn("A prompt omission never waives a triggered record.", index)
+        self.assertIn("Prompt omission is never a reason to skip a triggered", task)
+        self.assertIn("A prompt need not name this file", log)
+        self.assertIn("even when the task prompt only names task-level files", card)
+
+        session = self.run_tool(self.root / "_agent_ops" / "tools" / "session_start.py", "--root", ".")
+        self.assertEqual(0, session.returncode, session.stderr)
+        self.assertIn("## Durable Recordkeeping Gate", session.stdout)
+        self.assertIn("not the task prompt's file list", session.stdout)
+
     def test_hygiene_distinguishes_nested_models_from_root_artifacts(self) -> None:
         self.make_source_fixture()
         self.assertEqual(0, self.init_project().returncode)

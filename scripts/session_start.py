@@ -467,6 +467,30 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
     out.append("")
 
     out += [
+        "## Durable Recordkeeping Gate",
+        "",
+        "Before a meaningful completion report, classify the work actually done,",
+        "not the task prompt's file list. Implementation, test, audit, gate, or",
+        "verification evidence requires an implementation-log entry; durable",
+        "phase/milestone state requires a project-context update; material",
+        "trade-offs require a decision entry. Write triggered records before the",
+        "Closure Receipt. A missing filename is never a not-needed reason.",
+        "",
+    ]
+
+    out += [
+        "## Durable Recordkeeping Gate",
+        "",
+        "Before a meaningful completion report, classify the work actually done,",
+        "not the task prompt's file list. Implementation, test, audit, gate, or",
+        "verification evidence requires an implementation-log entry; durable",
+        "phase/milestone state requires a project-context update; material",
+        "trade-offs require a decision entry. Write triggered records before the",
+        "Closure Receipt. A missing filename is never a not-needed reason.",
+        "",
+    ]
+
+    out += [
         "## Reminder",
         "",
         "This output covers the mechanical checks only. Still owed to the user:",

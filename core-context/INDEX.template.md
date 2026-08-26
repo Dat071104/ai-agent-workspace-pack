@@ -27,12 +27,15 @@ everything here defeats the purpose of the folder.
 
 ## Write Triggers
 
+Evaluate these triggers from work actually performed, not from filenames in a
+task prompt. A prompt omission never waives a triggered record.
+
 | Event | Update |
 | --- | --- |
 | Each meaningful step in a task | `CURRENT_TASK.md` |
 | Every managed session | `SESSION_BRIEF.md` (state, next step, `Last Verified Commit`) |
-| Real implementation, test, or audit evidence | append `IMPLEMENTATION_LOG.md` |
-| Durable project or milestone state changed | `PROJECT_CONTEXT_CARD.md` |
+| Real implementation, test, audit, gate, or verification evidence | append `IMPLEMENTATION_LOG.md` |
+| Durable project or milestone state changed, including accepted/rejected/blocked gate status | `PROJECT_CONTEXT_CARD.md` |
 | Decision with material trade-offs | `DECISION_LOG.md` |
 | New or changed material risk | `RISK_REGISTER.md` |
 | Code files moved or added | rebuild `code_index.json`, then regenerate `REPO_MAP.md` |

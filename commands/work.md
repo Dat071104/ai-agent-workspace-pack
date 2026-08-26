@@ -29,10 +29,14 @@ _agent_ops/SESSION_PROTOCOL.md.
 7. Keep _agent_ops/CURRENT_TASK.md current as the task proceeds: files touched,
    approaches ruled out with evidence, open questions, next step. Overwrite it;
    do not append.
-8. Before a meaningful completion report, let the root update the smallest
-   required _agent_ops records under SESSION_PROTOCOL.md and print the Closure
-   Receipt: one row per ops file, each resolved as updated-with-what or
-   not-needed-with-why. Do not stage, commit, or push them automatically.
+8. Before a meaningful completion report, let the root classify actual work
+   under SESSION_PROTOCOL.md, not the prompt's file list. Write every triggered
+   durable record first: the implementation log for implementation/test/audit/
+   gate/verification evidence, the project context card for durable state, and
+   the decision log for material trade-offs. Then print the Closure Receipt:
+   one row per ops file, each resolved as updated-with-what or
+   not-needed-with-a-missing-trigger. Do not stage, commit, or push them
+   automatically.
 
 Never use git add . Do not claim agents were spawned unless real child agents
 were created by the current harness.

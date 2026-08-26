@@ -172,10 +172,15 @@ python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_M
 - Keep `_agent_ops/CURRENT_TASK.md` current DURING a task, not only at the end:
   files touched, approaches ruled out with their evidence, next step. That file
   is what survives a mid-task context compaction.
-- Before a completion report, update the smallest applicable `_agent_ops/`
-  records and print the Closure Receipt defined in
-  `_agent_ops/SESSION_PROTOCOL.md`: one row per ops file, each resolved as
-  updated-with-what or not-needed-with-why.
+- A task prompt defines deliverable scope, not durable recordkeeping. Before a
+  completion report, classify the work actually performed under the session
+  protocol; a filename omitted from the prompt never makes a triggered record
+  not needed.
+- Append the implementation log for implementation, test, audit, gate, or
+  verification evidence. Update the project context card for durable
+  phase/milestone state and the decision log for material trade-offs. Write
+  these records before printing the Closure Receipt; an explicit user opt-out
+  must be reported as a constraint, not as not needed.
 
 ## Coding Standard
 

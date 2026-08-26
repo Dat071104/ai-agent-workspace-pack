@@ -1,12 +1,19 @@
 # Implementation Log / Nhat ky trien khai
 
-Append-only. Add a new entry for each meaningful task or phase.
+Append-only. Add a new entry for each meaningful task or phase that produces
+implementation, test, audit, gate, or verification evidence -- including a
+negative result that changes the next action. A prompt need not name this file
+for the entry to be required.
 
 ## Entry Template
 
 ### Date
 
 `YYYY-MM-DD`
+
+### Task ID
+
+`TASK-0001` or `not assigned`
 
 ### Phase / Task
 
@@ -16,9 +23,9 @@ Append-only. Add a new entry for each meaningful task or phase.
 
 - `<file path>`
 
-### What Changed
+### What Changed / Evidence Produced
 
-- `<change>`
+- `<change, or evidence produced; say "no source change" for an audit-only task>`
 
 ### Why
 
@@ -61,4 +68,3 @@ Append-only. Add a new entry for each meaningful task or phase.
 ### Next Step
 
 `<next concrete task>`
-

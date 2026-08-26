@@ -120,20 +120,36 @@ set of `_agent_ops/` files:
 | --- | --- |
 | Each meaningful step within a task | `CURRENT_TASK.md`: files touched, dead ends, next step |
 | Every managed session | `SESSION_BRIEF.md`: active state, next step, `Last Verified Commit` |
-| Meaningful implementation, test, or audit evidence | append to `IMPLEMENTATION_LOG.md` |
-| Durable project/milestone state changed | `PROJECT_CONTEXT_CARD.md` |
+| Meaningful implementation, test, audit, gate, or verification evidence -- including a negative result that changes the next action | append to `IMPLEMENTATION_LOG.md` |
+| Durable project/milestone state changed, including a gate being accepted, rejected, or blocked | `PROJECT_CONTEXT_CARD.md` |
 | Decision with material trade-offs | `DECISION_LOG.md` |
 | New or changed material risk | `RISK_REGISTER.md` |
 | Code files added, moved, or removed | regenerate `REPO_MAP.md` |
 
-Do not update every file mechanically. Keep the implementation log factual and
-append-only; never put secrets, private data, or unverified claims in any ops
-file. Context updates are never staged, committed, or pushed automatically.
+### Prompt-Independence Invariant
+
+The task prompt controls the requested deliverable and source scope. It does
+**not** decide whether project memory must be updated. In a managed session,
+derive closure records from the work actually performed and the evidence it
+produced -- never from a list of files in the prompt.
+
+- A missing implementation-log, project-context-card, or decision-log reference
+  in a task prompt is never a valid reason to skip a triggered record.
+- "Smallest applicable" means **all and only** the records whose table trigger
+  occurred. It does not mean only the files the prompt named.
+- Start-here with no-ops is the explicit chat-only exception. If the user
+  explicitly forbids an otherwise required update, honor that constraint and
+  report it as blocked by user direction -- never as not needed.
+
+Do not update unrelated files mechanically. Keep the implementation log factual
+and append-only; never put secrets, private data, or unverified claims in any
+ops file. Context updates are never staged, committed, or pushed automatically.
 
 ### Closure Receipt (required output)
 
-A prose reminder to "update the smallest applicable set" is easy to skip. So the
-gate is an output contract instead: print this block before any meaningful
+A prose reminder to "update the smallest applicable set" is easy to skip. Use
+this completion order instead: classify actual work against the table, write
+every triggered durable record, then print this block before any meaningful
 completion report.
 
 ```text
@@ -153,6 +169,12 @@ Rules:
   with the reason*. Silently omitting a row is a protocol violation.
 - "not needed" is a legitimate answer for most rows on most tasks. The point is
   a deliberate decision on each, not a mechanical update of all.
+- A not-needed reason must identify the missing trigger (for example,
+  "routing-only: no implementation, test, audit, gate, or verification
+  evidence"). "The prompt did not ask for this file" is invalid.
+- If an explicit user instruction blocks an otherwise triggered write, say
+  "blocked by user direction (<constraint>)"; do not label the record
+  not needed.
 - The receipt states what was actually written. Do not list a file as updated
   before writing it.
 - Routing, questions, and read-only reports do not need a receipt. Anything that

@@ -96,5 +96,10 @@ private data, and unverified claims out of all of them.
 - Keep logs append-only; rotate rather than delete (see `SESSION_PROTOCOL.md`).
 - Keep entries factual and dated.
 - Do not include secrets or private data.
-- Update context before handoff, and print the Closure Receipt.
+- Derive durable updates from actual work, not from the prompt's file list:
+  implementation/test/audit/gate/verification evidence triggers the
+  implementation log; durable state and material decisions trigger their
+  respective records.
+- Update context before handoff, and print the Closure Receipt. A prompt
+  omission is never a not-needed reason.
 - Never stage files with `git add .`; stage explicit files only.

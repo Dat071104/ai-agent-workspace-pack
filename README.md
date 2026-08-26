@@ -198,6 +198,12 @@ Three layers, each with a different lifetime:
 Tried"** section is what stops an agent from re-testing a hypothesis it already
 disproved after its context gets compacted.
 
+The task prompt controls what the agent is asked to deliver; it does not waive
+durable project memory. Real implementation, test, audit, gate, or verification
+evidence belongs in the implementation log even if the prompt never names that
+file. A durable phase/milestone result belongs on the project context card, and
+a material trade-off belongs in the decision log.
+
 ### What gets committed, and what does not
 
 `init_project_ops.py` writes an `_agent_ops/.gitignore` for you:
@@ -351,8 +357,9 @@ These are always on, in every team:
 - `@start-here` may only write inside `_agent_ops/` — never your source or git
 
 Before a task is reported done, the agent prints a **Closure Receipt**: one line
-per memory file, each saying what was updated or why it was not needed. Silently
-skipping a line is a protocol violation.
+per memory file, each saying what was updated or why it was not needed. The
+not-needed reason must identify the absent trigger; "the prompt did not name
+this file" is invalid. Silently skipping a line is a protocol violation.
 
 ---
 
@@ -365,8 +372,10 @@ Being straight with you:
 - **The code graph only sees static structure** in `.py`, `.js`, `.jsx`, `.ts`,
   `.tsx`. Dynamic dispatch, DI, reflection, and route registries are invisible.
   Never conclude "this file is dead" from the graph alone.
-- **The Closure Receipt is a contract, not a hook.** It makes skipping hard, not
-  impossible.
+- **The Closure Receipt is a contract, not a daemon.** The requirement is
+  repeated in the always-on agent rules, generated target instructions,
+  templates, and commands, and a golden test guards that propagation. It still
+  requires the agent to follow instructions and human review for material work.
 - **Rebuilds are manual.** The session check reminds you; it does not watch files.
 - **Small repos do not need this.** Under ~20 files the overhead outweighs the
   benefit — use `--no-ops`.

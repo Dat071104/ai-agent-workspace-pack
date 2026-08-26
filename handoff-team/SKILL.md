@@ -62,7 +62,8 @@ Creates complete or compact handoff artifacts for continuity across sessions, ag
 - Next steps, including anything still listed in CURRENT_TASK.md as ruled out or
   awaiting an answer, so the next session does not rediscover it.
 - Suggested next prompt.
-- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md`.
+- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md`, after applying its
+  prompt-independent durable-record triggers.
 
 ## Safety Rules
 

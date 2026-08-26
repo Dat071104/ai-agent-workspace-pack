@@ -41,9 +41,11 @@ Execution:
 2. Work one phase at a time.
 3. Before each phase, state files likely to change.
 4. After each phase, run the smallest meaningful test.
-5. Root updates the smallest applicable `_agent_ops/` records: Session Brief
-   always; append implementation evidence; change project/decision/risk records
-   only when durable state, a material decision, or a material risk changed.
+5. Root classifies actual work under the session protocol, not the prompt's
+   file list: Session Brief always; append the implementation log for
+   implementation/test/audit/gate/verification evidence; update the project,
+   decision, and risk records when durable state, a material decision, or a
+   material risk changed. A missing filename never waives a triggered record.
 
 Phase gates:
 - Acceptance criteria are met.
@@ -64,6 +66,7 @@ Final report:
 - Known risks.
 - Git status.
 - Next recommended step.
+- Closure Receipt after all triggered durable records were written.
 
 Honesty:
 Do not claim tests passed unless actually run. If blocked, report the blocker and the exact next needed input.

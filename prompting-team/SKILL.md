@@ -37,7 +37,10 @@ Check:
 3. Classify token/risk level.
 4. Run the prompt readiness gate for large prompts.
 5. Define goal, scope, non-goals, repo path, constraints, and expected output.
-6. Include initial inspection, phase gates, tests, audit, repo hygiene, implementation log, commit/push rules, and honesty rules.
+6. Include initial inspection, phase gates, tests, audit, repo hygiene,
+   prompt-independent durable-record triggers, commit/push rules, and honesty
+   rules. The target prompt must derive record updates from actual work, not
+   from the files it happens to name.
 7. Show a prompt preview in chat.
 8. Suggest optional teams/skills only when useful.
 9. Ask before writing prompt files.

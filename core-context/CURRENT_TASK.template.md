@@ -8,8 +8,10 @@ when the conversation context is compacted mid-task. Update it after each
 meaningful step -- a file edited, a hypothesis ruled out, a user answer received
 -- not only at the end.
 
-When the task finishes, fold the durable facts into `IMPLEMENTATION_LOG.md` and
-reset this file for the next task.
+When the task finishes, classify the work under SESSION_PROTOCOL.md and fold
+every triggered durable fact into the implementation log, project context card,
+and/or decision log. Prompt omission is never a reason to skip a triggered
+record. Reset this file only after writing the records and Closure Receipt.
 
 ## Task ID / Started
 
@@ -51,3 +53,12 @@ hypothesis that was already disproved. Record every dead end with its evidence.
 ## Last Verified Commit
 
 `<short SHA of HEAD when this file was last updated>`
+
+## Closure Gate (before final report)
+
+- [ ] Classified actual work against SESSION_PROTOCOL.md; prompt file lists did
+      not narrow the record triggers.
+- [ ] Wrote every triggered durable record, or recorded the absent trigger in
+      the Closure Receipt.
+- [ ] Printed the Closure Receipt after the writes, never as a plan to write
+      later.

@@ -110,7 +110,8 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
 - Risks and rollback notes.
 - Confirmation question (including which direction to take).
 - After fixing: files changed, tests, results, remaining risks.
-- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md`.
+- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md`, after applying its
+  prompt-independent durable-record triggers.
 
 ## Safety Rules
 

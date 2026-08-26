@@ -14,6 +14,11 @@ Vietnamese: `<du an lam gi va phuc vu ai>`
 
 `<phase, milestone, or current status>`
 
+Update this section when a durable phase or gate becomes accepted, rejected, or
+blocked, even when the task prompt only names task-level files. Put detailed
+commands and raw outcomes in IMPLEMENTATION_LOG.md; keep this card to the
+current durable state.
+
 ## Tech Stack
 
 - Language:
@@ -79,4 +84,3 @@ avoid code that is syntactically right but semantically wrong.
 ## Last Updated
 
 `YYYY-MM-DD`
-

@@ -34,6 +34,9 @@ While implementing:
   it. Never invent a symbol.
 - Run the narrowest meaningful test. Do not claim a pass that did not run.
 - Keep _agent_ops/CURRENT_TASK.md current: files touched, dead ends, next step.
+- Classify actual work against the Session Protocol at closure. The prompt's
+  file list never waives the implementation log, project context card, or
+  decision log when their trigger occurred; write them before the receipt.
 - Report the slice, then ask before starting the next one.
 - Print the Closure Receipt from _agent_ops/SESSION_PROTOCOL.md.
 

@@ -94,10 +94,14 @@ Do this:
     touched, approaches ruled out with evidence, open questions, next step.
     Update it as you go, not only at the end -- it is what survives if the
     conversation context is compacted.
-11. Before a meaningful completion report, let the root update the smallest
-    applicable `_agent_ops/` records under `SESSION_PROTOCOL.md` and print the
-    Closure Receipt: one row per ops file, each resolved as updated-with-what or
-    not-needed-with-why. Do not stage, commit, or push them automatically.
+11. Before a meaningful completion report, let the root classify actual work
+    under SESSION_PROTOCOL.md, not the prompt's file list. Write every
+    triggered durable record first: the implementation log for
+    implementation/test/audit/gate/verification evidence, the project context
+    card for durable state, and the decision log for material trade-offs. Then
+    print the Closure Receipt: one row per ops file, each resolved as
+    updated-with-what or not-needed-with-a-missing-trigger. Do not stage,
+    commit, or push them automatically.
 
 Rules:
 - Chat first, files later.

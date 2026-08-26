@@ -78,7 +78,8 @@ Before starting, warn the user:
 - Batch plan.
 - Confirmation question.
 - After each batch: files changed, tests, results, rollback notes, continue question.
-- Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md` after each batch.
+- After each batch, apply the prompt-independent durable-record triggers in
+  `_agent_ops/SESSION_PROTOCOL.md`, then print its Closure Receipt.
 
 ## Safety Rules
 
