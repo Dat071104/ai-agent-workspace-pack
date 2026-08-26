@@ -219,6 +219,15 @@ Project history is shared; per-machine scratch and rebuildable artifacts are not
 > `python _agent_ops/tools/check_repo_hygiene.py --root .` fails if a local-only file
 > gets tracked by mistake.
 
+### Source commits keep the map current
+
+For an authorized commit containing project-code changes, stage the intended
+source files after tests, then run the repo-map refresh helper with --stage.
+It rebuilds the ignored code index and tracked Repo Map once, stages only the
+map, and refuses to proceed when unstaged or untracked code would make the map
+describe a different state than the commit. A project can opt in to the managed
+pre-commit hook during initialization to enforce this map-refresh gate.
+
 ### The log never gets huge
 
 An append-only log becomes a context problem of its own. So it rotates:

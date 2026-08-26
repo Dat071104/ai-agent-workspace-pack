@@ -102,4 +102,8 @@ private data, and unverified claims out of all of them.
   respective records.
 - Update context before handoff, and print the Closure Receipt. A prompt
   omission is never a not-needed reason.
+- For an authorized source commit, stage source explicitly after tests, then
+  run refresh_repo_map.py with --stage. It refreshes the code index and Repo
+  Map once and stages only REPO_MAP.md; never bypass its managed hook with
+  --no-verify.
 - Never stage files with `git add .`; stage explicit files only.

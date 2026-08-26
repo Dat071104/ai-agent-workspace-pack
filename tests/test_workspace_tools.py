@@ -88,7 +88,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.make_source_fixture()
         first = self.init_project()
         self.assertEqual(0, first.returncode, first.stderr)
-        self.assertEqual(8, len(list((self.root / "_agent_ops" / "tools").glob("*.py"))))
+        self.assertEqual(10, len(list((self.root / "_agent_ops" / "tools").glob("*.py"))))
         self.assertTrue((self.root / "AGENTS.md").is_file())
         self.assertIn("## Pack Mode: Runtime-only", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
 
@@ -111,7 +111,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
 
         second = self.init_project()
         self.assertEqual(0, second.returncode, second.stderr)
-        self.assertEqual(8, second.stdout.count("UPDATE: "))
+        self.assertEqual(10, second.stdout.count("UPDATE: "))
         self.assertIn("SKIP existing: " + str(self.root / "AGENTS.md"), second.stdout)
 
     def test_init_propagates_prompt_independent_closure_gate(self) -> None:
@@ -137,6 +137,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(0, session.returncode, session.stderr)
         self.assertIn("## Durable Recordkeeping Gate", session.stdout)
         self.assertIn("not the task prompt's file list", session.stdout)
+        self.assertIn("repo-map refresh helper", session.stdout)
 
     def test_hygiene_distinguishes_nested_models_from_root_artifacts(self) -> None:
         self.make_source_fixture()
@@ -161,7 +162,8 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         tracked = [str(path.relative_to(self.root)) for path in self.root.glob("src/**/*") if path.is_file()]
         tracked += [str(path.relative_to(self.root)) for path in self.root.glob("tests/**/*") if path.is_file()]
         self.assertEqual(0, subprocess.run(["git", "add", "--", *tracked], cwd=self.root, check=False).returncode)
-        self.assertEqual(0, subprocess.run(["git", "commit", "-qm", "baseline"], cwd=self.root, check=False).returncode)
+        baseline = subprocess.run(["git", "commit", "-qm", "baseline"], cwd=self.root, text=True, capture_output=True)
+        self.assertEqual(0, baseline.returncode, baseline.stdout + baseline.stderr)
 
         self.assertEqual(0, self.run_tool(self.root / "_agent_ops" / "tools" / "build_code_index.py", "--root", ".", "--quiet").returncode)
         self.assertEqual(
@@ -181,8 +183,112 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         )
         session = self.run_tool(self.root / "_agent_ops" / "tools" / "session_start.py", "--root", ".")
         self.assertEqual(0, session.returncode, session.stderr)
-        self.assertGreaterEqual(session.stdout.count("STALE: 1 uncommitted code file(s)"), 2)
-        self.assertNotIn("9 uncommitted code file(s)", session.stdout)
+        self.assertGreaterEqual(
+            session.stdout.count("STALE: 1 code file(s) changed outside the Git index."),
+            2,
+        )
+        self.assertNotIn("9 code file(s) changed outside the Git index.", session.stdout)
+
+    def test_pre_commit_hook_refreshes_repo_map_for_staged_code(self) -> None:
+        self.make_source_fixture()
+        for args in (
+            ("init", "-q"),
+            ("config", "user.email", "golden@example.invalid"),
+            ("config", "user.name", "Golden Test"),
+        ):
+            self.assertEqual(0, subprocess.run(["git", *args], cwd=self.root, check=False).returncode)
+
+        initialized = self.init_project("--install-repo-map-hook")
+        self.assertEqual(0, initialized.returncode, initialized.stderr)
+        hook = self.root / ".git" / "hooks" / "pre-commit"
+        self.assertIn("AI_AGENT_OPS_REPO_MAP_PRE_COMMIT", hook.read_text(encoding="utf-8"))
+
+        tracked = [str(path.relative_to(self.root)) for path in self.root.glob("src/**/*") if path.is_file()]
+        tracked += [str(path.relative_to(self.root)) for path in self.root.glob("tests/**/*") if path.is_file()]
+        self.assertEqual(0, subprocess.run(["git", "add", "--", *tracked], cwd=self.root, check=False).returncode)
+        baseline = subprocess.run(["git", "commit", "-qm", "baseline"], cwd=self.root, text=True, capture_output=True)
+        self.assertEqual(0, baseline.returncode, baseline.stdout + baseline.stderr)
+        committed = subprocess.run(
+            ["git", "show", "--format=", "--name-only", "HEAD"],
+            cwd=self.root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertIn("_agent_ops/REPO_MAP.md", committed.stdout.splitlines())
+
+        self.write(
+            "src/app/services/relative_auth.py",
+            "from ..models.user import User\n\n\ndef login_relative() -> User:\n    # staged only\n    return User()\n",
+        )
+        self.assertEqual(
+            0,
+            subprocess.run(
+                ["git", "add", "--", "src/app/services/relative_auth.py"],
+                cwd=self.root,
+                check=False,
+            ).returncode,
+        )
+        commit = subprocess.run(["git", "commit", "-qm", "source change"], cwd=self.root, text=True, capture_output=True)
+        self.assertEqual(0, commit.returncode, commit.stdout + commit.stderr)
+        committed = subprocess.run(
+            ["git", "show", "--format=", "--name-only", "HEAD"],
+            cwd=self.root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertIn("src/app/services/relative_auth.py", committed.stdout.splitlines())
+        self.assertIn("_agent_ops/REPO_MAP.md", committed.stdout.splitlines())
+
+        session = self.run_tool(self.root / "_agent_ops" / "tools" / "session_start.py", "--root", ".")
+        self.assertEqual(0, session.returncode, session.stderr)
+        self.assertIn("Current with indexed source state", session.stdout)
+
+    def test_pre_commit_hook_blocks_code_outside_the_index(self) -> None:
+        self.make_source_fixture()
+        for args in (
+            ("init", "-q"),
+            ("config", "user.email", "golden@example.invalid"),
+            ("config", "user.name", "Golden Test"),
+        ):
+            self.assertEqual(0, subprocess.run(["git", *args], cwd=self.root, check=False).returncode)
+        self.assertEqual(0, self.init_project("--install-repo-map-hook").returncode)
+
+        tracked = [str(path.relative_to(self.root)) for path in self.root.glob("src/**/*") if path.is_file()]
+        tracked += [str(path.relative_to(self.root)) for path in self.root.glob("tests/**/*") if path.is_file()]
+        self.assertEqual(0, subprocess.run(["git", "add", "--", *tracked], cwd=self.root, check=False).returncode)
+        baseline = subprocess.run(["git", "commit", "-qm", "baseline"], cwd=self.root, text=True, capture_output=True)
+        self.assertEqual(0, baseline.returncode, baseline.stdout + baseline.stderr)
+
+        self.write(
+            "src/app/services/relative_auth.py",
+            "from ..models.user import User\n\n\ndef login_relative() -> User:\n    # staged only\n    return User()\n",
+        )
+        self.assertEqual(
+            0,
+            subprocess.run(
+                ["git", "add", "--", "src/app/services/relative_auth.py"],
+                cwd=self.root,
+                check=False,
+            ).returncode,
+        )
+        self.write(
+            "src/app/services/absolute_auth.py",
+            "from app.models.user import User\n\n\ndef login_absolute() -> User:\n    # left unstaged\n    return User()\n",
+        )
+        blocked = subprocess.run(["git", "commit", "-qm", "unsafe source state"], cwd=self.root, text=True, capture_output=True)
+        self.assertNotEqual(0, blocked.returncode)
+        self.assertIn("outside the Git index", blocked.stdout + blocked.stderr)
+
+    def test_repo_map_hook_preserves_an_existing_pre_commit_hook(self) -> None:
+        self.assertEqual(0, subprocess.run(["git", "init", "-q"], cwd=self.root, check=False).returncode)
+        existing_hook = self.write(".git/hooks/pre-commit", "#!/bin/sh\necho user hook\n")
+
+        result = self.init_project("--install-repo-map-hook")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("WARN existing pre-commit hook preserved", result.stdout)
+        self.assertEqual("#!/bin/sh\necho user hook\n", existing_hook.read_text(encoding="utf-8"))
 
     def test_embedded_pack_skips_only_detected_pack_directories(self) -> None:
         embedded = self.root / "embedded"

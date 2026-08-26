@@ -19,6 +19,8 @@ Before using a generated prompt, verify:
 - [ ] Audit or review step is included when needed.
 - [ ] Prompt-independent implementation-log and durable-state update triggers
       are required; an omitted filename is not a waiver.
+- [ ] Source-changing commit instructions refresh the Repo Map after tests and
+      explicit staging, without --no-verify.
 - [ ] Git safety says never use `git add .`.
 - [ ] Commit and push rules are explicit.
 - [ ] Public repo hygiene is included.

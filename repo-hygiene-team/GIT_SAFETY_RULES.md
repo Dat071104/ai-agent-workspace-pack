@@ -9,6 +9,10 @@
 - Do not commit model files, datasets, databases, or generated artifacts.
 - Do not commit local ops logs by default.
 - Commit only after validation passes.
+- For a commit containing staged project code, run
+  _agent_ops/tools/refresh_repo_map.py with --stage after validation and before
+  git commit. It stages only the generated REPO_MAP.md; never bypass the managed
+  hook with --no-verify.
 - Push only when the user requested it.
 
 `_agent_ops/` follows a hybrid policy rather than a blanket rule. Session-scoped

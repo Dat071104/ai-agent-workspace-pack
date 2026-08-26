@@ -56,6 +56,9 @@ Phase gates:
 Git safety:
 - Never use git add .
 - Stage explicit files only if the user allowed committing.
+- For an authorized commit containing staged project code: run tests, then run
+  _agent_ops/tools/refresh_repo_map.py with --stage, review the generated map,
+  and only then commit. Do not use --no-verify.
 - Commit only after validation passes and only if the user allowed it.
 - Push only if explicitly requested.
 

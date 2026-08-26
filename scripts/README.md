@@ -29,6 +29,7 @@ python scripts/init_project_ops.py --target "D:\MyProject"
 #   --no-agents-md  do not create AGENTS.md at the target root
 #   --no-index      skip code_index.json    --no-repo-map  skip REPO_MAP.md
 #   --force         overwrite memory files (tools/ are always refreshed)
+#   --install-repo-map-hook  opt in to a managed pre-commit map refresh hook
 
 # Start of every managed session. Read-only: git state, what changed since the
 # memory was last verified, repo-map staleness, unfilled placeholders, log size.
@@ -41,6 +42,11 @@ python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --f
 # Symbol-level graph: classes, functions, methods, routes, and the CALLS /
 # IMPORTS / EXTENDS edges between them. Rebuild when code changes.
 python scripts/build_code_index.py --root .
+
+# Before an authorized commit containing staged project code: rebuild the index
+# and map once for the Git index, then stage only the map. The helper refuses
+# when unstaged or untracked code would make the map disagree with the commit.
+python scripts/refresh_repo_map.py --root . --stage
 
 # The one query tool. Structural retrieval instead of grep -> read -> grep.
 python scripts/explore.py --symbol charge          # definitions, callers, callees, flow

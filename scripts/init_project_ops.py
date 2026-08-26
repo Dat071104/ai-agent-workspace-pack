@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -35,8 +37,10 @@ TEMPLATE_MAP = {
 RUNTIME_TOOLS = [
     "scan_deps.py",
     "generate_context_card.py",
+    "source_state.py",
     "generate_repo_map.py",
     "build_code_index.py",
+    "refresh_repo_map.py",
     "explore.py",
     "session_start.py",
     "summarize_implementation_log.py",
@@ -111,7 +115,12 @@ Run every tool from the project root:
 ```bash
 python _agent_ops/tools/session_start.py --root .
 python _agent_ops/tools/explore.py --symbol <name>
+
+python _agent_ops/tools/refresh_repo_map.py --root . --stage
 ```
+
+For an authorized source commit, run the refresh helper after staging source and
+tests. It rebuilds the index and Repo Map once, then stages only REPO_MAP.md.
 """
 
 TARGET_AGENTS_MD = """# AGENTS.md
@@ -181,6 +190,11 @@ python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_M
   phase/milestone state and the decision log for material trade-offs. Write
   these records before printing the Closure Receipt; an explicit user opt-out
   must be reported as a constraint, not as not needed.
+- Before a local commit that includes staged project code, run the repo-map
+  refresh helper with --stage after tests and before git commit. It rebuilds the
+  symbol index and REPO_MAP.md once, then stages only REPO_MAP.md. If the
+  managed pre-commit hook is installed, it enforces the repo-map safety gate and
+  blocks an index/worktree mismatch.
 
 ## Coding Standard
 
@@ -237,6 +251,65 @@ def write_tools(ops_dir: Path) -> list[str]:
         results.append(f"{action}: {destination}")
     results.append(write_if_absent(tools_dir / "README.md", TOOLS_README, True))
     return results
+
+
+REPO_MAP_HOOK_MARKER = "# AI_AGENT_OPS_REPO_MAP_PRE_COMMIT v1"
+REPO_MAP_HOOK = """#!/bin/sh
+# AI_AGENT_OPS_REPO_MAP_PRE_COMMIT v1
+set -eu
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+TOOL="$ROOT/_agent_ops/tools/refresh_repo_map.py"
+if [ ! -f "$TOOL" ]; then
+  echo "BLOCKED: missing _agent_ops/tools/refresh_repo_map.py" >&2
+  exit 2
+fi
+
+if python -c "import sys" >/dev/null 2>&1; then
+  exec python "$TOOL" --root "$ROOT" --stage
+fi
+if python3 -c "import sys" >/dev/null 2>&1; then
+  exec python3 "$TOOL" --root "$ROOT" --stage
+fi
+if py -3 -c "import sys" >/dev/null 2>&1; then
+  exec py -3 "$TOOL" --root "$ROOT" --stage
+fi
+echo "BLOCKED: no working Python interpreter found for repo-map hook" >&2
+exit 2
+"""
+
+
+def install_repo_map_hook(target: Path) -> str:
+    """Install only the pack-managed pre-commit hook; preserve any user hook."""
+
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-path", "hooks/pre-commit"],
+        cwd=str(target),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if result.returncode != 0:
+        return "SKIP repo-map hook: target is not a Git repository."
+
+    hook_path = Path(result.stdout.strip())
+    if not hook_path.is_absolute():
+        hook_path = target / hook_path
+    if hook_path.exists():
+        existing = hook_path.read_text(encoding="utf-8", errors="ignore")
+        if REPO_MAP_HOOK_MARKER not in existing:
+            return f"WARN existing pre-commit hook preserved: {hook_path}"
+        action = "UPDATE"
+    else:
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        action = "WRITE"
+
+    with hook_path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(REPO_MAP_HOOK)
+    if os.name != "nt":
+        hook_path.chmod(hook_path.stat().st_mode | 0o100)
+    return f"{action}: managed repo-map pre-commit hook: {hook_path}"
 
 
 def target_agents_content(target: Path) -> str:
@@ -334,11 +407,21 @@ def main() -> int:
         help="Do not copy the runtime tools into <ops>/tools/.",
     )
     parser.add_argument(
+        "--install-repo-map-hook",
+        action="store_true",
+        help=(
+            "Install the managed pre-commit hook that refreshes and explicitly stages "
+            "REPO_MAP.md for staged project-code commits. Never overwrites another hook."
+        ),
+    )
+    parser.add_argument(
         "--no-agents-md",
         action="store_true",
         help="Do not create AGENTS.md at the project root when it is missing.",
     )
     args = parser.parse_args()
+    if args.install_repo_map_hook and args.no_tools:
+        parser.error("--install-repo-map-hook requires the runtime tools.")
 
     target = Path(args.target).expanduser().resolve()
     if not target.exists():
@@ -395,6 +478,8 @@ def main() -> int:
     else:
         for line in write_tools(ops_dir):
             print(line)
+    if args.install_repo_map_hook:
+        print(install_repo_map_hook(target))
 
     # Index BEFORE map, not after: the map reads code_index.json to fill in its
     # Symbol Graph section, so building it second made a fresh install report

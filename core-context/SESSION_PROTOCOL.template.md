@@ -124,7 +124,7 @@ set of `_agent_ops/` files:
 | Durable project/milestone state changed, including a gate being accepted, rejected, or blocked | `PROJECT_CONTEXT_CARD.md` |
 | Decision with material trade-offs | `DECISION_LOG.md` |
 | New or changed material risk | `RISK_REGISTER.md` |
-| Code files added, moved, or removed | regenerate `REPO_MAP.md` |
+| A local commit contains staged project code | after tests, run refresh_repo_map.py with --stage; it rebuilds code_index.json and REPO_MAP.md once, then stages only REPO_MAP.md |
 
 ### Prompt-Independence Invariant
 
@@ -143,7 +143,23 @@ produced -- never from a list of files in the prompt.
 
 Do not update unrelated files mechanically. Keep the implementation log factual
 and append-only; never put secrets, private data, or unverified claims in any
-ops file. Context updates are never staged, committed, or pushed automatically.
+ops file. Context updates are never staged, committed, or pushed automatically,
+except the explicit commit-time repo-map refresh: it stages only the generated
+REPO_MAP.md for an already-authorized source commit.
+
+### Commit-Time Repo Map Gate
+
+For every authorized local commit containing staged project code:
+
+1. Run the relevant tests first.
+2. Stage the intended source files explicitly.
+3. Run the refresh_repo_map.py helper with --stage from _agent_ops/tools.
+4. Review the generated map diff and Git status, then commit.
+
+The helper rebuilds the ignored code index and the tracked Repo Map exactly
+once. It refuses to proceed if unstaged or untracked code would make the map
+describe a different state than the commit. An opt-in managed pre-commit hook
+enforces the repo-map safety gate; never bypass it with --no-verify.
 
 ### Closure Receipt (required output)
 

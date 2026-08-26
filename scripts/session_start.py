@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
 from scan_deps import tool_prefix  # noqa: E402
+from source_state import index_source_fingerprint  # noqa: E402
 from summarize_implementation_log import split_entries  # noqa: E402
 
 
@@ -235,7 +236,27 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
     branch = git_value(root, ["branch", "--show-current"])
     status = git_value(root, ["status", "--short"])
     is_git = head != "not available"
-    worktree_code = working_tree_code_files(root) if is_git else []
+    change_sets = (
+        {
+            "unstaged": {
+                path for path in git_changed_paths(root, ["diff", "--name-only"]) if is_project_code(path)
+            },
+            "staged": {
+                path
+                for path in git_changed_paths(root, ["diff", "--cached", "--name-only"])
+                if is_project_code(path)
+            },
+            "untracked": {
+                path
+                for path in git_changed_paths(root, ["ls-files", "--others", "--exclude-standard"])
+                if is_project_code(path)
+            },
+        }
+        if is_git
+        else {"unstaged": set(), "staged": set(), "untracked": set()}
+    )
+    worktree_code = sorted(change_sets["unstaged"] | change_sets["staged"] | change_sets["untracked"])
+    source_fingerprint = index_source_fingerprint(root) if is_git else ""
 
     out: list[str] = ["# Session Start (deterministic checks)", ""]
 
@@ -333,7 +354,24 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         ]
     else:
         map_sha = first_value(repo_map, "Last Verified Commit")
-        if not is_git or not commit_exists(root, map_sha):
+        map_fingerprint = first_value(repo_map, "Indexed Source Fingerprint")
+        if map_fingerprint and map_fingerprint != "not available" and source_fingerprint:
+            if map_fingerprint != source_fingerprint:
+                out += [
+                    "- STALE: the indexed source fingerprint differs from REPO_MAP.md.",
+                    "  Regenerate with --force before trusting the module table.",
+                ]
+            elif change_sets["unstaged"] or change_sets["untracked"]:
+                outside_index = change_sets["unstaged"] | change_sets["untracked"]
+                out += [
+                    f"- STALE: {len(outside_index)} code file(s) changed outside the Git index.",
+                    "  Regenerate after staging, or keep the map out of this pending source state.",
+                ]
+            elif change_sets["staged"]:
+                out.append("- Current with the staged source index; ready for the pending commit.")
+            else:
+                out.append(f"- Current with indexed source state at HEAD ({head}).")
+        elif not is_git or not commit_exists(root, map_sha):
             out.append("- Present; freshness unknown (no usable commit stamp).")
         elif map_sha.startswith(head) or head.startswith(map_sha):
             if worktree_code:
@@ -371,8 +409,26 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         except ValueError:
             index = {}
         index_sha = str(index.get("commit", ""))
+        index_fingerprint = str(index.get("index_source_fingerprint", ""))
         counts = f"{len(index.get('symbols', {}))} symbols, {len(index.get('edges', []))} edges"
-        if not is_git or not commit_exists(root, index_sha):
+        if index_fingerprint and source_fingerprint:
+            if index_fingerprint != source_fingerprint:
+                out += [
+                    "- STALE: the indexed source fingerprint differs from code_index.json.",
+                    "  Rebuild before trusting call paths:",
+                    f"  `python {tools}/build_code_index.py --root .`",
+                ]
+            elif change_sets["unstaged"] or change_sets["untracked"]:
+                outside_index = change_sets["unstaged"] | change_sets["untracked"]
+                out += [
+                    f"- STALE: {len(outside_index)} code file(s) changed outside the Git index.",
+                    "  Rebuild after staging before trusting call paths.",
+                ]
+            elif change_sets["staged"]:
+                out.append(f"- Current with the staged source index ({counts}); commit pending.")
+            else:
+                out.append(f"- Current with indexed source state ({counts}).")
+        elif not is_git or not commit_exists(root, index_sha):
             out.append(f"- Present ({counts}); freshness unknown.")
         elif index_sha.startswith(head) or head.startswith(index_sha):
             if worktree_code:
@@ -475,6 +531,9 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         "phase/milestone state requires a project-context update; material",
         "trade-offs require a decision entry. Write triggered records before the",
         "Closure Receipt. A missing filename is never a not-needed reason.",
+        "For an authorized source commit, stage source after tests, then run the",
+        "repo-map refresh helper with --stage before git commit. Do not bypass an",
+        "installed managed hook with --no-verify.",
         "",
     ]
 

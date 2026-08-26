@@ -62,3 +62,5 @@ hypothesis that was already disproved. Record every dead end with its evidence.
       the Closure Receipt.
 - [ ] Printed the Closure Receipt after the writes, never as a plan to write
       later.
+- [ ] If committing staged project code, refreshed the code index and Repo Map
+      after tests; only REPO_MAP.md was auto-staged by the refresh helper.

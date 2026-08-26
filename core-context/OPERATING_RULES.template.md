@@ -77,6 +77,10 @@
 - Check git status before and after changes.
 - Never use `git add .`.
 - Stage explicit files only.
+- Before an authorized local commit containing staged project code, run
+  refresh_repo_map.py with --stage after tests and before git commit. It
+  rebuilds code_index.json and REPO_MAP.md once and stages only REPO_MAP.md.
+  Do not use --no-verify to bypass a managed repo-map hook.
 
 ## Testing
 

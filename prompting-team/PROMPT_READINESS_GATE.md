@@ -31,6 +31,8 @@ Use this gate before creating a large Codex, Cursor, Claude Code, Windsurf, or a
 - [ ] The closure block says that prompt file lists do not waive triggered
       records, and maps evidence, durable state, decisions, and risks to their
       respective agent-ops records.
+- [ ] Any authorized source-changing commit runs the Repo Map refresh after
+      tests and explicit source staging; the prompt forbids --no-verify.
 - [ ] Git safety is included, including never use `git add .`.
 
 ## Token and Risk

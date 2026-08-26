@@ -107,6 +107,9 @@ Rules:
 - Chat first, files later.
 - One clarifying question maximum, not five.
 - Never use git add .
+- For an authorized source commit, stage source after tests, then run
+  _agent_ops/tools/refresh_repo_map.py with --stage and review the map before
+  commit. Do not use --no-verify.
 - Do not install dependencies.
 - Do not run Heavy or E2E commands without approval.
 - Do not claim a subagent was spawned on a harness that has no native subagents.

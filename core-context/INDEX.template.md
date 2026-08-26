@@ -38,7 +38,7 @@ task prompt. A prompt omission never waives a triggered record.
 | Durable project or milestone state changed, including accepted/rejected/blocked gate status | `PROJECT_CONTEXT_CARD.md` |
 | Decision with material trade-offs | `DECISION_LOG.md` |
 | New or changed material risk | `RISK_REGISTER.md` |
-| Code files moved or added | rebuild `code_index.json`, then regenerate `REPO_MAP.md` |
+| A local commit contains staged project code | after tests, run refresh_repo_map.py with --stage; it rebuilds code_index.json, refreshes REPO_MAP.md, and stages only the map |
 | Ending a session that another session will continue | `HANDOFF.md` via `handoff-team/` |
 | Absorbing a handoff at session start | set `HANDOFF.md` Status to `consumed` |
 

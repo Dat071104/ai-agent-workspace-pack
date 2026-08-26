@@ -30,6 +30,9 @@ Your job:
 Rules:
 - Chat first, files later.
 - Never use git add .
+- For an authorized source commit, stage source after tests, then run
+  _agent_ops/tools/refresh_repo_map.py with --stage before commit. Do not use
+  --no-verify.
 - Ask before destructive or dangerous actions.
 - Keep the report concise and honest.
 ```

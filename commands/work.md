@@ -36,7 +36,11 @@ _agent_ops/SESSION_PROTOCOL.md.
    the decision log for material trade-offs. Then print the Closure Receipt:
    one row per ops file, each resolved as updated-with-what or
    not-needed-with-a-missing-trigger. Do not stage, commit, or push them
-   automatically.
+   automatically, except that the explicit repo-map refresh helper stages only
+   REPO_MAP.md for an already-authorized source commit.
+9. For an authorized local commit with staged project code: run tests, then run
+   _agent_ops/tools/refresh_repo_map.py with --stage, review its map diff, and
+   commit. Do not bypass a managed hook with --no-verify.
 
 Never use git add . Do not claim agents were spawned unless real child agents
 were created by the current harness.

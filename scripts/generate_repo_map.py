@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import detect_stack, git_value  # noqa: E402
 from scan_deps import build_graph, reverse_edges, tool_prefix  # noqa: E402
+from source_state import index_source_fingerprint  # noqa: E402
 
 
 ENTRY_STEMS = {"main", "index", "app", "cli", "__main__", "server", "start"}
@@ -238,6 +239,7 @@ def render_map(
     tools = tool_prefix(root)
     commit = git_value(root, ["rev-parse", "--short", "HEAD"])
     branch = git_value(root, ["branch", "--show-current"])
+    source_fingerprint = index_source_fingerprint(root) or "not available"
 
     lines = [
         "# Repo Map / Ban do ma nguon",
@@ -251,6 +253,10 @@ def render_map(
         "## Last Verified Commit",
         "",
         f"`{commit}`",
+        "",
+        "## Indexed Source Fingerprint",
+        "",
+        f"`{source_fingerprint}`",
         "",
         "## Snapshot",
         "",

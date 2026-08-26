@@ -82,7 +82,9 @@ request like "add feature X" has a destination instead of detouring through
 12. Before the Closure Receipt, classify actual work under
     `_agent_ops/SESSION_PROTOCOL.md`; the prompt's file list never waives a
     triggered implementation-log, project-context, or decision record. Commit
-    only if the user allowed it.
+    only if the user allowed it. For a source-changing commit, stage source
+    explicitly after tests, run refresh_repo_map.py with --stage, review the
+    generated map, then commit without --no-verify.
 
 ## Expected Output Contract
 

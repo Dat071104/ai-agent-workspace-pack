@@ -41,6 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
 from scan_deps import SKIP_DIRS, resolve_import  # noqa: E402
+from source_state import index_source_fingerprint  # noqa: E402
 
 
 PY_SUFFIXES = {".py"}
@@ -422,6 +423,7 @@ def build_index(root: Path, max_files: int = 0) -> dict:
         "version": 1,
         "generated": date.today().isoformat(),
         "commit": git_value(root, ["rev-parse", "--short", "HEAD"]),
+        "index_source_fingerprint": index_source_fingerprint(root),
         "root": str(root),
         "files": {
             rel: {"lang": data["lang"], "symbols": len(data["symbols"])}

@@ -30,6 +30,11 @@ Safety rules:
 
 - Never use `git add .`.
 - Stage explicit files only.
+- For an authorized local commit containing staged project code, enforce
+  **commit = repo-map update**: after tests, run the repo-map refresh helper
+  with --stage before git commit. It rebuilds the code index and REPO_MAP.md
+  once, staging only REPO_MAP.md. Do not bypass an installed managed hook with
+  --no-verify.
 - Ask before destructive or dangerous actions.
 - Check git status before and after changes when working in a git repo.
 - Update implementation logs in target projects after permission.

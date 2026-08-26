@@ -37,6 +37,9 @@ While implementing:
 - Classify actual work against the Session Protocol at closure. The prompt's
   file list never waives the implementation log, project context card, or
   decision log when their trigger occurred; write them before the receipt.
+- For an authorized source commit: stage source explicitly after tests, run
+  _agent_ops/tools/refresh_repo_map.py with --stage, inspect the generated map,
+  then commit. Do not use --no-verify.
 - Report the slice, then ask before starting the next one.
 - Print the Closure Receipt from _agent_ops/SESSION_PROTOCOL.md.
 
