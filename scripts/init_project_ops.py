@@ -403,6 +403,21 @@ def write_target_gemini_md(target: Path) -> str:
     return write_if_absent(target / "GEMINI.md", GEMINI_MD_ADAPTER, False)
 
 
+def imports_agents_md(destination: Path, import_line: str) -> bool:
+    """True if an existing CLAUDE.md/GEMINI.md already imports AGENTS.md.
+
+    A host-owned file is never modified (see write_target_claude_md/
+    write_target_gemini_md), so its bootstrap step can only warn, not fix,
+    the case where that file predates this pack and has no import -- the same
+    discoverability gap AGENTS.md itself had before those adapters existed,
+    one level deeper.
+    """
+    try:
+        return import_line in destination.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return False
+
+
 def agents_bridge_status(target: Path) -> tuple[str, str]:
     """Return a structural status for the optional host-owned AGENTS bridge."""
     destination = target / "AGENTS.md"
@@ -659,8 +674,26 @@ def main() -> int:
                 )
             else:
                 print(f"AGENTS BRIDGE: {status} ({detail})")
+
+        claude_destination = target / "CLAUDE.md"
+        claude_existed = claude_destination.exists()
         print(write_target_claude_md(target))
+        if claude_existed and not imports_agents_md(claude_destination, "@AGENTS.md"):
+            print(
+                "WARN existing CLAUDE.md does not import AGENTS.md, so Claude Code "
+                "may never see this project's agent instructions. Add this line:\n"
+                "         @AGENTS.md"
+            )
+
+        gemini_destination = target / "GEMINI.md"
+        gemini_existed = gemini_destination.exists()
         print(write_target_gemini_md(target))
+        if gemini_existed and not imports_agents_md(gemini_destination, "@./AGENTS.md"):
+            print(
+                "WARN existing GEMINI.md does not import AGENTS.md, so Gemini CLI "
+                "may never see this project's agent instructions. Add this line:\n"
+                "         @./AGENTS.md"
+            )
 
     print("")
     print("Done. Existing files were preserved unless --force was used.")

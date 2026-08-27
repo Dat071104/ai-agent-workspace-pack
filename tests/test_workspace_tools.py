@@ -518,6 +518,29 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
             (self.root / "CLAUDE.md").read_text(encoding="utf-8"),
         )
 
+    def test_existing_harness_files_without_the_import_are_warned_about(self) -> None:
+        self.write("CLAUDE.md", "# Existing Claude rules\nKeep this.\n")
+        self.write("GEMINI.md", "# Existing Gemini rules\n@./other.md\n")
+
+        result = self.init_project()
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("WARN existing CLAUDE.md does not import AGENTS.md", result.stdout)
+        self.assertIn("@AGENTS.md", result.stdout)
+        self.assertIn("WARN existing GEMINI.md does not import AGENTS.md", result.stdout)
+        self.assertIn("@./AGENTS.md", result.stdout)
+        self.assertEqual(
+            "# Existing Claude rules\nKeep this.\n",
+            (self.root / "CLAUDE.md").read_text(encoding="utf-8"),
+        )
+
+        # No false positive once the import is actually present.
+        self.write("CLAUDE.md", "@AGENTS.md\n\n## Claude Code\nExtra rule.\n")
+        self.write("GEMINI.md", "@./AGENTS.md\n")
+        clean = self.init_project()
+        self.assertEqual(0, clean.returncode, clean.stderr)
+        self.assertNotIn("WARN existing CLAUDE.md", clean.stdout)
+        self.assertNotIn("WARN existing GEMINI.md", clean.stdout)
+
     def test_force_never_replaces_existing_agents_file(self) -> None:
         self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")
         result = self.init_project("--force")
