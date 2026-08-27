@@ -432,6 +432,52 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
             "attribute calls (obj.save()) must never resolve as exact",
         )
 
+    def test_impact_groups_hops_by_worst_edge_confidence(self) -> None:
+        # a --exact--> b --weak--> c --exact--> d
+        # Impact of d must not let a weak hop (b->c) hide behind an exact hop
+        # (c->d): only c belongs in "Confirmed impact"; a and b are tainted by
+        # the weak edge on their only path back to d.
+        index = {
+            "version": 1,
+            "generated": "2026-08-27",
+            "commit": "test",
+            "root": ".",
+            "files": {},
+            "symbols": {
+                "a.py::a": {"file": "a.py", "qualname": "a", "lang": "python", "kind": "function", "line": 1},
+                "b.py::b": {"file": "b.py", "qualname": "b", "lang": "python", "kind": "function", "line": 1},
+                "c.py::c": {"file": "c.py", "qualname": "c", "lang": "python", "kind": "function", "line": 1},
+                "d.py::d": {"file": "d.py", "qualname": "d", "lang": "python", "kind": "function", "line": 1},
+            },
+            "edges": [
+                {"from": "a.py::a", "to": "b.py::b", "kind": "CALLS", "conf": "exact", "line": 1},
+                {"from": "b.py::b", "to": "c.py::c", "kind": "CALLS", "conf": "weak", "line": 1},
+                {"from": "c.py::c", "to": "d.py::d", "kind": "CALLS", "conf": "exact", "line": 1},
+            ],
+        }
+        self.write("index.json", json.dumps(index))
+        result = self.run_tool(
+            SCRIPTS / "explore.py", "--root", str(self.root), "--index", "index.json", "--impact", "d", "--depth", "4",
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+
+        def section(title: str) -> str:
+            start = result.stdout.index(title)
+            rest = result.stdout[start:]
+            next_marker = rest.find("\n### ", 1)
+            end_marker = rest.find("\n## ", 1)
+            cut = min(m for m in (next_marker, end_marker) if m != -1)
+            return rest[:cut]
+
+        confirmed = section("### Confirmed impact")
+        uncertain = section("### Uncertain leads")
+        self.assertIn("c.py", confirmed)
+        self.assertNotIn("a.py", confirmed)
+        self.assertNotIn("b.py", confirmed)
+        self.assertIn("a.py", uncertain)
+        self.assertIn("b.py", uncertain)
+        self.assertNotIn("### Probable impact", result.stdout)
+
     def test_force_never_replaces_existing_agents_file(self) -> None:
         self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")
         result = self.init_project("--force")

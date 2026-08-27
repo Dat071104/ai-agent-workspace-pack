@@ -127,5 +127,10 @@ JS/TS is regex-only. Nothing here sees dynamic dispatch, DI wiring, reflection,
 or runtime registries, so:
 
 - an `--impact` result is the MINIMUM blast radius, never the maximum;
+- `--impact` groups its transitively affected symbols by the WORST edge
+  confidence on the path back to the target, not just hop count: "Confirmed
+  impact" is exact-only, "Probable impact" includes a heuristic edge, and
+  "Uncertain leads" includes an ambiguous or weak one -- an exact-looking hop
+  downstream of a weak one is still a weak lead;
 - "nothing calls this" in `--entrypoints` is a CANDIDATE for dead code, never a
   verdict -- confirm by search and by running the tests before deleting.

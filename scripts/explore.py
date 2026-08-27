@@ -40,6 +40,9 @@ CONF_NOTE = {
     "ambiguous": " (several definitions share this name -- verify which one runs)",
     "weak": " (regex-extracted JS/TS; low confidence)",
 }
+# Trust order, worst first. A multi-hop path is only as trustworthy as its
+# weakest edge, so this ranks which edge conf "wins" when combining them.
+CONF_RANK = {"exact": 0, "heuristic": 1, "ambiguous": 2, "weak": 3}
 TEST_HINTS = ("test", "spec", "__tests__")
 MAX_LIST = 25
 
@@ -101,17 +104,23 @@ class Graph:
         route = f"  [{info['route']}]" if info.get("route") else ""
         return f"{info['file']}:{info['line']}  {info['kind']:<8} {info['qualname']}{route}"
 
-    def callers_transitive(self, start: str, depth: int) -> dict[str, int]:
-        seen = {start: 0}
-        queue = deque([(start, 0)])
+    def callers_transitive(self, start: str, depth: int) -> dict[str, tuple[int, str]]:
+        """BFS over callers. Returns {ident: (hop, conf)} where `conf` is the
+        worst edge confidence anywhere on the shortest path back to `start` --
+        an exact-looking hop 1 downstream of a weak hop 3 is still a weak lead.
+        """
+        seen: dict[str, tuple[int, str]] = {start: (0, "exact")}
+        queue = deque([(start, 0, "exact")])
         while queue:
-            node, level = queue.popleft()
+            node, level, path_conf = queue.popleft()
             if level >= depth:
                 continue
             for edge in self.into.get(node, []):
-                if edge["from"] not in seen:
-                    seen[edge["from"]] = level + 1
-                    queue.append((edge["from"], level + 1))
+                frm = edge["from"]
+                if frm not in seen:
+                    worst = edge["conf"] if CONF_RANK[edge["conf"]] > CONF_RANK[path_conf] else path_conf
+                    seen[frm] = (level + 1, worst)
+                    queue.append((frm, level + 1, worst))
         seen.pop(start, None)
         return seen
 
@@ -255,11 +264,29 @@ def render_impact(graph: Graph, query: str, depth: int) -> list[str]:
         out += ["Nothing in the index reaches this symbol.", ""]
     else:
         out += [f"## Transitively affected ({len(dependents)}, depth {depth})", ""]
-        for ident, level in sorted(dependents.items(), key=lambda kv: (kv[1], kv[0]))[:MAX_LIST]:
-            out.append(f"- hop {level}: {graph.label(ident)}")
-        if len(dependents) > MAX_LIST:
-            out.append(f"- ... {len(dependents) - MAX_LIST} more")
-        out.append("")
+        buckets: dict[str, list[tuple[int, str]]] = defaultdict(list)
+        for ident, (level, conf) in dependents.items():
+            buckets[conf].append((level, ident))
+
+        sections = [
+            ("Confirmed impact", ("exact",), "every edge on the path is exact"),
+            ("Probable impact", ("heuristic",), "path includes a heuristic edge -- inspect before relying on it"),
+            (
+                "Uncertain leads", ("ambiguous", "weak"),
+                "path includes an ambiguous or weak edge -- verify before touching",
+            ),
+        ]
+        for title, confs, note in sections:
+            items = sorted((pair for c in confs for pair in buckets[c]), key=lambda kv: (kv[0], kv[1]))
+            if not items:
+                continue
+            out.append(f"### {title} ({len(items)}) -- {note}")
+            out.append("")
+            for level, ident in items[:MAX_LIST]:
+                out.append(f"- hop {level}: {graph.label(ident)}")
+            if len(items) > MAX_LIST:
+                out.append(f"- ... {len(items) - MAX_LIST} more")
+            out.append("")
 
     files = {graph.symbols[i]["file"] for i in dependents if i in graph.symbols}
     files.add(graph.symbols[target]["file"])
