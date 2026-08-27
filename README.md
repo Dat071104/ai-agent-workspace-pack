@@ -9,6 +9,12 @@ No dependencies. No cloud. Python standard library only. Everything stays local.
 > Bạn có thể mô tả bằng tiếng Việt bình thường — agent sẽ trả lời tiếng Việt,
 > hỏi lại khi thiếu thông tin, và luôn xin xác nhận trước khi sửa file.
 
+> **Embedded pack + `AGENTS.md` có sẵn:** chạy một lần
+> `python scripts/init_project_ops.py --target . --install-agents-bridge`, rồi
+> dùng `@start-here <mục tiêu>` bình thường. Nếu repo chưa có `AGENTS.md`,
+> installer tự tạo sẵn entry point; không cần bridge. Kiểm tra không ghi file:
+> `python scripts/init_project_ops.py --target . --check-agents-bridge`.
+
 ---
 
 ## The problem this solves

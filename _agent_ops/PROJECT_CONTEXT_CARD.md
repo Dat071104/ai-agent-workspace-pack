@@ -12,7 +12,7 @@ Vietnamese: `Bo cong cu van hanh tai su dung cho AI coding agent, phuc vu viec r
 
 ## Current Phase / State
 
-`Bridge v1.1 implemented and locally validated; namespaced embedded layout remains a planned v2 migration.`
+`Bridge v1.1 committed locally; its one-time existing-AGENTS setup is now surfaced at the top of README before authorized publication.`
 
 Update this section when a durable phase or gate becomes accepted, rejected, or
 blocked, even when the task prompt only names task-level files. Put detailed
@@ -51,7 +51,7 @@ avoid code that is syntactically right but semantically wrong.
 ## Current Branch / Commit
 
 - Branch: `main`
-- Commit: `27e5e7c` at validation start; bridge commit pending.
+- Commit: `f86421e` bridge implementation; README quick-note commit pending.
 
 ## How to Run
 
@@ -71,7 +71,7 @@ python -B tests/test_workspace_tools.py
 
 ## Next Step
 
-`Commit the verified bridge v1.1 change; later design and test .ai-agent-workspace-pack/ as a compatible v2 layout.`
+`Publish the README quick note, then later design and test .ai-agent-workspace-pack/ as a compatible v2 layout.`
 
 ## Do Not Do
 
@@ -80,7 +80,7 @@ python -B tests/test_workspace_tools.py
 
 ## Last Verified Commit
 
-`27e5e7c`
+`f86421e`
 
 ## Last Updated
 

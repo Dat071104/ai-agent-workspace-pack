@@ -141,3 +141,68 @@ python scripts/check_repo_hygiene.py --root .
 ### Next Step
 
 `Refresh the repository map after staging, review staged changes, and commit the verified v1.1 patch.`
+
+### Date
+
+`2026-08-27`
+
+### Task ID
+
+`TASK-0002`
+
+### Phase / Task
+
+`README bridge quick note and publication`
+
+### Files Touched
+
+- `README.md`
+- `_agent_ops/PROJECT_CONTEXT_CARD.md`
+- `_agent_ops/IMPLEMENTATION_LOG.md`
+
+### What Changed / Evidence Produced
+
+- Added a top-of-README quick note showing the one-time bridge install for existing AGENTS.md and the read-only check command.
+
+### Why
+
+`The detailed bridge section was below the install explanation; users need the operational distinction immediately.`
+
+### Tests Run
+
+```bash
+python scripts/init_project_ops.py --target . --check-agents-bridge
+python scripts/check_repo_hygiene.py --root .
+```
+
+### Results
+
+`Pending final validation and push.`
+
+### Bugs Found
+
+- `None.`
+
+### Root Cause
+
+`Not applicable; this is a documentation discoverability improvement.`
+
+### Fix Applied
+
+`Added a concise quick-start note above the README problem statement.`
+
+### Git Commit
+
+`Pending.`
+
+### Push Result
+
+`Pending user-authorized push.`
+
+### Remaining Risks
+
+- `Flat embedded layout collision risk remains until v2.`
+
+### Next Step
+
+`Validate, commit, push origin/main, and verify the remote SHA.`
