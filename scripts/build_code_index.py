@@ -149,12 +149,26 @@ def extract_python(root: Path, path: Path, rel: str) -> dict:
             for alias in node.names:
                 import_names[alias.asname or alias.name] = module
 
+    def scope_walk(node: ast.AST):
+        """Like `ast.walk`, but prunes nested FunctionDef/AsyncFunctionDef/ClassDef
+        subtrees entirely instead of merely skipping the header node.
+
+        `ast.walk` enqueues a node's children the moment it dequeues that node --
+        before the caller ever sees it -- so a `continue` on a nested def in the
+        caller's loop cannot stop traversal from reaching that def's body. Nested
+        defs get their own `record_calls` call from `visit()`; without pruning
+        here, their calls would be double-counted against the outer owner too.
+        """
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return
+        yield node
+        for child in ast.iter_child_nodes(node):
+            yield from scope_walk(child)
+
     def record_calls(body: list[ast.AST], owner: str) -> None:
         """Collect calls made directly by `owner`, not by functions nested in it."""
         for statement in body:
-            for node in ast.walk(statement):
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                    continue
+            for node in scope_walk(statement):
                 if isinstance(node, ast.Call):
                     found = call_name(node)
                     if found and found[0] not in CALL_NOISE:

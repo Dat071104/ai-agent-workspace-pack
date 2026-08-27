@@ -385,6 +385,28 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertNotIn("old bridge", agents)
         self.assertEqual(1, agents.count("AI_AGENT_WORKSPACE_PACK:BEGIN v1"))
 
+    def test_nested_function_calls_are_not_attributed_to_outer_owner(self) -> None:
+        self.write(
+            "src/nested.py",
+            "def target():\n"
+            "    pass\n"
+            "\n\n"
+            "def other():\n"
+            "    pass\n"
+            "\n\n"
+            "def outer():\n"
+            "    def inner():\n"
+            "        target()\n"
+            "\n"
+            "    other()\n",
+        )
+        self.assertEqual(0, self.init_project().returncode)
+        index = json.loads((self.root / "_agent_ops" / "code_index.json").read_text(encoding="utf-8"))
+        calls = {(edge["from"], edge["to"]) for edge in index["edges"] if edge["kind"] == "CALLS"}
+        self.assertIn(("src/nested.py::outer", "src/nested.py::other"), calls)
+        self.assertIn(("src/nested.py::outer.inner", "src/nested.py::target"), calls)
+        self.assertNotIn(("src/nested.py::outer", "src/nested.py::target"), calls)
+
     def test_force_never_replaces_existing_agents_file(self) -> None:
         self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")
         result = self.init_project("--force")

@@ -1,14 +1,14 @@
 # Repo Map / Ban do ma nguon
 
 Generated file. Do not hand-edit; regenerate with
-`python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
+`python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
 
 Read this BEFORE grepping the repository. It answers "where does the code
 live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`27e5e7c`
+`d32ba17`
 
 ## Indexed Source Fingerprint
 
@@ -40,16 +40,16 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-131 symbols, 242 edges (exact 196, heuristic 46, ambiguous 0, weak 0).
+133 symbols, 244 edges (exact 197, heuristic 47, ambiguous 0, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `read_text` | 21 | `scripts/session_start.py:83` |
+| `read_text` | 22 | `scripts/session_start.py:83` |
+| `WorkspaceToolsGoldenTests.init_project` | 12 | `tests/test_workspace_tools.py:52` |
+| `WorkspaceToolsGoldenTests.write` | 12 | `tests/test_workspace_tools.py:33` |
 | `run` | 11 | `scripts/refresh_repo_map.py:25` |
-| `WorkspaceToolsGoldenTests.init_project` | 11 | `tests/test_workspace_tools.py:52` |
-| `WorkspaceToolsGoldenTests.write` | 11 | `tests/test_workspace_tools.py:33` |
 | `WorkspaceToolsGoldenTests.run_tool` | 7 | `tests/test_workspace_tools.py:39` |
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
 | `Graph.label` | 5 | `scripts/explore.py:97` |
@@ -62,14 +62,24 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 Query it instead of grepping:
 
 ```bash
-python _agent_ops/tools/explore.py --root . --symbol <name>    # callers, callees, flow
-python _agent_ops/tools/explore.py --root . --impact <name>    # blast radius + tests
-python _agent_ops/tools/explore.py --root . --path <a> <b>     # how a reaches b
+python scripts/explore.py --root . --symbol <name>    # callers, callees, flow
+python scripts/explore.py --root . --impact <name>    # blast radius + tests
+python scripts/explore.py --root . --path <a> <b>     # how a reaches b
 ```
 
 ## Entry Points
 
 - None detected by filename convention. Confirm manually.
+
+## Oversized Files
+
+Files past 400 lines. Long files are where agents lose the thread and
+where unrelated responsibilities collect. Split along a responsibility
+boundary before adding to one of these.
+
+| File | Lines |
+| --- | --- |
+| `tests/test_workspace_tools.py` | 419 |
 
 ## Isolated Files
 
@@ -82,7 +92,7 @@ context bloat this map exists to prevent.
 This map is deliberately shallow. For the affected zone of a specific change:
 
 ```bash
-python _agent_ops/tools/scan_deps.py --root . --seed "<keyword>" --hops 2 --output markdown
+python scripts/scan_deps.py --root . --seed "<keyword>" --hops 2 --output markdown
 ```
 
 ## Limits
