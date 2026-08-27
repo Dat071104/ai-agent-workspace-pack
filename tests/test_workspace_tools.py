@@ -407,6 +407,31 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertIn(("src/nested.py::outer.inner", "src/nested.py::target"), calls)
         self.assertNotIn(("src/nested.py::outer", "src/nested.py::target"), calls)
 
+    def test_attribute_calls_never_resolve_as_exact(self) -> None:
+        self.write(
+            "src/billing.py",
+            "class BillingService:\n    def save(self):\n        pass\n",
+        )
+        self.write(
+            "src/cache.py",
+            "from billing import BillingService\n\n\ndef flush(cache):\n    cache.save()\n",
+        )
+        self.assertEqual(0, self.init_project().returncode)
+        index = json.loads((self.root / "_agent_ops" / "code_index.json").read_text(encoding="utf-8"))
+        save_edges = [
+            edge
+            for edge in index["edges"]
+            if edge["kind"] == "CALLS"
+            and edge["from"] == "src/cache.py::flush"
+            and edge["to"].endswith("::BillingService.save")
+        ]
+        self.assertTrue(save_edges, "expected an attribute-call edge to BillingService.save")
+        self.assertNotEqual("exact", save_edges[0]["conf"])
+        self.assertFalse(
+            any(edge["kind"] == "CALLS" and edge["conf"] == "exact" and edge["to"].endswith(".save") for edge in index["edges"]),
+            "attribute calls (obj.save()) must never resolve as exact",
+        )
+
     def test_force_never_replaces_existing_agents_file(self) -> None:
         self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")
         result = self.init_project("--force")

@@ -394,7 +394,16 @@ def build_index(root: Path, max_files: int = 0) -> dict:
 
             if weak:
                 chosen, conf = (from_import or same_file or candidates), "weak"
-            elif not call["attr"] and name in local and same_file:
+            elif call["attr"]:
+                # `obj.save()`: same-file or same-import name proximity is not
+                # proof, because the receiver's type was never resolved -- a
+                # name match here is coincidence, not evidence. Cap at
+                # heuristic (unique name repo-wide) or ambiguous, never exact.
+                if len(candidates) == 1:
+                    chosen, conf = candidates, "heuristic"
+                else:
+                    chosen, conf = candidates, "ambiguous"
+            elif name in local and same_file:
                 chosen, conf = same_file[:1], "exact"
             elif from_import:
                 chosen, conf = from_import, "exact" if len(from_import) == 1 else "ambiguous"

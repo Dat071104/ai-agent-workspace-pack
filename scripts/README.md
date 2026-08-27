@@ -115,6 +115,13 @@ Every edge carries a provenance tag. Consumers must surface it:
 | `ambiguous` | Several definitions share the name; all candidates are kept. |
 | `weak` | Regex-extracted JS/TS, because no JS parser ships with Python. |
 
+`exact` never applies to an attribute call (`obj.save()`): the indexer does not
+resolve the receiver's type, so a name match against a same-file or
+same-import definition is a lead, not a proof. Attribute calls resolve to at
+most `heuristic` (the name is unique repo-wide) or `ambiguous` (several
+definitions share it) -- direct calls (`save()`, `imported_fn()`) are the only
+ones that can earn `exact`.
+
 Python is parsed with `ast`, so its symbols and local calls are trustworthy.
 JS/TS is regex-only. Nothing here sees dynamic dispatch, DI wiring, reflection,
 or runtime registries, so:

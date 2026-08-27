@@ -8,11 +8,11 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`d32ba17`
+`e24bf79`
 
 ## Indexed Source Fingerprint
 
-`sha256:12:d977bddae0fd2ec8f3d28f4268ac9f67ebface458d581998f8d374bb6d5b16bd`
+`sha256:12:fa4c51a11731b4b0c74aa95ce1b3bb51f8b7df7a7714464914e6d4763d489c42`
 
 ## Snapshot
 
@@ -40,15 +40,15 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-133 symbols, 244 edges (exact 197, heuristic 47, ambiguous 0, weak 0).
+134 symbols, 247 edges (exact 149, heuristic 98, ambiguous 0, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `read_text` | 22 | `scripts/session_start.py:83` |
-| `WorkspaceToolsGoldenTests.init_project` | 12 | `tests/test_workspace_tools.py:52` |
-| `WorkspaceToolsGoldenTests.write` | 12 | `tests/test_workspace_tools.py:33` |
+| `read_text` | 23 | `scripts/session_start.py:83` |
+| `WorkspaceToolsGoldenTests.init_project` | 13 | `tests/test_workspace_tools.py:52` |
+| `WorkspaceToolsGoldenTests.write` | 13 | `tests/test_workspace_tools.py:33` |
 | `run` | 11 | `scripts/refresh_repo_map.py:25` |
 | `WorkspaceToolsGoldenTests.run_tool` | 7 | `tests/test_workspace_tools.py:39` |
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
@@ -79,7 +79,7 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
-| `tests/test_workspace_tools.py` | 419 |
+| `tests/test_workspace_tools.py` | 444 |
 
 ## Isolated Files
 
