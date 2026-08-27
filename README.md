@@ -65,6 +65,29 @@ Step 2 puts four things in your project:
 It never overwrites an existing file. `AGENTS.md` in particular is written only
 if your project does not already have one.
 
+### Existing `AGENTS.md`: install a managed bridge explicitly
+
+An embedded pack beside an existing `AGENTS.md` is not automatically discoverable:
+the host instructions remain the entry point. Preserve those instructions, then
+install the small pack-owned bridge once:
+
+```bash
+python scripts/init_project_ops.py --target "D:\MyProject" --install-agents-bridge
+```
+
+The bridge is idempotent and changes only the text between its managed markers.
+It routes `@start-here` to `START_HERE.md` and `TEAM_ROUTER.md`, while keeping
+host rules in force and limiting the pack's automatic writes to `_agent_ops/`.
+Check it without writing anything:
+
+```bash
+python scripts/init_project_ops.py --target "D:\MyProject" --check-agents-bridge
+```
+
+The check reports `INSTALLED`, `MISSING`, `OUTDATED`, or `CORRUPT`; only
+structural marker problems block installation. It does not attempt to infer
+policy conflicts from natural-language project rules.
+
 **The tools are copied on purpose.** Cloning the pack "next to" a project used
 to leave that project unable to run anything: `python scripts/session_start.py`
 only works from inside the pack. Now every command runs from your project root,
@@ -85,6 +108,11 @@ is always overwritten; your memory files are not).
 
 Do not mix the two descriptions: embedded mode is the complete operating kit;
 runtime-only mode is the self-contained tooling and memory layer.
+
+The current embedded layout remains flat for compatibility. A future migration
+will place it under `.ai-agent-workspace-pack/` to avoid collisions with host
+paths such as `scripts/`, `.codex/`, and `.claude/`; that layout is not yet an
+installation mode.
 
 ---
 

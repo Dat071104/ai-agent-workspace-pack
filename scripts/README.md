@@ -27,6 +27,9 @@ without Python.
 python scripts/init_project_ops.py --target "D:\MyProject"
 #   --no-tools      do not copy the tools into <target>/_agent_ops/tools/
 #   --no-agents-md  do not create AGENTS.md at the target root
+#   --install-agents-bridge  explicitly add/update the managed bridge in an
+#                       existing embedded project's AGENTS.md
+#   --check-agents-bridge    read-only bridge health check
 #   --no-index      skip code_index.json    --no-repo-map  skip REPO_MAP.md
 #   --force         overwrite memory files (tools/ are always refreshed)
 #   --install-repo-map-hook  opt in to a managed pre-commit map refresh hook

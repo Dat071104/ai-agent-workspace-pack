@@ -1,0 +1,24 @@
+# Hybrid policy for _agent_ops/ (see INDEX.md).
+#
+# Ignored below: session-scoped scratch and derived files. SESSION_BRIEF and
+# CURRENT_TASK are machine-local working notes that change every session;
+# LOG_SUMMARY is regenerated from the log, so tracking it would only create
+# merge noise.
+#
+# Everything else in this folder IS tracked on purpose: the context card, repo
+# map, implementation log and its archive, handoff, decisions, risks, roadmap,
+# and operating rules are durable project memory that must survive a clone.
+# Never put secrets or private data in tracked files.
+
+SESSION_BRIEF.md
+CURRENT_TASK.md
+LOG_SUMMARY.md
+
+# Derived build artifact: rebuilt from source by build_code_index.py, can reach
+# tens of MB on a large repo, and would conflict on every merge. REPO_MAP.md is
+# the small human-readable view of it and IS tracked.
+code_index.json
+
+# Bytecode from running tools/. The tools themselves ARE tracked on purpose: a
+# teammate who clones this project then has working tooling without the pack.
+__pycache__/

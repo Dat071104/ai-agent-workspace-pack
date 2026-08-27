@@ -212,9 +212,25 @@ python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_M
 EMBEDDED_MODE = """## Pack Mode: Embedded
 
 This repository contains the full workspace pack (`TEAM_ROUTER.md` is present).
-Treat `@start-here` as a literal session marker: read `START_HERE.md` and
-`TEAM_ROUTER.md`, then load only the selected team's `SKILL.md`. Do not load
-every team folder. If `_agent_ops/` is missing, bootstrap it with
+Treat `@start-here` as a literal session marker. The managed bridge below is
+the project entry point for routing it safely.
+
+<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->
+## AI Agent Workspace Pack
+
+Instructions outside this managed block remain authoritative. This block is an
+approved, narrowly scoped amendment for the workflow below.
+
+When a user message starts with `@start-here`, read `START_HERE.md` and
+`TEAM_ROUTER.md`, then load only the selected team's `SKILL.md`.
+
+Pack instructions may add workflow but must not weaken existing project rules.
+`@start-here` authorizes only `_agent_ops/` writes defined by the pack; source,
+configuration, dependencies, git, destructive actions, and external services
+remain governed by the project's existing rules.
+<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->
+
+If `_agent_ops/` is missing, bootstrap it with
 `python scripts/init_project_ops.py --target .`; that creates only agent-ops
 state, never source or git changes. After bootstrap, use the local tools under
 `_agent_ops/tools/` for deterministic checks and graph queries.
@@ -227,6 +243,24 @@ No `TEAM_ROUTER.md` was present when this file was generated. Use the local
 or `@start-here` routing instructions are available unless the user supplies an
 embedded pack or an explicit team playbook.
 """
+
+AGENTS_BRIDGE_BEGIN = "<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->"
+AGENTS_BRIDGE_END = "<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->"
+AGENTS_BRIDGE_PREFIX = "<!-- AI_AGENT_WORKSPACE_PACK:"
+AGENTS_BRIDGE = """<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->
+## AI Agent Workspace Pack
+
+Instructions outside this managed block remain authoritative. This block is an
+approved, narrowly scoped amendment for the workflow below.
+
+When a user message starts with `@start-here`, read `START_HERE.md` and
+`TEAM_ROUTER.md`, then load only the selected team's `SKILL.md`.
+
+Pack instructions may add workflow but must not weaken existing project rules.
+`@start-here` authorizes only `_agent_ops/` writes defined by the pack; source,
+configuration, dependencies, git, destructive actions, and external services
+remain governed by the project's existing rules.
+<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->"""
 
 
 def write_tools(ops_dir: Path) -> list[str]:
@@ -330,6 +364,57 @@ def write_target_agents_md(target: Path) -> str:
     return write_if_absent(destination, target_agents_content(target), False)
 
 
+def agents_bridge_status(target: Path) -> tuple[str, str]:
+    """Return a structural status for the optional host-owned AGENTS bridge."""
+    destination = target / "AGENTS.md"
+    if not destination.exists():
+        return "MISSING", "AGENTS.md does not exist"
+    try:
+        content = destination.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        return "CORRUPT", f"cannot read AGENTS.md safely: {error}"
+
+    begins = content.count(AGENTS_BRIDGE_BEGIN)
+    ends = content.count(AGENTS_BRIDGE_END)
+    any_marker = AGENTS_BRIDGE_PREFIX in content
+    if begins == 0 and ends == 0:
+        if any_marker:
+            return "CORRUPT", "unsupported bridge marker or version"
+        return "MISSING", "no managed bridge block"
+    if begins != 1 or ends != 1:
+        return "CORRUPT", "expected exactly one BEGIN and one END marker"
+
+    start = content.index(AGENTS_BRIDGE_BEGIN)
+    end_start = content.index(AGENTS_BRIDGE_END)
+    if end_start < start:
+        return "CORRUPT", "END marker appears before BEGIN marker"
+    end = end_start + len(AGENTS_BRIDGE_END)
+    if content[start:end] == AGENTS_BRIDGE:
+        return "INSTALLED", "managed bridge v1"
+    return "OUTDATED", "managed block differs from bridge v1"
+
+
+def install_agents_bridge(target: Path) -> str:
+    """Append or update only the pack-owned bridge block in AGENTS.md."""
+    destination = target / "AGENTS.md"
+    status, detail = agents_bridge_status(target)
+    if status == "CORRUPT":
+        return f"AGENTS BRIDGE: CORRUPT ({detail}); not modified"
+    if status == "INSTALLED":
+        return "AGENTS BRIDGE: INSTALLED (managed bridge v1; unchanged)"
+    if status == "MISSING":
+        content = destination.read_text(encoding="utf-8")
+        separator = "" if content.endswith("\n") else "\n"
+        destination.write_text(content + separator + "\n" + AGENTS_BRIDGE + "\n", encoding="utf-8")
+        return "AGENTS BRIDGE: INSTALLED (managed bridge v1 appended)"
+
+    content = destination.read_text(encoding="utf-8")
+    start = content.index(AGENTS_BRIDGE_BEGIN)
+    end = content.index(AGENTS_BRIDGE_END, start) + len(AGENTS_BRIDGE_END)
+    destination.write_text(content[:start] + AGENTS_BRIDGE + content[end:], encoding="utf-8")
+    return "AGENTS BRIDGE: INSTALLED (managed bridge v1 updated)"
+
+
 def write_code_index(target: Path, ops_dir: Path, force: bool) -> str:
     """Build the symbol-level index that scripts/explore.py queries."""
     destination = ops_dir / "code_index.json"
@@ -419,15 +504,41 @@ def main() -> int:
         action="store_true",
         help="Do not create AGENTS.md at the project root when it is missing.",
     )
+    parser.add_argument(
+        "--install-agents-bridge",
+        action="store_true",
+        help=(
+            "Explicitly append or update the managed workspace-pack bridge in an "
+            "existing AGENTS.md. Requires an embedded pack and never changes text "
+            "outside the bridge markers."
+        ),
+    )
+    parser.add_argument(
+        "--check-agents-bridge",
+        action="store_true",
+        help="Read-only bridge check; exits nonzero unless the managed bridge is installed.",
+    )
     args = parser.parse_args()
     if args.install_repo_map_hook and args.no_tools:
         parser.error("--install-repo-map-hook requires the runtime tools.")
+    if args.install_agents_bridge and args.no_agents_md:
+        parser.error("--install-agents-bridge cannot be combined with --no-agents-md.")
+    if args.install_agents_bridge and args.check_agents_bridge:
+        parser.error("Choose either --install-agents-bridge or --check-agents-bridge.")
 
     target = Path(args.target).expanduser().resolve()
     if not target.exists():
         parser.error(f"Target does not exist: {target}")
     if not target.is_dir():
         parser.error(f"Target is not a directory: {target}")
+
+    embedded = (target / "TEAM_ROUTER.md").is_file()
+    if args.check_agents_bridge:
+        status, detail = agents_bridge_status(target)
+        print(f"AGENTS BRIDGE: {status} ({detail})")
+        return 0 if status == "INSTALLED" else 1
+    if args.install_agents_bridge and not embedded:
+        parser.error("--install-agents-bridge requires an embedded pack with TEAM_ROUTER.md.")
 
     templates_dir = repo_root() / "core-context"
     if not templates_dir.exists():
@@ -493,10 +604,22 @@ def main() -> int:
     else:
         print(write_repo_map(target, ops_dir, args.force))
 
+    agents_existed = (target / "AGENTS.md").exists()
     if args.no_agents_md:
         print(f"SKIP AGENTS.md (--no-agents-md): {target / 'AGENTS.md'}")
     else:
         print(write_target_agents_md(target))
+        if args.install_agents_bridge:
+            print(install_agents_bridge(target))
+        elif embedded and agents_existed:
+            status, detail = agents_bridge_status(target)
+            if status == "MISSING":
+                print(
+                    "WARN embedded pack detected but AGENTS bridge is missing. "
+                    "Re-run with --install-agents-bridge to add the managed bridge."
+                )
+            else:
+                print(f"AGENTS BRIDGE: {status} ({detail})")
 
     print("")
     print("Done. Existing files were preserved unless --force was used.")

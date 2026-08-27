@@ -169,3 +169,18 @@ Advisor persona (how to communicate):
 - Before acting on ambiguous or high-stakes input, ask the single most important
   clarifying question. One question, not five.
 - No filler. Professional disagreement is not hostility; stay collaborative.
+
+<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->
+## AI Agent Workspace Pack
+
+Instructions outside this managed block remain authoritative. This block is an
+approved, narrowly scoped amendment for the workflow below.
+
+When a user message starts with `@start-here`, read `START_HERE.md` and
+`TEAM_ROUTER.md`, then load only the selected team's `SKILL.md`.
+
+Pack instructions may add workflow but must not weaken existing project rules.
+`@start-here` authorizes only `_agent_ops/` writes defined by the pack; source,
+configuration, dependencies, git, destructive actions, and external services
+remain governed by the project's existing rules.
+<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->

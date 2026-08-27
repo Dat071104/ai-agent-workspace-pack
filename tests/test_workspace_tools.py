@@ -310,6 +310,80 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         agents = (embedded / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("## Pack Mode: Embedded", agents)
         self.assertIn("START_HERE.md", agents)
+        self.assertIn("AI_AGENT_WORKSPACE_PACK:BEGIN v1", agents)
+        embedded_check = self.run_tool(
+            SCRIPTS / "init_project_ops.py",
+            "--target",
+            str(embedded),
+            "--check-agents-bridge",
+            cwd=PACK_ROOT,
+        )
+        self.assertEqual(0, embedded_check.returncode, embedded_check.stderr)
+        self.assertIn("AGENTS BRIDGE: INSTALLED", embedded_check.stdout)
+
+    def test_existing_agents_bridge_requires_explicit_install_and_is_idempotent(self) -> None:
+        self.write("TEAM_ROUTER.md", "# marker\n")
+        self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")
+
+        default = self.init_project()
+        self.assertEqual(0, default.returncode, default.stderr)
+        self.assertIn("WARN embedded pack detected but AGENTS bridge is missing", default.stdout)
+        self.assertEqual(
+            "# Existing project rules\nKeep this marker.\n",
+            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
+        )
+
+        installed = self.init_project("--install-agents-bridge")
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertIn("AGENTS BRIDGE: INSTALLED", installed.stdout)
+        agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("Keep this marker.", agents)
+        self.assertEqual(1, agents.count("AI_AGENT_WORKSPACE_PACK:BEGIN v1"))
+
+        second = self.init_project("--install-agents-bridge")
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.assertEqual(agents, (self.root / "AGENTS.md").read_text(encoding="utf-8"))
+
+        checked = self.init_project("--check-agents-bridge")
+        self.assertEqual(0, checked.returncode, checked.stderr)
+        self.assertIn("AGENTS BRIDGE: INSTALLED", checked.stdout)
+
+    def test_agents_bridge_check_is_read_only_and_detects_corruption(self) -> None:
+        self.write("TEAM_ROUTER.md", "# marker\n")
+        self.write("AGENTS.md", "# Existing rules\n<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->\n")
+
+        checked = self.init_project("--check-agents-bridge")
+        self.assertNotEqual(0, checked.returncode)
+        self.assertIn("AGENTS BRIDGE: CORRUPT", checked.stdout)
+        self.assertFalse((self.root / "_agent_ops").exists())
+
+        installed = self.init_project("--install-agents-bridge")
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertIn("AGENTS BRIDGE: CORRUPT", installed.stdout)
+        self.assertIn("not modified", installed.stdout)
+
+    def test_agents_bridge_updates_only_its_outdated_managed_block(self) -> None:
+        self.write("TEAM_ROUTER.md", "# marker\n")
+        self.write(
+            "AGENTS.md",
+            "# Host rules\n"
+            "<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->\nold bridge\n"
+            "<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->\n"
+            "# Host footer\n",
+        )
+
+        before = self.init_project("--check-agents-bridge")
+        self.assertNotEqual(0, before.returncode)
+        self.assertIn("AGENTS BRIDGE: OUTDATED", before.stdout)
+
+        installed = self.init_project("--install-agents-bridge")
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertIn("managed bridge v1 updated", installed.stdout)
+        agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertTrue(agents.startswith("# Host rules\n"))
+        self.assertTrue(agents.endswith("# Host footer\n"))
+        self.assertNotIn("old bridge", agents)
+        self.assertEqual(1, agents.count("AI_AGENT_WORKSPACE_PACK:BEGIN v1"))
 
     def test_force_never_replaces_existing_agents_file(self) -> None:
         self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")
