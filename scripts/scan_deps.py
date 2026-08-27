@@ -219,14 +219,151 @@ def resolve_python_import(root: Path, source: Path, import_name: str) -> tuple[P
 JS_SUFFIXES = [".py", ".js", ".jsx", ".ts", ".tsx"]
 
 
+def _strip_jsonc(text: str) -> str:
+    """Strip `//` and `/* */` comments so stdlib `json` can read tsconfig.json.
+
+    tsconfig/jsconfig files are JSONC (comments, trailing commas allowed), not
+    strict JSON. This is a lexer, not a JSON parser, so it tracks string
+    literals only well enough to avoid stripping `//` inside one.
+    """
+    out: list[str] = []
+    in_string = False
+    in_line_comment = False
+    in_block_comment = False
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if in_line_comment:
+            if c == "\n":
+                in_line_comment = False
+                out.append(c)
+            i += 1
+            continue
+        if in_block_comment:
+            if c == "*" and nxt == "/":
+                in_block_comment = False
+                i += 2
+                continue
+            i += 1
+            continue
+        if in_string:
+            out.append(c)
+            if c == "\\" and i + 1 < n:
+                out.append(nxt)
+                i += 2
+                continue
+            if c == '"':
+                in_string = False
+            i += 1
+            continue
+        if c == '"':
+            in_string = True
+            out.append(c)
+            i += 1
+            continue
+        if c == "/" and nxt == "/":
+            in_line_comment = True
+            i += 2
+            continue
+        if c == "/" and nxt == "*":
+            in_block_comment = True
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return re.sub(r",(\s*[}\]])", r"\1", "".join(out))
+
+
+def _load_ts_config(config_path: Path, _depth: int = 0) -> dict | None:
+    """Load one tsconfig/jsconfig, following a single-level `extends` chain."""
+    if _depth > 5:
+        return None
+    try:
+        text = config_path.read_text(encoding="utf-8", errors="ignore")
+        data = json.loads(_strip_jsonc(text))
+    except (OSError, ValueError):
+        return None
+    options = dict(data.get("compilerOptions") or {})
+    extends = data.get("extends")
+    if isinstance(extends, str):
+        parent_path = (config_path.parent / extends).resolve()
+        if parent_path.suffix != ".json":
+            parent_path = parent_path.with_name(parent_path.name + ".json")
+        parent = _load_ts_config(parent_path, _depth + 1) if parent_path.exists() else None
+        if parent:
+            merged = dict(parent.get("compilerOptions") or {})
+            merged.update(options)
+            options = merged
+    return {"compilerOptions": options, "config_dir": config_path.parent}
+
+
+_TS_CONFIG_CACHE: dict[Path, dict | None] = {}
+
+
+def find_ts_config(root: Path, source: Path) -> dict | None:
+    """Nearest tsconfig.json/jsconfig.json walking up from `source` to `root`."""
+    current = source.parent
+    while True:
+        for name in ("tsconfig.json", "jsconfig.json"):
+            candidate = current / name
+            if candidate not in _TS_CONFIG_CACHE:
+                _TS_CONFIG_CACHE[candidate] = _load_ts_config(candidate) if candidate.exists() else None
+            if _TS_CONFIG_CACHE[candidate] is not None:
+                return _TS_CONFIG_CACHE[candidate]
+        if current == root or current.parent == current:
+            return None
+        current = current.parent
+        try:
+            current.relative_to(root)
+        except ValueError:
+            return None
+
+
+def ts_path_candidates(import_name: str, config: dict) -> list[Path]:
+    """Resolve `import_name` through `compilerOptions.paths` / `baseUrl`.
+
+    `paths` patterns end in `*` for prefix matches (`"@/*": ["./src/*"]`); an
+    exact-key entry has no wildcard. Falls back to a bare `baseUrl` join when
+    nothing in `paths` matches, since that alone makes `components/Button`
+    resolvable without an entry in `paths`.
+    """
+    options = config["compilerOptions"]
+    config_dir = config["config_dir"]
+    paths = options.get("paths") or {}
+    candidates: list[Path] = []
+    for pattern, targets in paths.items():
+        if not isinstance(targets, list):
+            continue
+        if pattern.endswith("*"):
+            prefix = pattern[:-1]
+            if not import_name.startswith(prefix):
+                continue
+            suffix = import_name[len(prefix):]
+            for target in targets:
+                resolved = target[:-1] + suffix if target.endswith("*") else target
+                candidates.append((config_dir / resolved).resolve())
+        elif pattern == import_name:
+            for target in targets:
+                candidates.append((config_dir / target).resolve())
+    if not candidates:
+        base_url = options.get("baseUrl")
+        if base_url:
+            candidates.append((config_dir / base_url / import_name).resolve())
+    return candidates
+
+
 def resolve_js_import(root: Path, source: Path, import_name: str) -> tuple[Path | None, str]:
     """Resolve a JS/TS specifier.
 
     `./x` and `/x` are paths, so a hit is `exact`. A bare specifier containing a
-    slash (`components/Button`) is usually a `baseUrl`/`paths` alias, which is
-    configured outside the source file; probing ancestors finds it but the hit is
-    a `heuristic`. A single-word specifier (`react`, `fs`) is a package name and
-    is never probed -- that is where false edges would come from.
+    slash (`components/Button`, `@/components/Button`) is either a
+    `tsconfig`/`jsconfig` `baseUrl`/`paths` alias or a scoped package; the
+    nearest tsconfig/jsconfig is tried first, then ancestor-directory probing
+    for the non-`@` case. Either hit is a `heuristic`, since both depend on
+    config this function cannot fully verify. A single-word specifier
+    (`react`, `fs`) is a package name and is never probed -- that is where
+    false edges would come from.
     """
     if import_name.startswith((".", "/")):
         if import_name.startswith("/"):
@@ -238,7 +375,20 @@ def resolve_js_import(root: Path, source: Path, import_name: str) -> tuple[Path 
         candidates += [candidate_base / f"index{suffix}" for suffix in JS_SUFFIXES]
         return _first_existing(root, candidates), "exact"
 
-    if "/" not in import_name or import_name.startswith("@"):
+    if "/" not in import_name:
+        return None, "exact"
+
+    config = find_ts_config(root, source)
+    if config is not None:
+        for candidate_base in ts_path_candidates(import_name, config):
+            candidates = [candidate_base]
+            candidates += [candidate_base.with_suffix(suffix) for suffix in JS_SUFFIXES]
+            candidates += [candidate_base / f"index{suffix}" for suffix in JS_SUFFIXES]
+            hit = _first_existing(root, candidates)
+            if hit is not None:
+                return hit, "heuristic"
+
+    if import_name.startswith("@"):
         return None, "exact"
 
     for base in import_bases(root, source):

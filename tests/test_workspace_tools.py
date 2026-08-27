@@ -478,6 +478,28 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertIn("b.py", uncertain)
         self.assertNotIn("### Probable impact", result.stdout)
 
+    def test_tsconfig_paths_resolve_at_alias_imports(self) -> None:
+        self.write(
+            "tsconfig.json",
+            "{\n"
+            '  // repo tsconfig\n'
+            '  "compilerOptions": {\n'
+            '    "baseUrl": ".",\n'
+            '    "paths": {\n'
+            '      "@/*": ["./src/*"],\n'
+            '    },\n'
+            "  },\n"
+            "}\n",
+        )
+        self.write("src/components/Button.tsx", "export function Button() { return 'button'; }\n")
+        self.write(
+            "src/ui/Page.tsx",
+            "import Button from '@/components/Button';\n\nexport function renderPage() { return Button(); }\n",
+        )
+        self.assertEqual(0, self.init_project().returncode)
+        index = json.loads((self.root / "_agent_ops" / "code_index.json").read_text(encoding="utf-8"))
+        self.assert_import(index, "src/ui/Page.tsx", "src/components/Button.tsx", "heuristic")
+
     def test_force_never_replaces_existing_agents_file(self) -> None:
         self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")
         result = self.init_project("--force")
