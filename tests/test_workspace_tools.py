@@ -500,6 +500,24 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         index = json.loads((self.root / "_agent_ops" / "code_index.json").read_text(encoding="utf-8"))
         self.assert_import(index, "src/ui/Page.tsx", "src/components/Button.tsx", "heuristic")
 
+    def test_claude_and_gemini_get_thin_agents_md_import_adapters(self) -> None:
+        result = self.init_project()
+        self.assertEqual(0, result.returncode, result.stderr)
+
+        claude_md = (self.root / "CLAUDE.md").read_text(encoding="utf-8")
+        gemini_md = (self.root / "GEMINI.md").read_text(encoding="utf-8")
+        self.assertTrue(claude_md.startswith("@AGENTS.md"))
+        self.assertTrue(gemini_md.startswith("@./AGENTS.md"))
+
+        # Never overwritten: an existing CLAUDE.md/GEMINI.md is left untouched.
+        self.write("CLAUDE.md", "# Existing Claude rules\nKeep this.\n")
+        second = self.init_project("--force")
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.assertEqual(
+            "# Existing Claude rules\nKeep this.\n",
+            (self.root / "CLAUDE.md").read_text(encoding="utf-8"),
+        )
+
     def test_force_never_replaces_existing_agents_file(self) -> None:
         self.write("AGENTS.md", "# Existing project rules\nKeep this marker.\n")
         result = self.init_project("--force")

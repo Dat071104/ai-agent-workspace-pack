@@ -355,13 +355,52 @@ def target_agents_content(target: Path) -> str:
 def write_target_agents_md(target: Path) -> str:
     """Drop an AGENTS.md at the project root if it has none.
 
-    This is the file Codex, Claude Code, Cursor, and friends pick up on their
-    own. Without it, everything installed under _agent_ops/ is invisible unless
-    the user remembers to point at it every session. Never overwritten: a
-    project that already has one has already made this decision.
+    Codex, Cursor, and Windsurf auto-discover AGENTS.md; Claude Code and Gemini
+    CLI do not (they default to CLAUDE.md / GEMINI.md respectively), so
+    write_target_claude_md()/write_target_gemini_md() below give those two a
+    thin adapter that imports this file instead of duplicating it. Without any
+    of this, everything installed under _agent_ops/ is invisible unless the
+    user remembers to point at it every session. Never overwritten: a project
+    that already has one has already made this decision.
     """
     destination = target / "AGENTS.md"
     return write_if_absent(destination, target_agents_content(target), False)
+
+
+CLAUDE_MD_ADAPTER = """@AGENTS.md
+
+Claude Code reads `CLAUDE.md`, not `AGENTS.md`. The import above pulls in
+this project's canonical agent instructions so they are not duplicated
+across two files. Add Claude-specific instructions below this line.
+"""
+
+GEMINI_MD_ADAPTER = """@./AGENTS.md
+
+Gemini CLI defaults to `GEMINI.md`. The import above pulls in this project's
+canonical agent instructions so they are not duplicated across two files.
+Add Gemini-specific instructions below this line.
+"""
+
+
+def write_target_claude_md(target: Path) -> str:
+    """Drop a thin CLAUDE.md at the project root if it has none.
+
+    Claude Code's own docs recommend exactly this pattern for an AGENTS.md
+    that other tools also read: `@AGENTS.md` as an import, expanded into
+    context at session start. Never overwritten: a project with its own
+    CLAUDE.md has already made that decision.
+    """
+    return write_if_absent(target / "CLAUDE.md", CLAUDE_MD_ADAPTER, False)
+
+
+def write_target_gemini_md(target: Path) -> str:
+    """Drop a thin GEMINI.md at the project root if it has none.
+
+    Gemini CLI's `@path` import requires a leading `./` for a same-directory
+    file, unlike Claude Code's `@AGENTS.md`. Never overwritten: a project
+    with its own GEMINI.md has already made that decision.
+    """
+    return write_if_absent(target / "GEMINI.md", GEMINI_MD_ADAPTER, False)
 
 
 def agents_bridge_status(target: Path) -> tuple[str, str]:
@@ -620,6 +659,8 @@ def main() -> int:
                 )
             else:
                 print(f"AGENTS BRIDGE: {status} ({detail})")
+        print(write_target_claude_md(target))
+        print(write_target_gemini_md(target))
 
     print("")
     print("Done. Existing files were preserved unless --force was used.")

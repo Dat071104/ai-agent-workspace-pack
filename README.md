@@ -66,10 +66,10 @@ Step 2 puts four things in your project:
 | Memory files | `_agent_ops/*.md` | Brief, task state, decisions, risks, log |
 | Code graph | `_agent_ops/REPO_MAP.md` + `code_index.json` | Locate code without grepping |
 | The tools themselves | `_agent_ops/tools/` | So the project runs on its own |
-| Agent instructions | `AGENTS.md` at your project root | The file Codex/Claude/Cursor read first |
+| Agent instructions | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` at your project root | Codex/Cursor/Windsurf auto-load `AGENTS.md`; Claude Code and Gemini CLI don't -- `CLAUDE.md`/`GEMINI.md` are thin adapters that `@`-import it |
 
-It never overwrites an existing file. `AGENTS.md` in particular is written only
-if your project does not already have one.
+It never overwrites an existing file. `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md`
+are each written only if your project does not already have one.
 
 ### Existing `AGENTS.md`: install a managed bridge explicitly
 
@@ -366,15 +366,18 @@ written out in `core-context/SESSION_PROTOCOL.template.md`.
 
 ## Setting up your agent
 
-The install writes `AGENTS.md` at your repo root for you — most tools read it
-automatically, and it already points at `_agent_ops/` and the tools. Then run
-`BOOTSTRAP.md` once if you also want the team folders wired up.
+The install writes `AGENTS.md` at your repo root for you, plus thin
+`CLAUDE.md`/`GEMINI.md` adapters that `@`-import it for the two tools that
+don't read `AGENTS.md` on their own. It already points at `_agent_ops/` and
+the tools. Then run `BOOTSTRAP.md` once if you also want the team folders
+wired up.
 
 | Tool | Base rules | Invoke a team | Real parallel subagents |
 | --- | --- | --- | --- |
 | **Codex** | `AGENTS.md` (auto) | `@bug-fix-team/SKILL.md` | Yes — `.codex/agents/` |
-| **Claude Code** | `AGENTS.md` | Teams are discoverable skills | Yes — `.claude/agents/` |
-| **Cursor / Windsurf / Gemini / DeepSeek** | `AGENTS.md` | `@<team>/SKILL.md` | Detected at runtime; falls back to sequential |
+| **Claude Code** | `AGENTS.md` (via `CLAUDE.md` import) | Teams are discoverable skills | Yes — `.claude/agents/` |
+| **Cursor / Windsurf** | `AGENTS.md` (auto) | `@<team>/SKILL.md` | Detected at runtime; falls back to sequential |
+| **Gemini / DeepSeek** | `AGENTS.md` (via `GEMINI.md` import, or Gemini's `context.fileName` setting) | `@<team>/SKILL.md` | Detected at runtime; falls back to sequential |
 
 There are four real subagents: `tester` and `repo_hygiene_reviewer` (read-only),
 `bug_hunter` (read-only, probes one theory), `bug_fixer` (applies a confirmed fix).
