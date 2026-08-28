@@ -93,6 +93,29 @@ If `AGENTS.md` already exists, every original line follows unchanged after this
 first line. If it does not exist, the bridge is the complete file. `CLAUDE.md`
 and `GEMINI.md` are created only when absent and import the pack directly.
 
+#### Migrating an older flat install
+
+A pack unpacked directly into an application root can be moved into the
+namespaced layout without losing project memory:
+
+```bash
+python D:\path\to\ai-agent-workspace-pack\scripts\migrate_pack.py --target .
+```
+
+That prints the plan and changes nothing. Add `--apply` to perform it. Nothing
+is deleted: every pack file is *moved*, so `git status` shows renames and
+`git checkout` reverts the whole thing. `--apply` refuses on a dirty worktree,
+or outside Git, unless you pass `--allow-dirty`.
+
+Files are matched by their path inside the source pack, never by directory name.
+A flat install merged the pack's `scripts/*.py` into the application's own
+`scripts/`, so moving that directory wholesale would carry application code with
+it. `LICENSE`, `.gitignore`, and `README.md` are never moved -- at the root they
+are as likely to be the application's as the pack's, so review those three by
+hand. `_agent_ops/` moves into the pack folder with its history intact;
+`REPO_MAP.md` and `code_index.json` are rebuilt, because they described the old
+layout.
+
 #### Root harness adapters
 
 Codex discovers subagents in `.codex/agents/` at the repository root, and Claude

@@ -894,5 +894,80 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(0, staged.returncode, staged.stderr)
         self.assertNotIn("Traceback", staged.stderr)
 
+    def flat_install_fixture(self) -> None:
+        """A flat install: pack files unpacked at the root, mixed with the app's."""
+        for entry in PACK_ROOT.iterdir():
+            if entry.name in {".git", "_agent_ops", "__pycache__", ".pytest_cache"}:
+                continue
+            if entry.is_dir():
+                shutil.copytree(entry, self.root / entry.name)
+            else:
+                shutil.copy2(entry, self.root / entry.name)
+        # The collision the namespaced layout exists to prevent: the pack's
+        # scripts/ and the application's scripts/ are the same directory.
+        self.write("scripts/my_app_deploy.py", "def deploy():\n    return 'app'\n")
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+        self.write("AGENTS.md", "# Host rules\nKeep this text exactly.\n")
+        installed = self.init_project()
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        (self.root / "_agent_ops" / "PROJECT_CONTEXT_CARD.md").write_text(
+            "# Card\nPROJECT MEMORY MARKER\n", encoding="utf-8"
+        )
+
+    def test_migrate_moves_only_pack_files_out_of_a_flat_install(self) -> None:
+        self.flat_install_fixture()
+        pack = self.root / "ai-agent-workspace-pack"
+
+        dry = self.run_tool(SCRIPTS / "migrate_pack.py", "--target", str(self.root), cwd=PACK_ROOT)
+        self.assertEqual(0, dry.returncode, dry.stderr)
+        self.assertIn("DRY RUN", dry.stdout)
+        self.assertFalse(pack.exists())
+        self.assertTrue((self.root / "TEAM_ROUTER.md").is_file())
+
+        # Without a repository there is nothing to revert to, so --apply refuses.
+        refused = self.run_tool(SCRIPTS / "migrate_pack.py", "--target", str(self.root), "--apply", cwd=PACK_ROOT)
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("not a Git repository", refused.stderr)
+        self.assertFalse(pack.exists())
+
+        applied = self.run_tool(
+            SCRIPTS / "migrate_pack.py", "--target", str(self.root), "--apply", "--allow-dirty", cwd=PACK_ROOT
+        )
+        self.assertEqual(0, applied.returncode, applied.stderr)
+        self.assertIn("MIGRATED", applied.stdout)
+
+        # Application files stay exactly where the application put them.
+        self.assertTrue((self.root / "src" / "app.py").is_file())
+        self.assertTrue((self.root / "scripts" / "my_app_deploy.py").is_file())
+        self.assertFalse((pack / "scripts" / "my_app_deploy.py").exists())
+
+        # Pack files and project memory move together.
+        self.assertTrue((pack / "scripts" / "scan_deps.py").is_file())
+        self.assertTrue((pack / "TEAM_ROUTER.md").is_file())
+        self.assertFalse((self.root / "TEAM_ROUTER.md").exists())
+        self.assertFalse((self.root / "_agent_ops").exists())
+        self.assertIn(
+            "PROJECT MEMORY MARKER",
+            (pack / "_agent_ops" / "PROJECT_CONTEXT_CARD.md").read_text(encoding="utf-8"),
+        )
+
+        # The root ends up in the namespaced shape, host text intact.
+        self.assertEqual(
+            "@ai-agent-workspace-pack/AGENTS.md\n# Host rules\nKeep this text exactly.\n",
+            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
+        )
+        self.assertTrue((self.root / ".codex" / "agents" / "tester.toml").is_file())
+        self.assertTrue((self.root / ".claude" / "skills" / "tester-team" / "SKILL.md").is_file())
+
+        # And the code graph is finally about the application.
+        index = json.loads((pack / "_agent_ops" / "code_index.json").read_text(encoding="utf-8"))
+        self.assertEqual(["scripts/my_app_deploy.py", "src/app.py"], sorted(index["files"]))
+
+    def test_migrate_refuses_a_project_without_a_flat_install(self) -> None:
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+        result = self.run_tool(SCRIPTS / "migrate_pack.py", "--target", str(self.root), cwd=PACK_ROOT)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("No flat workspace-pack install found", result.stderr)
+
 if __name__ == "__main__":
     unittest.main()

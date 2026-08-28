@@ -8,17 +8,17 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`aa10911`
+`e80c7bf`
 
 ## Indexed Source Fingerprint
 
-`sha256:13:7726492ded225c6a8af638f49d92a87472ad9f2f5e562b4a494fd34ae8b81e7e`
+`sha256:14:822aefe79f51d587355dcc413e92d3c6080f525b3a8cda0d8549a4757aaffd6c`
 
 ## Snapshot
 
 - Branch: `main`
 - Generated: `2026-08-28`
-- Code files indexed: 13
+- Code files indexed: 14
 - Stack: Unknown
 
 ## Modules
@@ -28,7 +28,7 @@ code depends on it, so changes there travel further.
 
 | Module | Files | Inbound | Entry points |
 | --- | --- | --- | --- |
-| `scripts` | 12 | 0 | - |
+| `scripts` | 13 | 0 | - |
 | `tests` | 1 | 0 | - |
 
 ## Hot Files (widest blast radius)
@@ -37,8 +37,8 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 | File | Imported by | Imports |
 | --- | --- | --- |
+| `scripts/scan_deps.py` | 6 | 0 |
 | `scripts/source_state.py` | 6 | 0 |
-| `scripts/scan_deps.py` | 5 | 0 |
 | `scripts/generate_context_card.py` | 3 | 0 |
 | `scripts/build_code_index.py` | 1 | 3 |
 | `scripts/generate_repo_map.py` | 1 | 3 |
@@ -46,17 +46,17 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-171 symbols, 334 edges (exact 181, heuristic 153, ambiguous 0, weak 0).
+180 symbols, 352 edges (exact 188, heuristic 164, ambiguous 0, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `read_text` | 38 | `scripts/session_start.py:80` |
-| `WorkspaceToolsGoldenTests.write` | 27 | `tests/test_workspace_tools.py:34` |
-| `WorkspaceToolsGoldenTests.init_project` | 22 | `tests/test_workspace_tools.py:53` |
-| `WorkspaceToolsGoldenTests.run_tool` | 16 | `tests/test_workspace_tools.py:40` |
-| `run` | 15 | `scripts/refresh_repo_map.py:25` |
+| `read_text` | 40 | `scripts/session_start.py:80` |
+| `WorkspaceToolsGoldenTests.write` | 29 | `tests/test_workspace_tools.py:34` |
+| `WorkspaceToolsGoldenTests.init_project` | 23 | `tests/test_workspace_tools.py:53` |
+| `WorkspaceToolsGoldenTests.run_tool` | 18 | `tests/test_workspace_tools.py:40` |
+| `run` | 17 | `scripts/refresh_repo_map.py:25` |
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
 | `Graph.label` | 5 | `scripts/explore.py:100` |
 | `write_if_absent` | 5 | `scripts/init_project_ops.py:127` |
@@ -86,7 +86,7 @@ boundary before adding to one of these.
 | File | Lines |
 | --- | --- |
 | `scripts/init_project_ops.py` | 991 |
-| `tests/test_workspace_tools.py` | 898 |
+| `tests/test_workspace_tools.py` | 973 |
 | `scripts/session_start.py` | 589 |
 | `scripts/scan_deps.py` | 511 |
 | `scripts/build_code_index.py` | 497 |

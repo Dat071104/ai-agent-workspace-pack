@@ -13,6 +13,10 @@ preserving root `AGENTS.md` bridge, and the root `.codex/` and `.claude/`
 pointer files the harnesses need to discover the subagents and team skills. It
 is not copied into runtime tools because it requires the full source pack.
 
+`migrate_pack.py` moves an older flat install into the namespaced folder. It is
+a dry run by default, moves rather than deletes, and refuses to touch a dirty or
+non-Git worktree without `--allow-dirty`.
+
 `init_project_ops.py` copies every other script here into the target project as
 `_agent_ops/tools/`. Inside a project, run them as
 `python _agent_ops/tools/<script> ...`; the `python scripts/<script> ...` form
