@@ -93,6 +93,22 @@ If `AGENTS.md` already exists, every original line follows unchanged after this
 first line. If it does not exist, the bridge is the complete file. `CLAUDE.md`
 and `GEMINI.md` are created only when absent and import the pack directly.
 
+#### Root harness adapters
+
+Codex discovers subagents in `.codex/agents/` at the repository root, and Claude
+Code discovers `.claude/agents/` and `.claude/skills/` there. Neither looks
+inside a subdirectory, so the install also writes those pointer files at the
+root: four subagents (`tester`, `bug_hunter`, `bug_fixer`,
+`repo_hygiene_reviewer`) for both harnesses, plus the nine team skills for
+Claude Code. Each pointer carries an `AI_AGENT_WORKSPACE_PACK:ADAPTER` marker
+and resolves every path into the pack folder.
+
+That marker is the ownership rule: a re-run updates a marked file and never
+touches a same-named host file, which is reported as
+`SKIP host-owned adapter`. Workflow content is never duplicated at the root --
+the pointers name the team files inside the pack folder. Skip them with
+`--no-root-adapters`, at the cost of losing subagent and skill discovery.
+
 Check the bridge without writing:
 
 ```bash

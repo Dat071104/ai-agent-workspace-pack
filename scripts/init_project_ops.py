@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -95,6 +96,23 @@ def relative_folder(value: str, option: str) -> Path:
     if not value or folder.is_absolute() or any(part == ".." for part in folder.parts) or str(folder) in {"", "."}:
         raise ValueError(f"{option} must be a non-empty path inside --target")
     return folder
+
+
+def detect_embedded_folder(target: Path) -> Path | None:
+    """Return the pack's folder when this pack was copied INTO the target.
+
+    The bootstrap instructions name `init_project_ops.py --target .`, which a
+    namespaced install resolves to `<folder>/scripts/init_project_ops.py`.
+    Without this detection that command created `_agent_ops/` at the application
+    root and skipped the root adapters -- reproducing the flat layout the
+    namespaced mode exists to avoid, from the pack's own documented command.
+    """
+
+    try:
+        relative = repo_root().relative_to(target)
+    except ValueError:
+        return None
+    return Path(relative.as_posix()) if relative.parts else None
 
 
 def copy_template(source: Path, destination: Path, force: bool, ops_relative: str) -> str:
@@ -527,6 +545,123 @@ def install_namespaced_agents_bridge(target: Path, embedded_folder: Path) -> str
     return f"AGENTS BRIDGE: INSTALLED (namespaced bridge {action}; host text preserved)"
 
 
+# --------------------------------------------------------------------------- #
+# Root harness adapters
+#
+# Codex discovers subagents in `.codex/agents/` at the repository root, and
+# Claude Code discovers `.claude/agents/` and `.claude/skills/` there. A
+# namespaced install puts the pack -- and therefore those folders -- one level
+# down, which silently dropped the four subagents and the nine team skills the
+# flat layout provided. Copying the pack back to the root would undo the point
+# of the namespaced layout, so only these small pointer files live at the root;
+# every workflow they name stays inside the pack folder.
+# --------------------------------------------------------------------------- #
+
+ADAPTER_MARKER = "AI_AGENT_WORKSPACE_PACK:ADAPTER v1"
+ADAPTER_NOTE = "generated pointer into the pack folder; edit the pack, not this file."
+# Directories only. A host `.codex/config.toml` or `.claude/settings.json` is
+# host policy: never generated, never overwritten.
+ADAPTER_SOURCES = (".codex/agents", ".claude/agents", ".claude/skills")
+# Pack-relative paths named inside the adapters. They must resolve from the
+# project root once the adapter lives there. `_agent_ops` is included because a
+# namespaced install keeps project memory inside the pack folder too.
+ADAPTER_PATH_ROOTS = (
+    "_agent_ops",
+    "advisor-team",
+    "analyze-team",
+    "bug-fix-team",
+    "build-team",
+    "clean-code-team",
+    "commands",
+    "core-context",
+    "examples",
+    "handoff-team",
+    "harness",
+    "prompting-team",
+    "repo-hygiene-team",
+    "scripts",
+    "tester-team",
+)
+# Path-leading occurrences only: `tester-team/SKILL.md` is rewritten, while
+# `ai-agent-workspace-pack/tester-team/SKILL.md` and prose such as "the
+# tester-team folder" are left alone. That also makes a re-run idempotent.
+ADAPTER_PATH_RE = re.compile(
+    r"(?<![\w./-])(" + "|".join(re.escape(name) for name in ADAPTER_PATH_ROOTS) + r")/"
+)
+
+
+def adapter_sources(pack_root: Path) -> list[Path]:
+    """Every pointer file shipped by the pack, in a stable order."""
+
+    found: list[Path] = []
+    for entry in ADAPTER_SOURCES:
+        source = pack_root / entry
+        if source.is_dir():
+            found += sorted(path for path in source.rglob("*") if path.is_file())
+    return found
+
+
+def rewrite_adapter_paths(text: str, prefix: str) -> str:
+    """Make pack-relative paths resolve from the project root."""
+
+    return ADAPTER_PATH_RE.sub(lambda match: prefix + match.group(1) + "/", text)
+
+
+def stamp_adapter(text: str, suffix: str) -> str:
+    """Mark a file as pack-owned so a re-run updates it but never a host file."""
+
+    if suffix == ".toml":
+        return "# " + ADAPTER_MARKER + " -- " + ADAPTER_NOTE + "\n" + text
+    comment = "<!-- " + ADAPTER_MARKER + " -- " + ADAPTER_NOTE + " -->"
+    lines = text.splitlines()
+    if lines and lines[0].strip() == "---":
+        for position in range(1, len(lines)):
+            if lines[position].strip() == "---":
+                body = lines[: position + 1] + ["", comment] + lines[position + 1 :]
+                return "\n".join(body) + "\n"
+    return comment + "\n\n" + text
+
+
+def install_root_adapters(
+    target: Path, pack_root: Path, embedded_folder: Path, force: bool
+) -> list[str]:
+    """Install root pointers for the harnesses that only auto-discover at the root."""
+
+    sources = adapter_sources(pack_root)
+    if not sources:
+        return [
+            "WARN no harness adapters found in " + str(pack_root)
+            + "; subagents and team skills stay undiscovered."
+        ]
+
+    prefix = embedded_folder.as_posix() + "/"
+    written = 0
+    unchanged = 0
+    messages: list[str] = []
+    for source in sources:
+        destination = target / source.relative_to(pack_root)
+        content = stamp_adapter(
+            rewrite_adapter_paths(source.read_text(encoding="utf-8"), prefix), source.suffix
+        )
+        if destination.exists():
+            existing = destination.read_text(encoding="utf-8", errors="ignore")
+            if ADAPTER_MARKER not in existing and not force:
+                messages.append("SKIP host-owned adapter (not overwritten): " + str(destination))
+                continue
+            if existing == content:
+                unchanged += 1
+                continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(content, encoding="utf-8")
+        written += 1
+
+    messages.append(
+        "ROOT ADAPTERS: {written} written, {unchanged} unchanged -- subagents and team "
+        "skills resolve into {prefix}".format(written=written, unchanged=unchanged, prefix=prefix)
+    )
+    return messages
+
+
 def write_code_index(target: Path, ops_dir: Path, force: bool) -> str:
     """Build the symbol-level index that scripts/explore.py queries."""
     destination = ops_dir / "code_index.json"
@@ -639,6 +774,14 @@ def main() -> int:
         action="store_true",
         help="Read-only bridge check; exits nonzero unless the managed bridge is installed.",
     )
+    parser.add_argument(
+        "--no-root-adapters",
+        action="store_true",
+        help=(
+            "Do not install the root .claude/ and .codex/ pointer files. Without them "
+            "Codex and Claude Code cannot discover the pack's subagents or team skills."
+        ),
+    )
     args = parser.parse_args()
     if args.install_repo_map_hook and args.no_tools:
         parser.error("--install-repo-map-hook requires the runtime tools.")
@@ -658,6 +801,15 @@ def main() -> int:
         ops_relative_path = relative_folder(args.ops_folder, "--ops-folder") if args.ops_folder else None
     except ValueError as error:
         parser.error(str(error))
+    if embedded_folder is None and ops_relative_path is None:
+        detected = detect_embedded_folder(target)
+        if detected is not None:
+            embedded_folder = detected
+            print(
+                "EMBEDDED FOLDER: auto-detected "
+                + detected.as_posix()
+                + " (this pack lives inside the target; keeping operations there)"
+            )
     if embedded_folder:
         embedded_root = target / embedded_folder
         if not (embedded_root / "TEAM_ROUTER.md").is_file():
@@ -751,8 +903,10 @@ def main() -> int:
             status, detail = namespaced_agents_bridge_status(target, embedded_folder)
             if status == "MISSING":
                 print(
-                    "WARN copied pack detected but the namespaced AGENTS.md bridge is missing. "
-                    "Re-run with --install-agents-bridge to prepend it safely."
+                    "WARN copied pack detected but the namespaced AGENTS.md bridge is missing, "
+                    "so no harness will read the pack. Prepend it without touching your own text:\n"
+                    "         python " + embedded_folder.as_posix() + "/scripts/init_project_ops.py "
+                    "--target . --install-agents-bridge"
                 )
             else:
                 print(f"AGENTS BRIDGE: {status} ({detail})")
@@ -780,6 +934,12 @@ def main() -> int:
                 "may never see its agent instructions. Add this line:\n"
                 f"         {gemini_import}"
             )
+
+        if args.no_root_adapters:
+            print("SKIP root harness adapters (--no-root-adapters): subagents and team skills stay undiscovered.")
+        else:
+            for line in install_root_adapters(target, embedded_root, embedded_folder, args.force):
+                print(line)
     else:
         print(write_target_agents_md(target, ops_relative))
         if args.install_agents_bridge:

@@ -9,6 +9,12 @@ all pack and project-ops paths under it: for example run
 The root `AGENTS.md` bridge is intentionally only its first link line followed
 by any host-owned instructions; never move the pack's teams, scripts, or
 templates into the application root.
+
+The one exception is harness discovery: `.codex/agents/` and `.claude/agents/`
+plus `.claude/skills/` must sit at the repository root, because no harness looks
+for them in a subdirectory. The installer writes them there as marked pointer
+files that resolve into the pack folder. They are generated -- change a team
+file inside the pack and re-run the installer; never hand-edit a pointer.
 When installing a fresh copy, run `scripts/embed_pack.py --target <project>`
 from a source pack instead of copying its `_agent_ops/` working memory.
 
@@ -64,7 +70,12 @@ Managed-session invariants:
   user supplied `--no-ops`, if `_agent_ops/` is missing and this embedded pack's
   `scripts/init_project_ops.py` exists, bootstrap it immediately with
   `python scripts/init_project_ops.py --target .` -- do not ask first, because
-  those writes are already authorized. That bootstrap means: create the ops
+  those writes are already authorized. Run it through the pack folder --
+  `python ai-agent-workspace-pack/scripts/init_project_ops.py --target .` --
+  which detects that it lives inside the project and keeps everything nested.
+  If the root `AGENTS.md` has no bridge line yet, the run says so and prints the
+  one command that prepends it; that command edits a host file, so ask first.
+  That bootstrap means: create the ops
   records, build `REPO_MAP.md` and the symbol index, then fill the new session's
   `SESSION_BRIEF.md` and `CURRENT_TASK.md` from the stated goal and append one
   factual bootstrap entry to `IMPLEMENTATION_LOG.md`. "Do everything" in a

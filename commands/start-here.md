@@ -15,7 +15,13 @@ team folder. Unless `--no-ops` was supplied, treat this as a state machine:
 
 - If `_agent_ops/` is missing and `scripts/init_project_ops.py` exists, run
   `python scripts/init_project_ops.py --target .` immediately. Do not ask first:
-  `@start-here` already authorizes these `_agent_ops/` writes.
+  `@start-here` already authorizes these `_agent_ops/` writes. When the pack sits
+  in its own folder, run that same command through it
+  (`python ai-agent-workspace-pack/scripts/init_project_ops.py --target .`): it
+  detects the folder, keeps operations nested, and installs the root `.codex/`
+  and `.claude/` pointers that make the subagents and team skills discoverable.
+  A missing root `AGENTS.md` bridge is reported with the command that adds it;
+  that one edits a host file, so ask before running it.
 - The bootstrap is complete only after the new `SESSION_BRIEF.md` and
   `CURRENT_TASK.md` are filled from the user's goal, and one factual bootstrap
   entry is appended to `IMPLEMENTATION_LOG.md`. It also generates `REPO_MAP.md`

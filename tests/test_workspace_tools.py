@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -670,6 +671,162 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertIn("SKIP existing: " + str(self.root / "AGENTS.md"), result.stdout)
         self.assertIn("Keep this marker.", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
 
+
+    def test_namespaced_embed_installs_root_harness_adapters(self) -> None:
+        """Codex reads `.codex/agents/` and Claude Code reads `.claude/agents/`
+        and `.claude/skills/` at the REPOSITORY ROOT only. A namespaced install
+        buries both one level down, so without these pointers the four subagents
+        and the nine team skills silently disappear."""
+        self.write("ai-agent-workspace-pack/TEAM_ROUTER.md", "# copied pack marker\n")
+        self.write("ai-agent-workspace-pack/core-context/.keep", "")
+        self.write("ai-agent-workspace-pack/scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
+        self.write(
+            "ai-agent-workspace-pack/.codex/agents/tester.toml",
+            'name = "tester"\ndeveloper_instructions = """\nFollow tester-team/SKILL.md.\n"""\n',
+        )
+        self.write(
+            "ai-agent-workspace-pack/.claude/agents/tester.md",
+            "---\nname: tester\n---\n\nFollow `tester-team/SKILL.md` and `_agent_ops/REPO_MAP.md`.\n",
+        )
+        self.write(
+            "ai-agent-workspace-pack/.claude/skills/tester-team/SKILL.md",
+            "---\nname: tester-team\n---\n\nSource of truth: `tester-team/SKILL.md`.\n",
+        )
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+
+        installed = self.init_project("--embedded-folder", "ai-agent-workspace-pack")
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertIn("ROOT ADAPTERS: 3 written", installed.stdout)
+
+        codex = (self.root / ".codex" / "agents" / "tester.toml").read_text(encoding="utf-8")
+        self.assertTrue(codex.startswith("# AI_AGENT_WORKSPACE_PACK:ADAPTER v1"))
+        self.assertIn("Follow ai-agent-workspace-pack/tester-team/SKILL.md.", codex)
+
+        agent_path = self.root / ".claude" / "agents" / "tester.md"
+        agent = agent_path.read_text(encoding="utf-8")
+        # The marker must never displace YAML frontmatter, or discovery breaks.
+        self.assertTrue(agent.startswith("---\nname: tester\n---\n"), agent)
+        self.assertIn("AI_AGENT_WORKSPACE_PACK:ADAPTER v1", agent)
+        self.assertIn("`ai-agent-workspace-pack/tester-team/SKILL.md`", agent)
+        self.assertIn("`ai-agent-workspace-pack/_agent_ops/REPO_MAP.md`", agent)
+        skill = (self.root / ".claude" / "skills" / "tester-team" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`ai-agent-workspace-pack/tester-team/SKILL.md`", skill)
+
+        second = self.init_project("--embedded-folder", "ai-agent-workspace-pack")
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.assertIn("ROOT ADAPTERS: 0 written, 3 unchanged", second.stdout)
+        self.assertNotIn(
+            "ai-agent-workspace-pack/ai-agent-workspace-pack",
+            agent_path.read_text(encoding="utf-8"),
+        )
+
+        host = "---\nname: tester\n---\n\nHost owned.\n"
+        agent_path.write_text(host, encoding="utf-8")
+        third = self.init_project("--embedded-folder", "ai-agent-workspace-pack")
+        self.assertEqual(0, third.returncode, third.stderr)
+        self.assertIn("SKIP host-owned adapter", third.stdout)
+        self.assertEqual(host, agent_path.read_text(encoding="utf-8"))
+
+        opted_out = self.init_project(
+            "--embedded-folder", "ai-agent-workspace-pack", "--no-root-adapters"
+        )
+        self.assertEqual(0, opted_out.returncode, opted_out.stderr)
+        self.assertIn("SKIP root harness adapters", opted_out.stdout)
+
+    def test_code_index_skips_a_nested_workspace_pack(self) -> None:
+        """The symbol graph must answer about the project, not about the pack
+        copied into it. REPO_MAP.md already excluded it while the index did not,
+        so `explore.py --symbol` answered with pack internals."""
+        self.write("ai-agent-workspace-pack/TEAM_ROUTER.md", "# copied pack marker\n")
+        self.write("ai-agent-workspace-pack/core-context/.keep", "")
+        self.write("ai-agent-workspace-pack/scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
+        self.write(
+            "ai-agent-workspace-pack/scripts/explore.py",
+            "from init_project_ops import pack_tool\n\n\ndef pack_helper():\n    return pack_tool()\n",
+        )
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+
+        output = self.root / "index.json"
+        built = self.run_tool(
+            SCRIPTS / "build_code_index.py",
+            "--root",
+            str(self.root),
+            "--output",
+            str(output),
+            cwd=PACK_ROOT,
+        )
+        self.assertEqual(0, built.returncode, built.stderr)
+        index = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(["src/app.py"], sorted(index["files"]))
+        self.assertNotIn("pack_tool", json.dumps(index["symbols"]))
+        self.assertNotIn("pack_helper", json.dumps(index["symbols"]))
+
+    def test_pack_copied_into_a_project_installs_itself_namespaced(self) -> None:
+        """The documented bootstrap is `init_project_ops.py --target .`, reached
+        through the copied folder. Before auto-detection that exact command put
+        `_agent_ops/` at the application root and installed no root adapters --
+        the flat layout, reproduced by the pack's own instructions."""
+        pack = self.root / "ai-agent-workspace-pack"
+        pack.mkdir(parents=True)
+        for entry in ("scripts", "core-context", ".claude", ".codex"):
+            shutil.copytree(PACK_ROOT / entry, pack / entry)
+        shutil.copy2(PACK_ROOT / "TEAM_ROUTER.md", pack / "TEAM_ROUTER.md")
+        self.write("AGENTS.md", "# Host rules\nKeep this text exactly.\n")
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+
+        installed = self.run_tool(
+            pack / "scripts" / "init_project_ops.py",
+            "--target",
+            str(self.root),
+            "--no-index",
+            "--no-repo-map",
+        )
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertIn("EMBEDDED FOLDER: auto-detected ai-agent-workspace-pack", installed.stdout)
+        self.assertFalse((self.root / "_agent_ops").exists())
+        self.assertTrue((pack / "_agent_ops" / "tools" / "session_start.py").is_file())
+        self.assertTrue((self.root / ".codex" / "agents").is_dir())
+        self.assertTrue((self.root / ".claude" / "skills" / "tester-team" / "SKILL.md").is_file())
+
+        # A host AGENTS.md is never edited implicitly; the warning must name the
+        # command that fixes it, because without the bridge no harness reads the pack.
+        self.assertEqual(
+            "# Host rules\nKeep this text exactly.\n",
+            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
+        )
+        self.assertIn("no harness will read the pack", installed.stdout)
+        self.assertIn(
+            "python ai-agent-workspace-pack/scripts/init_project_ops.py --target . --install-agents-bridge",
+            installed.stdout,
+        )
+
+        bridged = self.run_tool(
+            pack / "scripts" / "init_project_ops.py",
+            "--target",
+            str(self.root),
+            "--no-index",
+            "--no-repo-map",
+            "--install-agents-bridge",
+        )
+        self.assertEqual(0, bridged.returncode, bridged.stderr)
+        self.assertEqual(
+            "@ai-agent-workspace-pack/AGENTS.md\n# Host rules\nKeep this text exactly.\n",
+            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
+        )
+
+        # An explicit ops folder still wins over detection.
+        flat = self.run_tool(
+            pack / "scripts" / "init_project_ops.py",
+            "--target",
+            str(self.root),
+            "--ops-folder",
+            "_agent_ops",
+            "--no-index",
+            "--no-repo-map",
+        )
+        self.assertEqual(0, flat.returncode, flat.stderr)
+        self.assertNotIn("EMBEDDED FOLDER: auto-detected", flat.stdout)
+        self.assertTrue((self.root / "_agent_ops").is_dir())
 
 if __name__ == "__main__":
     unittest.main()

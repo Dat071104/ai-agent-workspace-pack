@@ -40,7 +40,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
-from scan_deps import SKIP_DIRS, resolve_import  # noqa: E402
+from scan_deps import SKIP_DIRS, namespaced_pack_dirs, resolve_import  # noqa: E402
 from source_state import index_source_fingerprint, resolve_ops_dir  # noqa: E402
 
 
@@ -87,9 +87,27 @@ JS_ROUTE_RE = re.compile(
 
 
 def iter_code_files(root: Path) -> list[Path]:
+    """Project code only.
+
+    A workspace pack copied into `<root>/<folder>/` is infrastructure, not the
+    project. Indexing its scripts put the pack's own helpers at the top of the
+    host project's "most-called symbols" and made `explore.py --symbol` answer
+    with pack internals, while REPO_MAP.md -- which uses the dependency scan's
+    exclusions -- reported the project's real file count. Both views now agree.
+
+    Only a nested pack is excluded. When `root` IS a pack checkout, that pack is
+    the project under development and must keep indexing itself.
+    """
     files: list[Path] = []
+    nested_packs = namespaced_pack_dirs(root)
     for path in root.rglob("*"):
         if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        try:
+            rel_parts = path.relative_to(root).parts
+        except ValueError:
+            continue
+        if rel_parts and rel_parts[0] in nested_packs:
             continue
         if path.is_file() and path.suffix in CODE_SUFFIXES:
             files.append(path)

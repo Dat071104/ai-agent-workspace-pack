@@ -8,11 +8,11 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`c10a6bf`
+`f0fa45e`
 
 ## Indexed Source Fingerprint
 
-`sha256:13:078fd4bfa224e90399bd6fe1e0676e77b3a4d5df33d7756aa127b93787e79741`
+`sha256:13:34ab8a8aee8ed57acd78a9860a4b17513b464721b26b10c11ec1985da7b25e03`
 
 ## Snapshot
 
@@ -40,23 +40,23 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-162 symbols, 311 edges (exact 176, heuristic 135, ambiguous 0, weak 0).
+170 symbols, 328 edges (exact 183, heuristic 145, ambiguous 0, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `read_text` | 34 | `scripts/session_start.py:80` |
-| `WorkspaceToolsGoldenTests.write` | 22 | `tests/test_workspace_tools.py:33` |
-| `WorkspaceToolsGoldenTests.init_project` | 19 | `tests/test_workspace_tools.py:52` |
+| `read_text` | 38 | `scripts/session_start.py:80` |
+| `WorkspaceToolsGoldenTests.write` | 25 | `tests/test_workspace_tools.py:34` |
+| `WorkspaceToolsGoldenTests.init_project` | 20 | `tests/test_workspace_tools.py:53` |
+| `WorkspaceToolsGoldenTests.run_tool` | 14 | `tests/test_workspace_tools.py:40` |
 | `run` | 13 | `scripts/refresh_repo_map.py:25` |
-| `WorkspaceToolsGoldenTests.run_tool` | 12 | `tests/test_workspace_tools.py:39` |
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
 | `Graph.label` | 5 | `scripts/explore.py:100` |
-| `write_if_absent` | 5 | `scripts/init_project_ops.py:109` |
+| `write_if_absent` | 5 | `scripts/init_project_ops.py:127` |
 | `tool_prefix` | 5 | `scripts/scan_deps.py:63` |
 | `resolve_ops_dir` | 5 | `scripts/source_state.py:52` |
-| `WorkspaceToolsGoldenTests.make_source_fixture` | 5 | `tests/test_workspace_tools.py:55` |
+| `WorkspaceToolsGoldenTests.make_source_fixture` | 5 | `tests/test_workspace_tools.py:56` |
 | `Graph.find` | 4 | `scripts/explore.py:83` |
 
 Query it instead of grepping:
@@ -79,7 +79,7 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
-| `tests/test_workspace_tools.py` | 675 |
+| `tests/test_workspace_tools.py` | 832 |
 
 ## Isolated Files
 
