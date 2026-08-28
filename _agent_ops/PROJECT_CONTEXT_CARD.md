@@ -52,7 +52,7 @@ avoid code that is syntactically right but semantically wrong.
 ## Current Branch / Commit
 
 - Branch: `main`
-- Commit: `17b7abc` namespaced embedded v2 local release; push remains unrequested.
+- Commit: `403e7a4` namespaced embedded v2 local release; push remains unrequested.
 
 ## How to Run
 
@@ -81,7 +81,7 @@ python -B tests/test_workspace_tools.py
 
 ## Last Verified Commit
 
-`17b7abc`
+`403e7a4`
 
 ## Last Updated
 
