@@ -13,6 +13,11 @@ preserving root `AGENTS.md` bridge, and the root `.codex/` and `.claude/`
 pointer files the harnesses need to discover the subagents and team skills. It
 is not copied into runtime tools because it requires the full source pack.
 
+`embed_pack.py --update` refreshes a pack already installed in a project:
+pack content is overwritten, files the current revision no longer ships are
+removed, and `_agent_ops/` is left alone. Both install and update stamp
+`<folder>/PACK_VERSION`, which `session_start.py` reports.
+
 `migrate_pack.py` moves an older flat install into the namespaced folder. It is
 a dry run by default, moves rather than deletes, and refuses to touch a dirty or
 non-Git worktree without `--allow-dirty`.

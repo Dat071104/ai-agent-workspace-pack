@@ -8,11 +8,11 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`e80c7bf`
+`dd81340`
 
 ## Indexed Source Fingerprint
 
-`sha256:14:822aefe79f51d587355dcc413e92d3c6080f525b3a8cda0d8549a4757aaffd6c`
+`sha256:14:eec37d878d679c2479418d64024210e4d74b9c0c1356ec50bcc13af807b3b62f`
 
 ## Snapshot
 
@@ -37,8 +37,8 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 | File | Imported by | Imports |
 | --- | --- | --- |
-| `scripts/scan_deps.py` | 6 | 0 |
-| `scripts/source_state.py` | 6 | 0 |
+| `scripts/source_state.py` | 8 | 0 |
+| `scripts/scan_deps.py` | 7 | 0 |
 | `scripts/generate_context_card.py` | 3 | 0 |
 | `scripts/build_code_index.py` | 1 | 3 |
 | `scripts/generate_repo_map.py` | 1 | 3 |
@@ -46,17 +46,17 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-180 symbols, 352 edges (exact 188, heuristic 164, ambiguous 0, weak 0).
+190 symbols, 372 edges (exact 198, heuristic 174, ambiguous 0, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `read_text` | 40 | `scripts/session_start.py:80` |
-| `WorkspaceToolsGoldenTests.write` | 29 | `tests/test_workspace_tools.py:34` |
+| `read_text` | 43 | `scripts/session_start.py:80` |
+| `WorkspaceToolsGoldenTests.write` | 30 | `tests/test_workspace_tools.py:34` |
 | `WorkspaceToolsGoldenTests.init_project` | 23 | `tests/test_workspace_tools.py:53` |
-| `WorkspaceToolsGoldenTests.run_tool` | 18 | `tests/test_workspace_tools.py:40` |
-| `run` | 17 | `scripts/refresh_repo_map.py:25` |
+| `WorkspaceToolsGoldenTests.run_tool` | 20 | `tests/test_workspace_tools.py:40` |
+| `run` | 18 | `scripts/refresh_repo_map.py:25` |
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
 | `Graph.label` | 5 | `scripts/explore.py:100` |
 | `write_if_absent` | 5 | `scripts/init_project_ops.py:127` |
@@ -85,9 +85,9 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
+| `tests/test_workspace_tools.py` | 1038 |
 | `scripts/init_project_ops.py` | 991 |
-| `tests/test_workspace_tools.py` | 973 |
-| `scripts/session_start.py` | 589 |
+| `scripts/session_start.py` | 614 |
 | `scripts/scan_deps.py` | 511 |
 | `scripts/build_code_index.py` | 497 |
 | `scripts/explore.py` | 427 |
@@ -95,7 +95,7 @@ boundary before adding to one of these.
 
 ## Isolated Files
 
-2 file(s) have no resolved local imports in either direction.
+1 file(s) have no resolved local imports in either direction.
 They are listed only on demand -- enumerating them here would recreate the
 context bloat this map exists to prevent.
 

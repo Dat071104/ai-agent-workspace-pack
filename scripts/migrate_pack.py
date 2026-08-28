@@ -26,6 +26,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from scan_deps import looks_like_pack  # noqa: E402
+from source_state import worktree_is_clean  # noqa: E402
 
 
 DEFAULT_FOLDER = "ai-agent-workspace-pack"
@@ -53,30 +54,6 @@ def pack_relative_files(source: Path) -> list[Path]:
             continue
         found.append(relative)
     return sorted(found)
-
-
-def worktree_is_clean(target: Path) -> bool | None:
-    """True/False inside a repository, None when there is no repository."""
-
-    inside = subprocess.run(
-        ["git", "rev-parse", "--is-inside-work-tree"],
-        cwd=str(target),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    if inside.returncode != 0 or inside.stdout.strip() != "true":
-        return None
-    status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=str(target),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    return status.returncode == 0 and not status.stdout.strip()
 
 
 def strip_flat_bridge(text: str) -> str:

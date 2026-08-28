@@ -145,3 +145,31 @@ def index_source_fingerprint(root: Path) -> str:
         digest.update(blob.encode("ascii"))
         digest.update(b"\n")
     return f"sha256:{len(entries)}:{digest.hexdigest()}"
+
+
+def worktree_is_clean(root: Path) -> bool | None:
+    """True/False inside a Git repository, None when there is no repository.
+
+    A tool that overwrites or moves files in someone else's project uses this to
+    refuse when the change would not be revertible.
+    """
+
+    inside = subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        cwd=str(root),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if inside.returncode != 0 or inside.stdout.strip() != "true":
+        return None
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(root),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return status.returncode == 0 and not status.stdout.strip()

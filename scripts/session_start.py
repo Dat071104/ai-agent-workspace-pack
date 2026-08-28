@@ -213,6 +213,22 @@ def continuity_block(brief: str, task: str, handoff: str) -> list[str]:
     return out
 
 
+def pack_stamp(ops: Path) -> str:
+    """Revision of the workspace pack this project runs, when it is namespaced.
+
+    A project that cannot name its pack revision cannot tell whether a bug fixed
+    upstream is still live in its own copy.
+    """
+
+    stamp = ops.parent / "PACK_VERSION"
+    if not stamp.is_file():
+        return ""
+    for line in stamp.read_text(encoding="utf-8", errors="ignore").splitlines():
+        if line.startswith("version:"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
 def render(root: Path, ops: Path, log_keep: int) -> str:
     tools = tool_prefix(root)
     try:
@@ -282,6 +298,15 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             out.append(f"    ... {len(dirty) - 15} more")
     else:
         out.append(f"- Root: `{root}` (not a git repository -- no delta or staleness checks)")
+    if ops_reference.endswith("/_agent_ops"):
+        installed = pack_stamp(ops)
+        pack_folder = ops_reference[: -len("/_agent_ops")]
+        out.append(
+            f"- Workspace pack: `{pack_folder}` at version `{installed}`"
+            if installed
+            else f"- Workspace pack: `{pack_folder}`, version unknown (no PACK_VERSION). "
+            "Refresh it with `embed_pack.py --target . --update` from a source pack."
+        )
     out.append("")
 
     if not ops.exists():

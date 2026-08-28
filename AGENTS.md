@@ -16,7 +16,11 @@ for them in a subdirectory. The installer writes them there as marked pointer
 files that resolve into the pack folder. They are generated -- change a team
 file inside the pack and re-run the installer; never hand-edit a pointer.
 When installing a fresh copy, run `scripts/embed_pack.py --target <project>`
-from a source pack instead of copying its `_agent_ops/` working memory.
+from a source pack instead of copying its `_agent_ops/` working memory. To pick
+up later pack fixes in a project that already has one, run the same script with
+`--update`: it refreshes pack content and never touches `_agent_ops/`. The
+revision a project runs is recorded in `<pack root>/PACK_VERSION` and reported
+by `session_start.py`.
 
 This repo is a reusable AI-agent operating kit for coding projects. It is
 portable across harnesses (Codex, Claude Code, Cursor, Gemini, DeepSeek). New to

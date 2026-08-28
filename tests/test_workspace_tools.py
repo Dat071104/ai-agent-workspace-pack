@@ -969,5 +969,70 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("No flat workspace-pack install found", result.stderr)
 
+    def test_update_refreshes_pack_content_and_keeps_project_memory(self) -> None:
+        """A pack copied into a project has no upstream to pull from, so a fix
+        made here stays live in every earlier copy unless the copy is refreshed
+        and can say which revision it runs."""
+        embedded = self.run_tool(SCRIPTS / "embed_pack.py", "--target", str(self.root), cwd=PACK_ROOT)
+        self.assertEqual(0, embedded.returncode, embedded.stderr)
+        pack = self.root / "ai-agent-workspace-pack"
+        stamp = pack / "PACK_VERSION"
+        self.assertTrue(stamp.is_file())
+        self.assertIn("version:", stamp.read_text(encoding="utf-8"))
+
+        # A second install must not silently create a second copy.
+        again = self.run_tool(SCRIPTS / "embed_pack.py", "--target", str(self.root), cwd=PACK_ROOT)
+        self.assertNotEqual(0, again.returncode)
+        self.assertIn("--update", again.stderr)
+
+        # Age the install: outdated content, a file a later revision dropped, an
+        # unrelated stamp, and project memory the update must not touch.
+        team_file = pack / "tester-team" / "SKILL.md"
+        current = team_file.read_text(encoding="utf-8")
+        team_file.write_text("OUTDATED COPY\n", encoding="utf-8")
+        stale = pack / "scripts" / "removed_in_a_later_revision.py"
+        stale.write_text("def gone():\n    pass\n", encoding="utf-8")
+        card = pack / "_agent_ops" / "PROJECT_CONTEXT_CARD.md"
+        card.write_text("# Card\nPROJECT MEMORY MARKER\n", encoding="utf-8")
+        stamp.write_text("version: deadbee\ninstalled: 2000-01-01\n", encoding="utf-8")
+
+        updated = self.run_tool(
+            SCRIPTS / "embed_pack.py", "--target", str(self.root), "--update", "--allow-dirty", cwd=PACK_ROOT
+        )
+        self.assertEqual(0, updated.returncode, updated.stderr)
+        self.assertIn("UPDATED PACK", updated.stdout)
+        self.assertIn("deadbee ->", updated.stdout)
+        self.assertIn("stale files removed: 1", updated.stdout)
+
+        self.assertEqual(current, team_file.read_text(encoding="utf-8"))
+        self.assertFalse(stale.exists())
+        self.assertIn("PROJECT MEMORY MARKER", card.read_text(encoding="utf-8"))
+        refreshed = stamp.read_text(encoding="utf-8")
+        self.assertNotIn("version: deadbee", refreshed)
+        self.assertIn("previous: deadbee", refreshed)
+
+        # The stamp is what a session reports, and its absence is reported too.
+        session = self.run_tool(pack / "_agent_ops" / "tools" / "session_start.py", "--root", ".")
+        self.assertEqual(0, session.returncode, session.stderr)
+        self.assertIn("Workspace pack: `ai-agent-workspace-pack` at version", session.stdout)
+        stamp.unlink()
+        unstamped = self.run_tool(pack / "_agent_ops" / "tools" / "session_start.py", "--root", ".")
+        self.assertEqual(0, unstamped.returncode, unstamped.stderr)
+        self.assertIn("version unknown (no PACK_VERSION)", unstamped.stdout)
+
+    def test_update_requires_an_installed_pack_and_a_revertible_worktree(self) -> None:
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+        missing = self.run_tool(SCRIPTS / "embed_pack.py", "--target", str(self.root), "--update", cwd=PACK_ROOT)
+        self.assertNotEqual(0, missing.returncode)
+        self.assertIn("No installed pack to update", missing.stderr)
+
+        embedded = self.run_tool(SCRIPTS / "embed_pack.py", "--target", str(self.root), cwd=PACK_ROOT)
+        self.assertEqual(0, embedded.returncode, embedded.stderr)
+        unrevertible = self.run_tool(
+            SCRIPTS / "embed_pack.py", "--target", str(self.root), "--update", cwd=PACK_ROOT
+        )
+        self.assertNotEqual(0, unrevertible.returncode)
+        self.assertIn("not a Git repository", unrevertible.stderr)
+
 if __name__ == "__main__":
     unittest.main()

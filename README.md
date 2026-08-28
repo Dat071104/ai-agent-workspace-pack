@@ -93,6 +93,25 @@ If `AGENTS.md` already exists, every original line follows unchanged after this
 first line. If it does not exist, the bridge is the complete file. `CLAUDE.md`
 and `GEMINI.md` are created only when absent and import the pack directly.
 
+#### Updating an installed pack
+
+A copied pack has no upstream to pull from, so a fix made in the source pack
+stays live in every project that copied an earlier revision. Refresh one with:
+
+```bash
+python D:\path\to\ai-agent-workspace-pack\scripts\embed_pack.py --target . --update
+```
+
+That overwrites pack content, removes files the current revision no longer
+ships, and **never touches `_agent_ops/`** -- your project memory, logs and
+decisions survive. It refuses on a dirty worktree, or outside Git, unless you
+pass `--allow-dirty`, so the change is always reviewable as a diff.
+
+Every install writes `<folder>/PACK_VERSION` recording the source revision and
+install date, and an update records the revision it replaced. `session_start.py`
+prints that version each session, so a project can always say which pack it is
+running -- and says so explicitly when the stamp is missing.
+
 #### Migrating an older flat install
 
 A pack unpacked directly into an application root can be moved into the
