@@ -71,3 +71,42 @@
 - `embed_pack.py` excludes source `.git/` and source `_agent_ops/`, then initializes fresh target state.
 - Runtime tools derive their nested ops location; the pre-commit hook stages only the nested map.
 - Scanners skip a namespaced child only when all pack markers are present.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0003`
+
+### Date
+
+`2026-08-28`
+
+### Context
+
+`The namespaced layout removed the pack's four subagents and nine team skills, because Codex and Claude Code auto-discover agents and skills only at the repository root.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Revert to the flat layout | Discovery works | Reintroduces collisions with the host's scripts/, tests/, README.md, LICENSE, .gitignore |
+| B | Accept the loss | Nothing to build | AGENTS.md promises subagents that cannot be discovered |
+| C | Generate small marked pointers at the root that resolve into the pack folder | Discovery works with 2 hidden root directories; no workflow content duplicated | Pointers are generated, so a pack update requires re-running the installer |
+
+### Decision
+
+`Choose C. Only the discovery surface lives at the root; every workflow file stays inside the pack folder.`
+
+### Rationale
+
+`The flat layout's cost was collision with host-owned paths, not the presence of .claude/ and .codex/ -- projects using these harnesses have them anyway. Pointers carry no workflow content, so the team SKILL.md files remain the single source of truth.`
+
+### Consequences
+
+- A pointer is marked `AI_AGENT_WORKSPACE_PACK:ADAPTER v1`; a re-run updates a marked file and never a same-named host file.
+- Pack-relative paths inside pointers are rewritten path-leading only, which keeps re-runs idempotent and leaves prose untouched.
+- `--no-root-adapters` opts out, at the cost of discovery.
+- Editing a pointer by hand is wrong: change the team file in the pack and re-run the installer.
