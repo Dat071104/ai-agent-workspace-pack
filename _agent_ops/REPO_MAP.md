@@ -8,11 +8,11 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`9b31b28`
+`aa10911`
 
 ## Indexed Source Fingerprint
 
-`sha256:13:ef44416e115a08b78a4e9f1a9df26fa59f592f6540a107fbf3f187697ebe054e`
+`sha256:13:7726492ded225c6a8af638f49d92a87472ad9f2f5e562b4a494fd34ae8b81e7e`
 
 ## Snapshot
 
@@ -46,7 +46,7 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-172 symbols, 335 edges (exact 182, heuristic 153, ambiguous 0, weak 0).
+171 symbols, 334 edges (exact 181, heuristic 153, ambiguous 0, weak 0).
 
 ### Most-called symbols
 
@@ -88,8 +88,8 @@ boundary before adding to one of these.
 | `scripts/init_project_ops.py` | 991 |
 | `tests/test_workspace_tools.py` | 898 |
 | `scripts/session_start.py` | 589 |
-| `scripts/build_code_index.py` | 524 |
 | `scripts/scan_deps.py` | 511 |
+| `scripts/build_code_index.py` | 497 |
 | `scripts/explore.py` | 427 |
 | `scripts/generate_repo_map.py` | 421 |
 
