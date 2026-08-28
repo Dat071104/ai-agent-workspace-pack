@@ -8,17 +8,17 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`dfe741c`
+`9b31b28`
 
 ## Indexed Source Fingerprint
 
-`sha256:13:73987022f3444eb4e71031b24ee4262576857c470e63247662f6cbd3f082aba2`
+`sha256:13:ef44416e115a08b78a4e9f1a9df26fa59f592f6540a107fbf3f187697ebe054e`
 
 ## Snapshot
 
 - Branch: `main`
 - Generated: `2026-08-28`
-- Code files indexed: 1
+- Code files indexed: 13
 - Stack: Unknown
 
 ## Modules
@@ -28,6 +28,7 @@ code depends on it, so changes there travel further.
 
 | Module | Files | Inbound | Entry points |
 | --- | --- | --- | --- |
+| `scripts` | 12 | 0 | - |
 | `tests` | 1 | 0 | - |
 
 ## Hot Files (widest blast radius)
@@ -36,11 +37,16 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 | File | Imported by | Imports |
 | --- | --- | --- |
-| _no local import edges resolved_ | | |
+| `scripts/source_state.py` | 6 | 0 |
+| `scripts/scan_deps.py` | 5 | 0 |
+| `scripts/generate_context_card.py` | 3 | 0 |
+| `scripts/build_code_index.py` | 1 | 3 |
+| `scripts/generate_repo_map.py` | 1 | 3 |
+| `scripts/summarize_implementation_log.py` | 1 | 0 |
 
 ## Symbol Graph
 
-172 symbols, 336 edges (exact 183, heuristic 153, ambiguous 0, weak 0).
+172 symbols, 335 edges (exact 182, heuristic 153, ambiguous 0, weak 0).
 
 ### Most-called symbols
 
@@ -54,7 +60,7 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
 | `Graph.label` | 5 | `scripts/explore.py:100` |
 | `write_if_absent` | 5 | `scripts/init_project_ops.py:127` |
-| `tool_prefix` | 5 | `scripts/scan_deps.py:63` |
+| `tool_prefix` | 5 | `scripts/scan_deps.py:49` |
 | `resolve_ops_dir` | 5 | `scripts/source_state.py:52` |
 | `WorkspaceToolsGoldenTests.make_source_fixture` | 5 | `tests/test_workspace_tools.py:56` |
 | `Graph.find` | 4 | `scripts/explore.py:83` |
@@ -79,11 +85,17 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
-| `tests/test_workspace_tools.py` | 886 |
+| `scripts/init_project_ops.py` | 991 |
+| `tests/test_workspace_tools.py` | 898 |
+| `scripts/session_start.py` | 589 |
+| `scripts/build_code_index.py` | 524 |
+| `scripts/scan_deps.py` | 511 |
+| `scripts/explore.py` | 427 |
+| `scripts/generate_repo_map.py` | 421 |
 
 ## Isolated Files
 
-1 file(s) have no resolved local imports in either direction.
+2 file(s) have no resolved local imports in either direction.
 They are listed only on demand -- enumerating them here would recreate the
 context bloat this map exists to prevent.
 

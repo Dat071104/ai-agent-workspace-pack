@@ -28,33 +28,19 @@ SKIP_DIRS = {
     # files. A non-default --ops-folder name is not skipped automatically.
     "_agent_ops",
 }
-# A manually embedded workspace pack is infrastructure, not the target
-# project's application. Without this exclusion, its own `scripts/*.py` crowd
-# the map and graph of a small project. Detect the complete pack signature
-# first; never skip a generic directory such as `scripts/` by name alone.
+# A workspace pack copied INTO a project is infrastructure, not that project's
+# application, so its code is excluded from the project's map and graph.
+#
+# Only a pack in its own subdirectory is excluded. Excluding one at the root was
+# tried and removed: a project with the pack unpacked at its root and the pack's
+# own source checkout have identical signatures, so the rule could not tell
+# "infrastructure" from "the product". It silently reduced the pack's own repo
+# map to a single file. Ambiguity here is worse than the pollution it prevented.
 EMBEDDED_PACK_MARKERS = (
     "TEAM_ROUTER.md",
     "core-context",
     "scripts/init_project_ops.py",
 )
-EMBEDDED_PACK_DIRS = {
-    ".claude",
-    ".codex",
-    "advisor-team",
-    "analyze-team",
-    "bug-fix-team",
-    "build-team",
-    "clean-code-team",
-    "commands",
-    "core-context",
-    "examples",
-    "handoff-team",
-    "harness",
-    "prompting-team",
-    "repo-hygiene-team",
-    "scripts",
-    "tester-team",
-}
 JS_IMPORT_RE = re.compile(
     r"""(?:from\s+["']([^"']+)["']|import\s*\(?\s*["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\))"""
 )
@@ -80,9 +66,9 @@ def tool_prefix(root: Path) -> str:
     return "scripts"
 
 
-def is_embedded_pack(root: Path) -> bool:
-    """True only when this root contains a complete manually embedded pack."""
-    return all((root / marker).exists() for marker in EMBEDDED_PACK_MARKERS)
+def looks_like_pack(directory: Path) -> bool:
+    """True only for a directory holding the complete workspace-pack signature."""
+    return all((directory / marker).exists() for marker in EMBEDDED_PACK_MARKERS)
 
 
 def namespaced_pack_dirs(root: Path) -> set[str]:
@@ -92,35 +78,35 @@ def namespaced_pack_dirs(root: Path) -> set[str]:
         children = [child for child in root.iterdir() if child.is_dir()]
     except OSError:
         return set()
-    return {child.name for child in children if is_embedded_pack(child)}
+    return {child.name for child in children if looks_like_pack(child)}
 
 
-def should_skip_path(
-    root: Path,
-    path: Path,
-    embedded_pack: bool,
-    nested_packs: set[str],
-) -> bool:
-    """Keep project code, excluding generic artifacts and detected pack internals."""
+def should_skip_path(root: Path, path: Path, nested_packs: set[str]) -> bool:
+    """Keep project code, excluding generic artifacts and a nested pack.
+
+    The single skip rule for this repository. The map and the symbol index both
+    call it, because two independent copies of it once disagreed: REPO_MAP.md
+    reported the project's real file count while the graph answered with pack
+    internals.
+    """
     try:
         rel_parts = path.relative_to(root).parts
     except ValueError:
         return True
     if any(part in SKIP_DIRS for part in rel_parts):
         return True
-    if rel_parts and rel_parts[0] in nested_packs:
-        return True
-    return bool(embedded_pack and rel_parts and rel_parts[0] in EMBEDDED_PACK_DIRS)
+    return bool(rel_parts and rel_parts[0] in nested_packs)
 
 
-def iter_code_files(root: Path) -> list[Path]:
+def iter_code_files(root: Path, suffixes: frozenset[str] | set[str] | None = None) -> list[Path]:
+    """Project code files. `suffixes` lets a caller narrow the set, never widen it."""
+    wanted = CODE_SUFFIXES if suffixes is None else (set(suffixes) & CODE_SUFFIXES)
     files: list[Path] = []
-    embedded_pack = is_embedded_pack(root)
     nested_packs = namespaced_pack_dirs(root)
     for path in root.rglob("*"):
-        if should_skip_path(root, path, embedded_pack, nested_packs):
+        if should_skip_path(root, path, nested_packs):
             continue
-        if path.is_file() and path.suffix in CODE_SUFFIXES:
+        if path.is_file() and path.suffix in wanted:
             files.append(path)
     return files
 

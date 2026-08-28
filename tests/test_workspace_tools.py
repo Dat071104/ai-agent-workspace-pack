@@ -291,7 +291,10 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertIn("WARN existing pre-commit hook preserved", result.stdout)
         self.assertEqual("#!/bin/sh\necho user hook\n", existing_hook.read_text(encoding="utf-8"))
 
-    def test_embedded_pack_skips_only_detected_pack_directories(self) -> None:
+    def test_a_pack_at_the_scanned_root_is_the_project(self) -> None:
+        """A pack unpacked at the root and the pack's own source checkout are
+        indistinguishable, so nothing at the root is treated as infrastructure.
+        Excluding it made the pack's own repo map report a single file."""
         embedded = self.root / "embedded"
         ordinary = self.root / "ordinary"
         for directory in (embedded / "core-context", embedded / "scripts", embedded / "src", ordinary / "scripts"):
@@ -303,7 +306,10 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
 
         embedded_scan = self.run_tool(SCRIPTS / "scan_deps.py", "--root", str(embedded), "--output", "json", cwd=PACK_ROOT)
         ordinary_scan = self.run_tool(SCRIPTS / "scan_deps.py", "--root", str(ordinary), "--output", "json", cwd=PACK_ROOT)
-        self.assertEqual(["src/app.py"], sorted(json.loads(embedded_scan.stdout)["graph"]))
+        self.assertEqual(
+            ["scripts/init_project_ops.py", "src/app.py"],
+            sorted(json.loads(embedded_scan.stdout)["graph"]),
+        )
         self.assertEqual(["scripts/app.py"], sorted(json.loads(ordinary_scan.stdout)["graph"]))
 
         embedded_init = self.run_tool(SCRIPTS / "init_project_ops.py", "--target", str(embedded), cwd=PACK_ROOT)
@@ -733,10 +739,10 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(0, opted_out.returncode, opted_out.stderr)
         self.assertIn("SKIP root harness adapters", opted_out.stdout)
 
-    def test_code_index_skips_a_nested_workspace_pack(self) -> None:
+    def test_nested_workspace_pack_is_excluded_from_map_and_index(self) -> None:
         """The symbol graph must answer about the project, not about the pack
-        copied into it. REPO_MAP.md already excluded it while the index did not,
-        so `explore.py --symbol` answered with pack internals."""
+        copied into it -- and it must agree with the dependency scan that feeds
+        REPO_MAP.md. They disagreed once, so both are asserted together."""
         self.write("ai-agent-workspace-pack/TEAM_ROUTER.md", "# copied pack marker\n")
         self.write("ai-agent-workspace-pack/core-context/.keep", "")
         self.write("ai-agent-workspace-pack/scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
@@ -760,6 +766,12 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(["src/app.py"], sorted(index["files"]))
         self.assertNotIn("pack_tool", json.dumps(index["symbols"]))
         self.assertNotIn("pack_helper", json.dumps(index["symbols"]))
+
+        scanned = self.run_tool(
+            SCRIPTS / "scan_deps.py", "--root", str(self.root), "--output", "json", cwd=PACK_ROOT
+        )
+        self.assertEqual(0, scanned.returncode, scanned.stderr)
+        self.assertEqual(sorted(index["files"]), sorted(json.loads(scanned.stdout)["graph"]))
 
     def test_pack_copied_into_a_project_installs_itself_namespaced(self) -> None:
         """The documented bootstrap is `init_project_ops.py --target .`, reached
