@@ -828,5 +828,59 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertNotIn("EMBEDDED FOLDER: auto-detected", flat.stdout)
         self.assertTrue((self.root / "_agent_ops").is_dir())
 
+    def test_repository_without_commits_is_still_a_repository(self) -> None:
+        """`rev-parse HEAD` fails before the first commit. Deriving "is this a
+        git repo" from it reported a brand-new project as "not a git
+        repository", which skipped the file listing, the source fingerprint and
+        every staleness check on the one session that first builds the map."""
+        self.assertEqual(0, subprocess.run(["git", "init", "-q"], cwd=self.root, check=False).returncode)
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+        installed = self.init_project()
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertEqual(
+            0,
+            subprocess.run(["git", "add", "src/app.py"], cwd=self.root, check=False).returncode,
+        )
+
+        tools = self.root / "_agent_ops" / "tools"
+        session = self.run_tool(tools / "session_start.py", "--root", ".")
+        self.assertEqual(0, session.returncode, session.stderr)
+        self.assertNotIn("not a git repository", session.stdout)
+        self.assertIn("HEAD: none yet (no commits in this repository)", session.stdout)
+        self.assertIn("A  src/app.py", session.stdout)
+        self.assertIn("no commits yet, so there is nothing to verify memory against", session.stdout)
+        # No branch may fall through to a `HEAD (not available)` label.
+        self.assertNotIn("not available", session.stdout)
+
+        # The fingerprint path works without any commit, so a rebuild against the
+        # staged index must report current rather than unknown.
+        for tool, output in (
+            ("build_code_index.py", "_agent_ops/code_index.json"),
+            ("generate_repo_map.py", "_agent_ops/REPO_MAP.md"),
+        ):
+            args = ["--root", ".", "--output", output]
+            if tool == "generate_repo_map.py":
+                args.append("--force")
+            rebuilt = self.run_tool(tools / tool, *args)
+            self.assertEqual(0, rebuilt.returncode, rebuilt.stderr)
+
+        refreshed = self.run_tool(tools / "session_start.py", "--root", ".")
+        self.assertEqual(0, refreshed.returncode, refreshed.stderr)
+        self.assertIn("Current with the staged source index", refreshed.stdout)
+
+    def test_first_commit_in_a_fresh_repository_passes_the_repo_map_hook(self) -> None:
+        """The managed pre-commit hook runs for the first commit too, when there
+        is no HEAD to diff against."""
+        self.assertEqual(0, subprocess.run(["git", "init", "-q"], cwd=self.root, check=False).returncode)
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+        installed = self.init_project("--install-repo-map-hook")
+        self.assertEqual(0, installed.returncode, installed.stderr)
+
+        staged = self.run_tool(
+            self.root / "_agent_ops" / "tools" / "refresh_repo_map.py", "--root", ".", "--stage"
+        )
+        self.assertEqual(0, staged.returncode, staged.stderr)
+        self.assertNotIn("Traceback", staged.stderr)
+
 if __name__ == "__main__":
     unittest.main()

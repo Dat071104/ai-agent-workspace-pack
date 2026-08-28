@@ -236,7 +236,13 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
     head = git_value(root, ["rev-parse", "--short", "HEAD"])
     branch = git_value(root, ["branch", "--show-current"])
     status = git_value(root, ["status", "--short"])
-    is_git = head != "not available"
+    # Two different questions, and they were conflated. `rev-parse HEAD` fails
+    # in a repository whose first commit does not exist yet, so a brand-new
+    # project was reported as "not a git repository" and silently lost its file
+    # listing, its source fingerprint, and every staleness check on the one
+    # session where the map is built.
+    is_git = git_value(root, ["rev-parse", "--is-inside-work-tree"]) == "true"
+    has_commits = is_git and head != "not available"
     change_sets = (
         {
             "unstaged": {
@@ -267,7 +273,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         out += [
             f"- Root: `{root}`",
             f"- Branch: `{branch}`",
-            f"- HEAD: `{head}`",
+            f"- HEAD: `{head}`" if has_commits else "- HEAD: none yet (no commits in this repository)",
             f"- Uncommitted changes: {len(dirty)} file(s)",
         ]
         for line in dirty[:15]:
@@ -302,6 +308,8 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
     verified = first_value(brief, "Last Verified Commit")
     if not is_git:
         out.append("- Skipped: not a git repository.")
+    elif not has_commits:
+        out.append("- Skipped: no commits yet, so there is nothing to verify memory against.")
     elif not commit_exists(root, verified):
         out.append(
             "- SESSION_BRIEF has no usable `Last Verified Commit`. Treat project "
@@ -371,8 +379,12 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             elif change_sets["staged"]:
                 out.append("- Current with the staged source index; ready for the pending commit.")
             else:
-                out.append(f"- Current with indexed source state at HEAD ({head}).")
-        elif not is_git or not commit_exists(root, map_sha):
+                out.append(
+                    f"- Current with indexed source state at HEAD ({head})."
+                    if has_commits
+                    else "- Current with the staged source index; no commits yet."
+                )
+        elif not has_commits or not commit_exists(root, map_sha):
             out.append("- Present; freshness unknown (no usable commit stamp).")
         elif map_sha.startswith(head) or head.startswith(map_sha):
             if worktree_code:
@@ -429,7 +441,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
                 out.append(f"- Current with the staged source index ({counts}); commit pending.")
             else:
                 out.append(f"- Current with indexed source state ({counts}).")
-        elif not is_git or not commit_exists(root, index_sha):
+        elif not has_commits or not commit_exists(root, index_sha):
             out.append(f"- Present ({counts}); freshness unknown.")
         elif index_sha.startswith(head) or head.startswith(index_sha):
             if worktree_code:
