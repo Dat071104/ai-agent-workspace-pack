@@ -148,3 +148,42 @@
 - `build_code_index` and `scan_deps` share one `should_skip_path`, so the map and the index cannot drift apart again.
 - The pack's own repo map is useful again: 13 files with real fan-in.
 - Migration is a dry run by default, moves rather than deletes, and refuses a dirty or non-Git worktree.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0005`
+
+### Date
+
+`2026-08-28`
+
+### Context
+
+`An installed pack cannot pull fixes from the source pack, and nothing recorded which revision a project was running.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Git submodule or clone per project | Real upstream, real version | Reintroduces the clone the namespaced design rejected; a submodule is one more thing to explain and to break |
+| B | Hand-bumped semantic version in the pack | Readable | Goes stale the moment someone forgets to bump it |
+| C | `--update` plus a stamp taken from the source Git revision | No manual step to forget; honest about a dirty source; the update is a reviewable diff | The stamp is meaningful only against the source pack |
+
+### Decision
+
+`Choose C. The revision is derived, never typed, and a project reports it every session.`
+
+### Rationale
+
+`The stamp exists to answer "which pack is this project running", which is answerable locally. "Is it behind" needs a source pack present, so session_start reports the version rather than claiming staleness it cannot verify.`
+
+### Consequences
+
+- `_agent_ops/` is excluded from the refresh, so project memory survives an update.
+- Files the current revision no longer ships are removed, so a renamed pack file does not linger in an older install.
+- An update refuses a dirty or non-Git worktree unless `--allow-dirty`, keeping it revertible.
+- An install made before this change reports `version unknown` rather than pretending to be current.

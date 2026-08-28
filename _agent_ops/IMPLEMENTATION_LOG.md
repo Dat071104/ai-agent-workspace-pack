@@ -512,3 +512,82 @@ git diff --check
 ### Next Step
 
 `Optional: run migrate_pack.py against the application repo once its path is known.`
+
+---
+
+## Entry
+
+### Date
+
+`2026-08-28`
+
+### Task ID
+
+`TASK-0005`
+
+### Phase / Task
+
+`Give a copied pack an update path and a revision stamp.`
+
+### Files Touched
+
+| File | Change |
+| --- | --- |
+| `scripts/embed_pack.py` | `--update` refreshes an installed pack in place; both modes write `PACK_VERSION` |
+| `scripts/source_state.py` | `worktree_is_clean` moved here and shared |
+| `scripts/migrate_pack.py` | uses the shared helper instead of its own copy |
+| `scripts/session_start.py` | reports the installed pack revision, and its absence |
+| `tests/test_workspace_tools.py` | 2 contracts added (32 total) |
+| `README.md`, `scripts/README.md`, `AGENTS.md` | documented the update path |
+
+### What Changed / Evidence Produced
+
+- Reproduced the gap: `embed_pack.py` on an existing install errored with `Destination already exists`, re-running `init_project_ops.py` refreshed only `_agent_ops/tools/` and the 17 adapters, and no file anywhere recorded a pack revision.
+- Verified an update on a fixture aged deliberately -- an outdated `tester-team/SKILL.md`, a `scripts/removed_in_new_version.py` that a later revision would not ship, a `PROJECT_CONTEXT_CARD.md` marker, and a `deadbee` stamp: `139 files written`, `stale files removed: 1`, `version: deadbee -> dd81340-dirty`, the team file restored byte-for-byte, and `MY PROJECT MEMORY` still present.
+- `git status` in the target showed 1 deletion and 2 modifications -- a reviewable diff, not an opaque overwrite.
+- `session_start.py` prints ``Workspace pack: `ai-agent-workspace-pack` at version `dd81340-dirty` ``, and with the stamp removed prints `version unknown (no PACK_VERSION)` plus the command that fixes it.
+
+### Why
+
+`A pack copied into a project has no upstream. Without an update path every fix made here stayed live in earlier copies; without a stamp no project could say which revision it ran, so the drift was invisible rather than merely inconvenient. This is the gap that matters most for a repository whose purpose is reuse.`
+
+### Tests Run
+
+```bash
+python -B -m unittest tests.test_workspace_tools
+python -B scripts/check_repo_hygiene.py --root .
+git diff --check
+```
+
+### Results
+
+`32 golden tests passed. Hygiene passed. git diff --check passed.`
+
+### Bugs Found
+
+- None beyond the gap itself.
+
+### Root Cause
+
+`embed_pack.py only ever handled first installation, and nothing recorded provenance.`
+
+### Fix Applied
+
+`--update overwrites shipped content, removes files no longer shipped, leaves _agent_ops/ alone, and refuses an unrevertible worktree. PACK_VERSION records revision, date, and the revision replaced.`
+
+### Git Commit
+
+`2762542.`
+
+### Push Result
+
+`Pushed to origin/main.`
+
+### Remaining Risks
+
+- `The stamp names a source revision; a project cannot tell it is behind without a source pack to compare against. session_start reports, it does not claim staleness it cannot verify.`
+- `An update overwrites hand-edits made inside the pack folder. That folder is pack-owned by design, and the refusal on a dirty worktree keeps the change revertible.`
+
+### Next Step
+
+`Use it on a real project; revisit only when a second project makes a sharper need visible.`
