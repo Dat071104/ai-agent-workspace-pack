@@ -6,7 +6,14 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import subprocess
+import sys
 from pathlib import Path
+
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from source_state import resolve_ops_dir  # noqa: E402
 
 
 FORBIDDEN_PATTERNS = [
@@ -179,7 +186,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--ops-folder",
-        default="_agent_ops",
+        default=None,
         help="Agent ops folder to check against the hybrid tracking policy.",
     )
     args = parser.parse_args()
@@ -187,6 +194,11 @@ def main() -> int:
     root = Path(args.root).expanduser().resolve()
     if not root.exists() or not root.is_dir():
         parser.error(f"Root must be an existing directory: {root}")
+    ops_dir = resolve_ops_dir(root, args.ops_folder or "_agent_ops")
+    try:
+        ops_folder = ops_dir.relative_to(root).as_posix()
+    except ValueError:
+        parser.error(f"--ops-folder must be inside --root: {ops_dir}")
 
     print(f"Root: {root}")
     failures: list[tuple[str, list[str]]] = []
@@ -201,8 +213,8 @@ def main() -> int:
             patterns = matches_forbidden(file_name)
             if patterns:
                 failures.append((file_name, patterns))
-        ops_violations = ops_policy_violations(files, args.ops_folder)
-        ops_untracked = ops_untracked_durable(root, files, args.ops_folder)
+        ops_violations = ops_policy_violations(files, ops_folder)
+        ops_untracked = ops_untracked_durable(root, files, ops_folder)
         print(f"Tracked files checked: {len(files)}")
 
     if failures:
@@ -214,18 +226,18 @@ def main() -> int:
     else:
         print("INFO: No tracked-file result because there is no git index.")
 
-    if git_repo and (root / args.ops_folder).is_dir():
+    if git_repo and ops_dir.is_dir():
         if ops_violations:
-            print(f"FAIL: Session-scoped {args.ops_folder}/ files are tracked:")
+            print(f"FAIL: Session-scoped {ops_folder}/ files are tracked:")
             for file_name, reason in ops_violations:
                 print(f"- {file_name} is {reason}; it should stay local")
             print(
-                f"  Fix: git rm --cached <file>, and confirm {args.ops_folder}/.gitignore exists."
+                f"  Fix: git rm --cached <file>, and confirm {ops_folder}/.gitignore exists."
             )
         else:
-            print(f"PASS: No session-scoped {args.ops_folder}/ files are tracked.")
+            print(f"PASS: No session-scoped {ops_folder}/ files are tracked.")
         if ops_untracked:
-            print(f"INFO: Durable {args.ops_folder}/ memory exists but is not tracked:")
+            print(f"INFO: Durable {ops_folder}/ memory exists but is not tracked:")
             for file_name in ops_untracked:
                 print(f"- {file_name} would be lost on a fresh clone")
 

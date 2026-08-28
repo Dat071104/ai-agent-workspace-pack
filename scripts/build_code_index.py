@@ -41,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
 from scan_deps import SKIP_DIRS, resolve_import  # noqa: E402
-from source_state import index_source_fingerprint  # noqa: E402
+from source_state import index_source_fingerprint, resolve_ops_dir  # noqa: E402
 
 
 PY_SUFFIXES = {".py"}
@@ -478,7 +478,7 @@ def main() -> int:
     parser.add_argument("--root", default=".", help="Repository root to index.")
     parser.add_argument(
         "--output",
-        default="_agent_ops/code_index.json",
+        default=None,
         help="Index output path.",
     )
     parser.add_argument("--max-files", type=int, default=0, help="Cap files indexed (0 = all).")
@@ -490,7 +490,7 @@ def main() -> int:
         parser.error(f"Root must be an existing directory: {root}")
 
     index = build_index(root, args.max_files)
-    output = Path(args.output)
+    output = Path(args.output) if args.output else resolve_ops_dir(root) / "code_index.json"
     if not output.is_absolute():
         output = root / output
     output.parent.mkdir(parents=True, exist_ok=True)

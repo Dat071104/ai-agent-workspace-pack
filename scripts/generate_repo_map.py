@@ -123,7 +123,7 @@ def count_isolated(
     )
 
 
-def symbol_section(root: Path) -> list[str]:
+def symbol_section(root: Path, index_path: Path | None = None) -> list[str]:
     """Symbol-level highlights, when the code index has been built.
 
     File fan-in says which file is central. It cannot say which FUNCTION is, and
@@ -131,7 +131,7 @@ def symbol_section(root: Path) -> list[str]:
     works on a repo that was never indexed.
     """
     tools = tool_prefix(root)
-    index_path = root / "_agent_ops" / "code_index.json"
+    index_path = index_path or root / "_agent_ops" / "code_index.json"
     if not index_path.exists():
         return [
             "## Symbol Graph",
@@ -230,6 +230,8 @@ def render_map(
     graph: dict[str, dict[str, list[str]]],
     max_modules: int,
     max_hot: int,
+    index_path: Path | None = None,
+    map_path: Path | None = None,
 ) -> str:
     reverse = reverse_edges(graph)
     depth = choose_depth(sorted(graph))
@@ -240,12 +242,19 @@ def render_map(
     commit = git_value(root, ["rev-parse", "--short", "HEAD"])
     branch = git_value(root, ["branch", "--show-current"])
     source_fingerprint = index_source_fingerprint(root) or "not available"
+    if map_path is not None:
+        try:
+            map_reference = map_path.relative_to(root).as_posix()
+        except ValueError:
+            map_reference = str(map_path)
+    else:
+        map_reference = "_agent_ops/REPO_MAP.md"
 
     lines = [
         "# Repo Map / Ban do ma nguon",
         "",
         "Generated file. Do not hand-edit; regenerate with",
-        f"`python {tools}/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.",
+        f"`python {tools}/generate_repo_map.py --root . --output {map_reference} --force`.",
         "",
         "Read this BEFORE grepping the repository. It answers \"where does the code",
         "live\" and \"what breaks if I touch this\" in one Tier-1 read.",
@@ -312,7 +321,7 @@ def render_map(
         lines.append("| _no local import edges resolved_ | | |")
     lines.append("")
 
-    lines += symbol_section(root)
+    lines += symbol_section(root, index_path)
 
     lines += ["## Entry Points", ""]
     if entries:
@@ -373,6 +382,7 @@ def main() -> int:
     )
     parser.add_argument("--root", default=".", help="Repository root to scan.")
     parser.add_argument("--output", default="", help="Output file. Prints to stdout if omitted.")
+    parser.add_argument("--index", default="", help="Optional symbol index path.")
     parser.add_argument("--max-modules", type=int, default=25, help="Maximum modules listed.")
     parser.add_argument("--max-hot", type=int, default=15, help="Maximum hot files listed.")
     parser.add_argument("--force", action="store_true", help="Overwrite output file if it exists.")
@@ -382,11 +392,21 @@ def main() -> int:
     if not root.exists() or not root.is_dir():
         parser.error(f"Root must be an existing directory: {root}")
 
-    graph = build_graph(root)
-    report = render_map(root, graph, max(args.max_modules, 1), max(args.max_hot, 1))
+    output = Path(args.output).expanduser().resolve() if args.output else None
+    if args.index:
+        index_path = Path(args.index).expanduser()
+        if not index_path.is_absolute():
+            index_path = root / index_path
+        index_path = index_path.resolve()
+    elif output is not None:
+        index_path = output.parent / "code_index.json"
+    else:
+        index_path = root / "_agent_ops" / "code_index.json"
 
-    if args.output:
-        output = Path(args.output).expanduser().resolve()
+    graph = build_graph(root)
+    report = render_map(root, graph, max(args.max_modules, 1), max(args.max_hot, 1), index_path, output)
+
+    if output is not None:
         if output.exists() and not args.force:
             parser.error(f"Output exists. Use --force to overwrite: {output}")
         output.parent.mkdir(parents=True, exist_ok=True)

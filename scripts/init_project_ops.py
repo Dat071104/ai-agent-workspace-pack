@@ -88,11 +88,21 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def copy_template(source: Path, destination: Path, force: bool) -> str:
+def relative_folder(value: str, option: str) -> Path:
+    """Validate a target-relative layout path before any writes occur."""
+
+    folder = Path(value.replace("\\", "/"))
+    if not value or folder.is_absolute() or any(part == ".." for part in folder.parts) or str(folder) in {"", "."}:
+        raise ValueError(f"{option} must be a non-empty path inside --target")
+    return folder
+
+
+def copy_template(source: Path, destination: Path, force: bool, ops_relative: str) -> str:
     if destination.exists() and not force:
         return f"SKIP existing: {destination}"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, destination)
+    content = source.read_text(encoding="utf-8")
+    destination.write_text(content.replace("_agent_ops", ops_relative), encoding="utf-8")
     return f"WRITE: {destination}"
 
 
@@ -263,7 +273,7 @@ remain governed by the project's existing rules.
 <!-- AI_AGENT_WORKSPACE_PACK:END v1 -->"""
 
 
-def write_tools(ops_dir: Path) -> list[str]:
+def write_tools(ops_dir: Path, ops_relative: str) -> list[str]:
     """Copy the runtime tools into the project so it stops depending on the pack.
 
     Refreshed on every init even without --force: these are pack-owned derived
@@ -283,7 +293,7 @@ def write_tools(ops_dir: Path) -> list[str]:
         action = "UPDATE" if destination.exists() else "WRITE"
         shutil.copyfile(source, destination)
         results.append(f"{action}: {destination}")
-    results.append(write_if_absent(tools_dir / "README.md", TOOLS_README, True))
+    results.append(write_if_absent(tools_dir / "README.md", TOOLS_README.replace("_agent_ops", ops_relative), True))
     return results
 
 
@@ -313,7 +323,7 @@ exit 2
 """
 
 
-def install_repo_map_hook(target: Path) -> str:
+def install_repo_map_hook(target: Path, ops_relative: str) -> str:
     """Install only the pack-managed pre-commit hook; preserve any user hook."""
 
     result = subprocess.run(
@@ -340,19 +350,19 @@ def install_repo_map_hook(target: Path) -> str:
         action = "WRITE"
 
     with hook_path.open("w", encoding="utf-8", newline="\n") as handle:
-        handle.write(REPO_MAP_HOOK)
+        handle.write(REPO_MAP_HOOK.replace("_agent_ops", ops_relative))
     if os.name != "nt":
         hook_path.chmod(hook_path.stat().st_mode | 0o100)
     return f"{action}: managed repo-map pre-commit hook: {hook_path}"
 
 
-def target_agents_content(target: Path) -> str:
+def target_agents_content(target: Path, ops_relative: str) -> str:
     """One generated entry point, accurate for embedded and runtime-only installs."""
     mode = EMBEDDED_MODE if (target / "TEAM_ROUTER.md").is_file() else RUNTIME_ONLY_MODE
-    return TARGET_AGENTS_MD.replace("<!-- PACK_MODE -->", mode.rstrip())
+    return TARGET_AGENTS_MD.replace("<!-- PACK_MODE -->", mode.rstrip()).replace("_agent_ops", ops_relative)
 
 
-def write_target_agents_md(target: Path) -> str:
+def write_target_agents_md(target: Path, ops_relative: str) -> str:
     """Drop an AGENTS.md at the project root if it has none.
 
     Codex, Cursor, and Windsurf auto-discover AGENTS.md; Claude Code and Gemini
@@ -364,17 +374,20 @@ def write_target_agents_md(target: Path) -> str:
     that already has one has already made this decision.
     """
     destination = target / "AGENTS.md"
-    return write_if_absent(destination, target_agents_content(target), False)
+    return write_if_absent(destination, target_agents_content(target, ops_relative), False)
 
 
-CLAUDE_MD_ADAPTER = """@AGENTS.md
+def claude_md_adapter(import_line: str) -> str:
+    return f"""{import_line}
 
 Claude Code reads `CLAUDE.md`, not `AGENTS.md`. The import above pulls in
 this project's canonical agent instructions so they are not duplicated
 across two files. Add Claude-specific instructions below this line.
 """
 
-GEMINI_MD_ADAPTER = """@./AGENTS.md
+
+def gemini_md_adapter(import_line: str) -> str:
+    return f"""{import_line}
 
 Gemini CLI defaults to `GEMINI.md`. The import above pulls in this project's
 canonical agent instructions so they are not duplicated across two files.
@@ -382,7 +395,7 @@ Add Gemini-specific instructions below this line.
 """
 
 
-def write_target_claude_md(target: Path) -> str:
+def write_target_claude_md(target: Path, import_line: str = "@AGENTS.md") -> str:
     """Drop a thin CLAUDE.md at the project root if it has none.
 
     Claude Code's own docs recommend exactly this pattern for an AGENTS.md
@@ -390,17 +403,17 @@ def write_target_claude_md(target: Path) -> str:
     context at session start. Never overwritten: a project with its own
     CLAUDE.md has already made that decision.
     """
-    return write_if_absent(target / "CLAUDE.md", CLAUDE_MD_ADAPTER, False)
+    return write_if_absent(target / "CLAUDE.md", claude_md_adapter(import_line), False)
 
 
-def write_target_gemini_md(target: Path) -> str:
+def write_target_gemini_md(target: Path, import_line: str = "@./AGENTS.md") -> str:
     """Drop a thin GEMINI.md at the project root if it has none.
 
     Gemini CLI's `@path` import requires a leading `./` for a same-directory
     file, unlike Claude Code's `@AGENTS.md`. Never overwritten: a project
     with its own GEMINI.md has already made that decision.
     """
-    return write_if_absent(target / "GEMINI.md", GEMINI_MD_ADAPTER, False)
+    return write_if_absent(target / "GEMINI.md", gemini_md_adapter(import_line), False)
 
 
 def imports_agents_md(destination: Path, import_line: str) -> bool:
@@ -469,6 +482,51 @@ def install_agents_bridge(target: Path) -> str:
     return "AGENTS BRIDGE: INSTALLED (managed bridge v1 updated)"
 
 
+def namespaced_bridge_line(embedded_folder: Path) -> str:
+    """The root entry point for one copied pack directory."""
+
+    return f"@{embedded_folder.as_posix()}/AGENTS.md"
+
+
+def namespaced_agents_bridge_status(target: Path, embedded_folder: Path) -> tuple[str, str]:
+    """Check whether the pack link is literally the first AGENTS.md line."""
+
+    destination = target / "AGENTS.md"
+    if not destination.exists():
+        return "MISSING", "AGENTS.md does not exist"
+    try:
+        lines = destination.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as error:
+        return "CORRUPT", f"cannot read AGENTS.md safely: {error}"
+    expected = namespaced_bridge_line(embedded_folder)
+    if lines and lines[0] == expected:
+        return "INSTALLED", "namespaced bridge is first line"
+    if expected in lines:
+        return "OUTDATED", "namespaced bridge is not the first line"
+    return "MISSING", "no namespaced bridge line"
+
+
+def install_namespaced_agents_bridge(target: Path, embedded_folder: Path) -> str:
+    """Prepend the pack link while preserving every host-owned AGENTS.md line."""
+
+    destination = target / "AGENTS.md"
+    status, detail = namespaced_agents_bridge_status(target, embedded_folder)
+    if status == "CORRUPT":
+        return f"AGENTS BRIDGE: CORRUPT ({detail}); not modified"
+    if status == "INSTALLED":
+        return "AGENTS BRIDGE: INSTALLED (namespaced bridge unchanged)"
+
+    expected = namespaced_bridge_line(embedded_folder)
+    content = destination.read_text(encoding="utf-8") if destination.exists() else ""
+    # An earlier install may have left its exact bridge line below host rules.
+    # Remove only that unambiguous pack-owned line, never surrounding text.
+    remaining = [line for line in content.splitlines(keepends=True) if line.rstrip("\r\n") != expected]
+    suffix = "".join(remaining)
+    destination.write_text(expected + "\n" + suffix, encoding="utf-8")
+    action = "created" if not content else "prepended"
+    return f"AGENTS BRIDGE: INSTALLED (namespaced bridge {action}; host text preserved)"
+
+
 def write_code_index(target: Path, ops_dir: Path, force: bool) -> str:
     """Build the symbol-level index that scripts/explore.py queries."""
     destination = ops_dir / "code_index.json"
@@ -505,7 +563,9 @@ def write_repo_map(target: Path, ops_dir: Path, force: bool) -> str:
         from scan_deps import build_graph  # noqa: PLC0415
 
         graph = build_graph(target)
-        destination.write_text(render_map(target, graph, 25, 15), encoding="utf-8")
+        destination.write_text(
+            render_map(target, graph, 25, 15, ops_dir / "code_index.json", destination), encoding="utf-8"
+        )
         return f"WRITE: {destination} ({len(graph)} code files indexed)"
     except Exception as error:  # noqa: BLE001 - report, do not abort init
         return (
@@ -517,13 +577,21 @@ def write_repo_map(target: Path, ops_dir: Path, force: bool) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Create _agent_ops/ project memory files in a target project."
+        description="Create project memory files in a target project."
     )
     parser.add_argument("--target", required=True, help="Target project directory.")
     parser.add_argument(
         "--ops-folder",
-        default="_agent_ops",
-        help="Operations folder name to create inside the target project.",
+        default=None,
+        help="Operations folder inside the target (default: _agent_ops, or <embedded-folder>/_agent_ops).",
+    )
+    parser.add_argument(
+        "--embedded-folder",
+        default=None,
+        help=(
+            "Copied workspace-pack folder inside the target, for example ai-agent-workspace-pack. "
+            "Keeps project operations inside that folder and installs its root AGENTS.md bridge."
+        ),
     )
     parser.add_argument(
         "--force",
@@ -562,9 +630,8 @@ def main() -> int:
         "--install-agents-bridge",
         action="store_true",
         help=(
-            "Explicitly append or update the managed workspace-pack bridge in an "
-            "existing AGENTS.md. Requires an embedded pack and never changes text "
-            "outside the bridge markers."
+            "Explicitly install the workspace-pack bridge in an existing AGENTS.md. "
+            "For --embedded-folder it becomes the first line and preserves all host text."
         ),
     )
     parser.add_argument(
@@ -586,19 +653,37 @@ def main() -> int:
     if not target.is_dir():
         parser.error(f"Target is not a directory: {target}")
 
-    embedded = (target / "TEAM_ROUTER.md").is_file()
+    try:
+        embedded_folder = relative_folder(args.embedded_folder, "--embedded-folder") if args.embedded_folder else None
+        ops_relative_path = relative_folder(args.ops_folder, "--ops-folder") if args.ops_folder else None
+    except ValueError as error:
+        parser.error(str(error))
+    if embedded_folder:
+        embedded_root = target / embedded_folder
+        if not (embedded_root / "TEAM_ROUTER.md").is_file():
+            parser.error(f"--embedded-folder is not a copied workspace pack: {embedded_root}")
+        if ops_relative_path is None:
+            ops_relative_path = embedded_folder / "_agent_ops"
+    else:
+        ops_relative_path = ops_relative_path or Path("_agent_ops")
+    ops_relative = ops_relative_path.as_posix()
+    flat_embedded = (target / "TEAM_ROUTER.md").is_file()
     if args.check_agents_bridge:
-        status, detail = agents_bridge_status(target)
+        status, detail = (
+            namespaced_agents_bridge_status(target, embedded_folder)
+            if embedded_folder
+            else agents_bridge_status(target)
+        )
         print(f"AGENTS BRIDGE: {status} ({detail})")
         return 0 if status == "INSTALLED" else 1
-    if args.install_agents_bridge and not embedded:
-        parser.error("--install-agents-bridge requires an embedded pack with TEAM_ROUTER.md.")
+    if args.install_agents_bridge and not (embedded_folder or flat_embedded):
+        parser.error("--install-agents-bridge requires a copied workspace pack.")
 
     templates_dir = repo_root() / "core-context"
     if not templates_dir.exists():
         parser.error(f"Cannot find template directory: {templates_dir}")
 
-    ops_dir = target / args.ops_folder
+    ops_dir = target / ops_relative_path
     ops_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Target: {target}")
@@ -609,7 +694,7 @@ def main() -> int:
         if not source.exists():
             print(f"WARN missing template: {source}")
             continue
-        print(copy_template(source, ops_dir / output_name, args.force))
+        print(copy_template(source, ops_dir / output_name, args.force, ops_relative))
 
     phase_dir = ops_dir / "phase_context_cards"
     phase_dir.mkdir(exist_ok=True)
@@ -636,15 +721,15 @@ def main() -> int:
         )
     )
 
-    print(write_if_absent(ops_dir / ".gitignore", OPS_GITIGNORE, args.force))
+    print(write_if_absent(ops_dir / ".gitignore", OPS_GITIGNORE.replace("_agent_ops", ops_relative), args.force))
 
     if args.no_tools:
         print(f"SKIP tools (--no-tools): {ops_dir / 'tools'}")
     else:
-        for line in write_tools(ops_dir):
+        for line in write_tools(ops_dir, ops_relative):
             print(line)
     if args.install_repo_map_hook:
-        print(install_repo_map_hook(target))
+        print(install_repo_map_hook(target, ops_relative))
 
     # Index BEFORE map, not after: the map reads code_index.json to fill in its
     # Symbol Graph section, so building it second made a fresh install report
@@ -661,11 +746,45 @@ def main() -> int:
     agents_existed = (target / "AGENTS.md").exists()
     if args.no_agents_md:
         print(f"SKIP AGENTS.md (--no-agents-md): {target / 'AGENTS.md'}")
+    elif embedded_folder:
+        if agents_existed and not args.install_agents_bridge:
+            status, detail = namespaced_agents_bridge_status(target, embedded_folder)
+            if status == "MISSING":
+                print(
+                    "WARN copied pack detected but the namespaced AGENTS.md bridge is missing. "
+                    "Re-run with --install-agents-bridge to prepend it safely."
+                )
+            else:
+                print(f"AGENTS BRIDGE: {status} ({detail})")
+        else:
+            print(install_namespaced_agents_bridge(target, embedded_folder))
+
+        claude_import = f"@{embedded_folder.as_posix()}/AGENTS.md"
+        gemini_import = f"@./{embedded_folder.as_posix()}/AGENTS.md"
+        claude_destination = target / "CLAUDE.md"
+        claude_existed = claude_destination.exists()
+        print(write_target_claude_md(target, claude_import))
+        if claude_existed and not imports_agents_md(claude_destination, claude_import):
+            print(
+                "WARN existing CLAUDE.md does not import the copied pack, so Claude Code "
+                "may never see its agent instructions. Add this line:\n"
+                f"         {claude_import}"
+            )
+
+        gemini_destination = target / "GEMINI.md"
+        gemini_existed = gemini_destination.exists()
+        print(write_target_gemini_md(target, gemini_import))
+        if gemini_existed and not imports_agents_md(gemini_destination, gemini_import):
+            print(
+                "WARN existing GEMINI.md does not import the copied pack, so Gemini CLI "
+                "may never see its agent instructions. Add this line:\n"
+                f"         {gemini_import}"
+            )
     else:
-        print(write_target_agents_md(target))
+        print(write_target_agents_md(target, ops_relative))
         if args.install_agents_bridge:
             print(install_agents_bridge(target))
-        elif embedded and agents_existed:
+        elif flat_embedded and agents_existed:
             status, detail = agents_bridge_status(target)
             if status == "MISSING":
                 print(
@@ -697,14 +816,14 @@ def main() -> int:
 
     print("")
     print("Done. Existing files were preserved unless --force was used.")
-    print("Session-scoped files are gitignored by _agent_ops/.gitignore:")
+    print(f"Session-scoped files are gitignored by {ops_relative}/.gitignore:")
     print("  " + ", ".join(SESSION_SCOPED))
-    print("Everything else in _agent_ops/ is tracked on purpose.")
+    print(f"Everything else in {ops_relative}/ is tracked on purpose.")
     print("")
     print("Next steps, run from inside the project (no pack needed):")
     print(f"  cd {target}")
-    print("  python _agent_ops/tools/session_start.py --root .")
-    print("  python _agent_ops/tools/explore.py --symbol <name>")
+    print(f"  python {ops_relative}/tools/session_start.py --root .")
+    print(f"  python {ops_relative}/tools/explore.py --symbol <name>")
     return 0
 
 

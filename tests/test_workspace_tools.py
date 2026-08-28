@@ -348,6 +348,128 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(0, checked.returncode, checked.stderr)
         self.assertIn("AGENTS BRIDGE: INSTALLED", checked.stdout)
 
+    def test_namespaced_embed_keeps_pack_and_ops_in_one_folder(self) -> None:
+        pack = self.root / "ai-agent-workspace-pack"
+        self.write("ai-agent-workspace-pack/TEAM_ROUTER.md", "# copied pack marker\n")
+        self.write("ai-agent-workspace-pack/core-context/.keep", "")
+        self.write("ai-agent-workspace-pack/scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
+        self.write("AGENTS.md", "# Host rules\nKeep this text exactly.\n")
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+
+        installed = self.init_project(
+            "--embedded-folder",
+            "ai-agent-workspace-pack",
+            "--install-agents-bridge",
+        )
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertFalse((self.root / "_agent_ops").exists())
+        ops = pack / "_agent_ops"
+        self.assertTrue((ops / "tools" / "session_start.py").is_file())
+        self.assertTrue((ops / "REPO_MAP.md").is_file())
+        self.assertIn("1 code files indexed", installed.stdout)
+
+        bridge = "@ai-agent-workspace-pack/AGENTS.md\n"
+        agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(bridge + "# Host rules\nKeep this text exactly.\n", agents)
+        self.assertIn("@ai-agent-workspace-pack/AGENTS.md", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
+        self.assertIn("@./ai-agent-workspace-pack/AGENTS.md", (self.root / "GEMINI.md").read_text(encoding="utf-8"))
+
+        check = self.init_project("--embedded-folder", "ai-agent-workspace-pack", "--check-agents-bridge")
+        self.assertEqual(0, check.returncode, check.stderr)
+        self.assertIn("AGENTS BRIDGE: INSTALLED", check.stdout)
+
+        second = self.init_project(
+            "--embedded-folder",
+            "ai-agent-workspace-pack",
+            "--install-agents-bridge",
+        )
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.assertEqual(agents, (self.root / "AGENTS.md").read_text(encoding="utf-8"))
+
+        session = self.run_tool(ops / "tools" / "session_start.py", "--root", ".", cwd=self.root)
+        self.assertEqual(0, session.returncode, session.stderr)
+        self.assertNotIn("does not exist. Initialize it", session.stdout)
+        self.assertIn("src/app.py", (ops / "REPO_MAP.md").read_text(encoding="utf-8"))
+        repo_map = (ops / "REPO_MAP.md").read_text(encoding="utf-8")
+        self.assertNotIn("ai-agent-workspace-pack/scripts", repo_map)
+        self.assertIn("--output ai-agent-workspace-pack/_agent_ops/REPO_MAP.md", repo_map)
+        index = (ops / "INDEX.md").read_text(encoding="utf-8")
+        self.assertIn("ai-agent-workspace-pack/_agent_ops/tools/session_start.py", index)
+
+    def test_namespaced_embed_hook_stages_its_nested_repo_map(self) -> None:
+        self.assertEqual(0, subprocess.run(["git", "init", "-q"], cwd=self.root, check=False).returncode)
+        self.write("ai-agent-workspace-pack/TEAM_ROUTER.md", "# copied pack marker\n")
+        self.write("ai-agent-workspace-pack/core-context/.keep", "")
+        self.write("ai-agent-workspace-pack/scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
+        self.write("src/app.py", "def project_entry():\n    return 'first'\n")
+
+        installed = self.init_project(
+            "--embedded-folder",
+            "ai-agent-workspace-pack",
+            "--install-agents-bridge",
+            "--install-repo-map-hook",
+        )
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertIn("managed repo-map pre-commit hook", installed.stdout)
+
+        self.assertEqual(0, subprocess.run(["git", "add", "src/app.py"], cwd=self.root, check=False).returncode)
+        committed = subprocess.run(
+            ["git", "commit", "-qm", "namespaced map refresh"],
+            cwd=self.root,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(0, committed.returncode, committed.stdout + committed.stderr)
+        staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=self.root, text=True, capture_output=True)
+        self.assertEqual("", staged.stdout)
+        ops = self.root / "ai-agent-workspace-pack" / "_agent_ops"
+        self.assertTrue((ops / "REPO_MAP.md").is_file())
+        hygiene = self.run_tool(ops / "tools" / "check_repo_hygiene.py", "--root", ".", cwd=self.root)
+        self.assertEqual(0, hygiene.returncode, hygiene.stderr)
+        self.assertIn("PASS: No session-scoped ai-agent-workspace-pack/_agent_ops/ files are tracked.", hygiene.stdout)
+
+    def test_namespaced_embed_creates_only_the_bridge_when_host_agents_is_absent(self) -> None:
+        self.write("ai-agent-workspace-pack/TEAM_ROUTER.md", "# copied pack marker\n")
+        self.write("ai-agent-workspace-pack/core-context/.keep", "")
+        self.write("ai-agent-workspace-pack/scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
+
+        installed = self.init_project(
+            "--embedded-folder",
+            "ai-agent-workspace-pack",
+            "--install-agents-bridge",
+        )
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertEqual(
+            "@ai-agent-workspace-pack/AGENTS.md\n",
+            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
+        )
+
+    def test_embed_pack_copies_clean_source_and_initializes_fresh_nested_ops(self) -> None:
+        self.write("AGENTS.md", "# Host rules\n")
+        self.write("src/app.py", "def project_entry():\n    return 'project'\n")
+
+        embedded = self.run_tool(SCRIPTS / "embed_pack.py", "--target", str(self.root), cwd=PACK_ROOT)
+        self.assertEqual(0, embedded.returncode, embedded.stderr)
+        pack = self.root / "ai-agent-workspace-pack"
+        self.assertTrue((pack / "TEAM_ROUTER.md").is_file())
+        self.assertFalse((pack / ".git").exists())
+        self.assertTrue((pack / "_agent_ops" / "tools" / "session_start.py").is_file())
+        self.assertNotIn(
+            "ai-agent-workspace-pack\n",
+            (pack / "_agent_ops" / "PROJECT_CONTEXT_CARD.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(
+            "@ai-agent-workspace-pack/AGENTS.md\n# Host rules\n",
+            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
+        )
+
+    def test_named_directory_without_pack_signature_remains_project_code(self) -> None:
+        self.write("ai-agent-workspace-pack/src/host_feature.py", "def host_feature():\n    return True\n")
+
+        scan = self.run_tool(SCRIPTS / "scan_deps.py", "--root", str(self.root), "--output", "json", cwd=PACK_ROOT)
+        self.assertEqual(0, scan.returncode, scan.stderr)
+        self.assertIn("ai-agent-workspace-pack/src/host_feature.py", json.loads(scan.stdout)["graph"])
+
     def test_agents_bridge_check_is_read_only_and_detects_corruption(self) -> None:
         self.write("TEAM_ROUTER.md", "# marker\n")
         self.write("AGENTS.md", "# Existing rules\n<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->\n")

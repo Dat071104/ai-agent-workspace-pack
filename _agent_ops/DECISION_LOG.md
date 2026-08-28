@@ -33,3 +33,41 @@
 
 - Existing host instructions remain intact by default; users opt in with --install-agents-bridge.
 - The check command reports only structural bridge states and does not attempt semantic policy analysis.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0002`
+
+### Date
+
+`2026-08-28`
+
+### Context
+
+`A user needs the full pack embedded in an application without flattening scripts, teams, adapters, and project state into the application root.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Keep the flat embedded layout | No migration work | Collides with host paths and looks like a copied clone |
+| B | Copy the pack under ai-agent-workspace-pack/ with a first-line root bridge | One contained folder; preserves host AGENTS.md; supports nested runtime tools | Three lightweight root harness entry files can still be needed for auto-discovery |
+
+### Decision
+
+`Choose B for the new namespaced embedded mode; keep the existing flat bridge as legacy compatibility.`
+
+### Rationale
+
+`The first root line is sufficient to route to the pack while preserving all host rules below it. Making the ops folder nested prevents the same collision from reappearing as _agent_ops/.`
+
+### Consequences
+
+- `--embedded-folder ai-agent-workspace-pack` is explicit and validates the copied-pack signature before writing.
+- `embed_pack.py` excludes source `.git/` and source `_agent_ops/`, then initializes fresh target state.
+- Runtime tools derive their nested ops location; the pre-commit hook stages only the nested map.
+- Scanners skip a namespaced child only when all pack markers are present.

@@ -9,11 +9,9 @@ No dependencies. No cloud. Python standard library only. Everything stays local.
 > Bạn có thể mô tả bằng tiếng Việt bình thường — agent sẽ trả lời tiếng Việt,
 > hỏi lại khi thiếu thông tin, và luôn xin xác nhận trước khi sửa file.
 
-> **Embedded pack + `AGENTS.md` có sẵn:** chạy một lần
-> `python scripts/init_project_ops.py --target . --install-agents-bridge`, rồi
-> dùng `@start-here <mục tiêu>` bình thường. Nếu repo chưa có `AGENTS.md`,
-> installer tự tạo sẵn entry point; không cần bridge. Kiểm tra không ghi file:
-> `python scripts/init_project_ops.py --target . --check-agents-bridge`.
+> **Embedded pack một thư mục:** dùng `scripts/embed_pack.py` để copy sạch pack
+> vào repo (không clone, không mang `_agent_ops` của source). Root `AGENTS.md`
+> sẽ bắt đầu bằng link tới pack và giữ nguyên host instructions.
 
 ---
 
@@ -71,7 +69,37 @@ Step 2 puts four things in your project:
 It never overwrites an existing file. `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md`
 are each written only if your project does not already have one.
 
-### Existing `AGENTS.md`: install a managed bridge explicitly
+### Namespaced embedded pack: one copied folder
+
+When the full pack should travel with a project, materialize a clean directory
+(not a Git clone or submodule) from a local source-pack checkout:
+
+```bash
+python D:\path\to\ai-agent-workspace-pack\scripts\embed_pack.py --target .
+```
+
+This creates `ai-agent-workspace-pack/`, excluding the source `.git/` and its
+project-specific `_agent_ops/`, then creates fresh project state inside the new
+folder. It keeps team instructions, scripts, templates, phase cards, and the
+project `_agent_ops/` state under that one folder. The only root-level integration files
+are the lightweight harness entry points. In particular, the first line of
+`AGENTS.md` is:
+
+```text
+@ai-agent-workspace-pack/AGENTS.md
+```
+
+If `AGENTS.md` already exists, every original line follows unchanged after this
+first line. If it does not exist, the bridge is the complete file. `CLAUDE.md`
+and `GEMINI.md` are created only when absent and import the pack directly.
+
+Check the bridge without writing:
+
+```bash
+python ai-agent-workspace-pack/scripts/init_project_ops.py --target . --embedded-folder ai-agent-workspace-pack --check-agents-bridge
+```
+
+### Existing flat `AGENTS.md`: install a managed bridge explicitly
 
 An embedded pack beside an existing `AGENTS.md` is not automatically discoverable:
 the host instructions remain the entry point. Preserve those instructions, then
@@ -103,22 +131,20 @@ is always overwritten; your memory files are not).
 
 ### Choose one installation mode
 
-- **Embedded pack (default for multi-team or weaker agents):** copy this whole
-  pack into the project before initialization. `AGENTS.md`, `START_HERE.md`,
-  `TEAM_ROUTER.md`, and the nine team folders stay available; `@start-here` can
-  route lazily to one selected `SKILL.md`. In this mode, `scripts/` is a valid
-  local pack path.
+- **Namespaced embedded pack (recommended):** run `embed_pack.py` from a local
+  source pack to create `ai-agent-workspace-pack/`. The pack and its
+  `_agent_ops/` state stay contained; root `AGENTS.md` is only a first-line
+  link that preserves any host instructions below it.
+- **Flat embedded pack (legacy compatibility):** copy this whole pack into the
+  project root before initialization. `AGENTS.md`, `START_HERE.md`,
+  `TEAM_ROUTER.md`, and the team folders stay available, but this can collide
+  with host paths such as `scripts/`, `.codex/`, and `.claude/`.
 - **Runtime-only:** keep the pack elsewhere and run step 2 above. The target
   gets `_agent_ops/` and its tools, but no team folders; its generated
   `AGENTS.md` says so rather than pretending named-team routing is available.
 
-Do not mix the two descriptions: embedded mode is the complete operating kit;
+Do not mix the descriptions: embedded mode is the complete operating kit;
 runtime-only mode is the self-contained tooling and memory layer.
-
-The current embedded layout remains flat for compatibility. A future migration
-will place it under `.ai-agent-workspace-pack/` to avoid collisions with host
-paths such as `scripts/`, `.codex/`, and `.claude/`; that layout is not yet an
-installation mode.
 
 ---
 

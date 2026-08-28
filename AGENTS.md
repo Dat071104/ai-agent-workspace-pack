@@ -1,5 +1,17 @@
 # AGENTS.md
 
+## Namespaced Embedded Use
+
+When this file is reached through a root bridge at
+`ai-agent-workspace-pack/AGENTS.md`, that directory is the **pack root**. Keep
+all pack and project-ops paths under it: for example run
+`python ai-agent-workspace-pack/_agent_ops/tools/session_start.py --root .`.
+The root `AGENTS.md` bridge is intentionally only its first link line followed
+by any host-owned instructions; never move the pack's teams, scripts, or
+templates into the application root.
+When installing a fresh copy, run `scripts/embed_pack.py --target <project>`
+from a source pack instead of copying its `_agent_ops/` working memory.
+
 This repo is a reusable AI-agent operating kit for coding projects. It is
 portable across harnesses (Codex, Claude Code, Cursor, Gemini, DeepSeek). New to
 a repo? Run `BOOTSTRAP.md` once. Not sure which team to use? Type `@start-here`

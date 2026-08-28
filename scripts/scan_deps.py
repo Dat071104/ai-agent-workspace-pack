@@ -85,7 +85,22 @@ def is_embedded_pack(root: Path) -> bool:
     return all((root / marker).exists() for marker in EMBEDDED_PACK_MARKERS)
 
 
-def should_skip_path(root: Path, path: Path, embedded_pack: bool) -> bool:
+def namespaced_pack_dirs(root: Path) -> set[str]:
+    """Top-level copied packs to exclude from a host project's code graph."""
+
+    try:
+        children = [child for child in root.iterdir() if child.is_dir()]
+    except OSError:
+        return set()
+    return {child.name for child in children if is_embedded_pack(child)}
+
+
+def should_skip_path(
+    root: Path,
+    path: Path,
+    embedded_pack: bool,
+    nested_packs: set[str],
+) -> bool:
     """Keep project code, excluding generic artifacts and detected pack internals."""
     try:
         rel_parts = path.relative_to(root).parts
@@ -93,14 +108,17 @@ def should_skip_path(root: Path, path: Path, embedded_pack: bool) -> bool:
         return True
     if any(part in SKIP_DIRS for part in rel_parts):
         return True
+    if rel_parts and rel_parts[0] in nested_packs:
+        return True
     return bool(embedded_pack and rel_parts and rel_parts[0] in EMBEDDED_PACK_DIRS)
 
 
 def iter_code_files(root: Path) -> list[Path]:
     files: list[Path] = []
     embedded_pack = is_embedded_pack(root)
+    nested_packs = namespaced_pack_dirs(root)
     for path in root.rglob("*"):
-        if should_skip_path(root, path, embedded_pack):
+        if should_skip_path(root, path, embedded_pack, nested_packs):
             continue
         if path.is_file() and path.suffix in CODE_SUFFIXES:
             files.append(path)

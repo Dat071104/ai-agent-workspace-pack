@@ -6,6 +6,12 @@ generating starter context cards, and summarizing/rotating implementation logs.
 
 All scripts use the Python standard library only.
 
+`embed_pack.py` is the portable installation entry point: it copies this pack
+into `<target>/ai-agent-workspace-pack/` without `.git/` or the source pack's
+project-specific `_agent_ops/`, then initializes fresh nested operations and a
+preserving root `AGENTS.md` bridge. It is not copied into runtime tools because
+it requires the full source pack.
+
 `init_project_ops.py` copies every other script here into the target project as
 `_agent_ops/tools/`. Inside a project, run them as
 `python _agent_ops/tools/<script> ...`; the `python scripts/<script> ...` form
@@ -26,6 +32,9 @@ without Python.
 # an AGENTS.md if the project has none. Never overwrites without --force.
 python scripts/init_project_ops.py --target "D:\MyProject"
 #   --no-tools      do not copy the tools into <target>/_agent_ops/tools/
+#   --embedded-folder ai-agent-workspace-pack
+#                   keep project operations inside a copied pack folder and
+#                   use a first-line root AGENTS.md bridge to it
 #   --no-agents-md  do not create AGENTS.md at the target root
 #   --install-agents-bridge  explicitly add/update the managed bridge in an
 #                       existing embedded project's AGENTS.md

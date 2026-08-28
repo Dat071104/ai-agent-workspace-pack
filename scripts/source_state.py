@@ -27,19 +27,45 @@ CODE_SUFFIXES = (
     ".php",
     ".cs",
 )
+DEFAULT_OPS_FOLDER = "_agent_ops"
+NAMESPACED_PACK_FOLDER = "ai-agent-workspace-pack"
+EMBEDDED_PACK_MARKERS = ("TEAM_ROUTER.md", "core-context", "scripts/init_project_ops.py")
 
 
 def normalize_path(path: str) -> str:
     return path.strip().replace("\\", "/")
 
 
-def is_project_code(path: str) -> bool:
+def is_project_code(path: str, root: Path | None = None) -> bool:
     """True when a changed path should invalidate code-navigation artifacts."""
 
     cleaned = normalize_path(path)
-    if cleaned.startswith("_agent_ops/") or "/_agent_ops/" in cleaned:
+    if cleaned.startswith(f"{DEFAULT_OPS_FOLDER}/") or f"/{DEFAULT_OPS_FOLDER}/" in cleaned:
         return False
+    if root and cleaned.startswith(f"{NAMESPACED_PACK_FOLDER}/"):
+        pack_root = root / NAMESPACED_PACK_FOLDER
+        if all((pack_root / marker).exists() for marker in EMBEDDED_PACK_MARKERS):
+            return False
     return cleaned.endswith(CODE_SUFFIXES)
+
+
+def resolve_ops_dir(root: Path, ops_folder: str = DEFAULT_OPS_FOLDER) -> Path:
+    """Locate project operations, including a copied namespaced pack.
+
+    A runtime tool lives at ``<ops>/tools/``. When the caller uses the normal
+    default but the root has no ``_agent_ops/``, that location is the only
+    safe, unambiguous fallback for an embedded installation.
+    """
+
+    requested = root / ops_folder
+    if ops_folder != DEFAULT_OPS_FOLDER or requested.exists():
+        return requested
+    installed = Path(__file__).resolve().parent.parent
+    try:
+        installed.relative_to(root)
+    except ValueError:
+        return requested
+    return installed if installed.name == DEFAULT_OPS_FOLDER else requested
 
 
 def git_changed_paths(root: Path, args: list[str]) -> set[str]:
@@ -63,17 +89,17 @@ def code_change_sets(root: Path) -> dict[str, set[str]]:
 
     return {
         "unstaged": {
-            path for path in git_changed_paths(root, ["diff", "--name-only"]) if is_project_code(path)
+            path for path in git_changed_paths(root, ["diff", "--name-only"]) if is_project_code(path, root)
         },
         "staged": {
             path
             for path in git_changed_paths(root, ["diff", "--cached", "--name-only"])
-            if is_project_code(path)
+            if is_project_code(path, root)
         },
         "untracked": {
             path
             for path in git_changed_paths(root, ["ls-files", "--others", "--exclude-standard"])
-            if is_project_code(path)
+            if is_project_code(path, root)
         },
     }
 
@@ -106,7 +132,7 @@ def index_source_fingerprint(root: Path) -> str:
             continue
         _, raw_blob, raw_stage = fields
         path = normalize_path(raw_path.decode("utf-8", errors="surrogateescape"))
-        if not is_project_code(path):
+        if not is_project_code(path, root):
             continue
         if raw_stage != b"0":
             return ""

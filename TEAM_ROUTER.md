@@ -1,5 +1,8 @@
 # Team Router
 
+For a namespaced embedded install, resolve every `_agent_ops/` path below from
+the pack root: `ai-agent-workspace-pack/_agent_ops/`.
+
 Use this file before loading any long team folder. Route first, then load only the recommended team if the user confirms.
 
 | User intent | Recommended team | Token/risk | Writes files by default? | Subagent | Confirmation needed? |

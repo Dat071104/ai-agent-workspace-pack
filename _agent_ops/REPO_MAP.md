@@ -8,16 +8,16 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`28ea7b3`
+`c10a6bf`
 
 ## Indexed Source Fingerprint
 
-`sha256:12:6adc1a473d95904fb3b56fb99d56d58522eb0e7f58dd2b0ea315cd5dcff2fdce`
+`sha256:13:078fd4bfa224e90399bd6fe1e0676e77b3a4d5df33d7756aa127b93787e79741`
 
 ## Snapshot
 
 - Branch: `main`
-- Generated: `2026-08-27`
+- Generated: `2026-08-28`
 - Code files indexed: 1
 - Stack: Unknown
 
@@ -40,24 +40,24 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-146 symbols, 272 edges (exact 159, heuristic 113, ambiguous 0, weak 0).
+162 symbols, 311 edges (exact 176, heuristic 135, ambiguous 0, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `read_text` | 28 | `scripts/session_start.py:83` |
-| `WorkspaceToolsGoldenTests.write` | 17 | `tests/test_workspace_tools.py:33` |
-| `WorkspaceToolsGoldenTests.init_project` | 16 | `tests/test_workspace_tools.py:52` |
-| `run` | 11 | `scripts/refresh_repo_map.py:25` |
-| `WorkspaceToolsGoldenTests.run_tool` | 8 | `tests/test_workspace_tools.py:39` |
+| `read_text` | 34 | `scripts/session_start.py:80` |
+| `WorkspaceToolsGoldenTests.write` | 22 | `tests/test_workspace_tools.py:33` |
+| `WorkspaceToolsGoldenTests.init_project` | 19 | `tests/test_workspace_tools.py:52` |
+| `run` | 13 | `scripts/refresh_repo_map.py:25` |
+| `WorkspaceToolsGoldenTests.run_tool` | 12 | `tests/test_workspace_tools.py:39` |
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
 | `Graph.label` | 5 | `scripts/explore.py:100` |
-| `write_if_absent` | 5 | `scripts/init_project_ops.py:99` |
+| `write_if_absent` | 5 | `scripts/init_project_ops.py:109` |
 | `tool_prefix` | 5 | `scripts/scan_deps.py:63` |
+| `resolve_ops_dir` | 5 | `scripts/source_state.py:52` |
 | `WorkspaceToolsGoldenTests.make_source_fixture` | 5 | `tests/test_workspace_tools.py:55` |
 | `Graph.find` | 4 | `scripts/explore.py:83` |
-| `build_graph` | 3 | `scripts/scan_deps.py:417` |
 
 Query it instead of grepping:
 
@@ -79,7 +79,7 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
-| `tests/test_workspace_tools.py` | 553 |
+| `tests/test_workspace_tools.py` | 675 |
 
 ## Isolated Files
 
