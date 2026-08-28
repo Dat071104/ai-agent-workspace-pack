@@ -433,3 +433,82 @@ git diff --check
 ### Next Step
 
 `Await authorization to commit.`
+
+---
+
+## Entry
+
+### Date
+
+`2026-08-28`
+
+### Task ID
+
+`TASK-0004`
+
+### Phase / Task
+
+`Close the two carried-over defects: the ambiguous flat-embedded exclusion and the unborn-repository mislabel.`
+
+### Files Touched
+
+| File | Change |
+| --- | --- |
+| `scripts/session_start.py` | split `is_git` from `has_commits`; report a repository with no commits as a repository |
+| `scripts/scan_deps.py` | removed the root-level pack exclusion; `is_embedded_pack` -> `looks_like_pack`; `should_skip_path` is now the single skip rule |
+| `scripts/build_code_index.py` | deleted its private walk; it calls `scan_deps.iter_code_files` |
+| `scripts/migrate_pack.py` | new: moves a flat install into the namespaced folder, dry run by default |
+| `tests/test_workspace_tools.py` | 5 contracts added; the flat-pack fixture now asserts the opposite behaviour |
+| `README.md`, `scripts/README.md` | documented the migration |
+
+### What Changed / Evidence Produced
+
+- Unborn repository: `session_start.py` now prints `HEAD: none yet`, lists `A  src/app.py`, and says `no commits yet, so there is nothing to verify memory against` instead of `not a git repository`. Because `ls-files --stage` works without a commit, the fingerprint path also works: after rebuilding, it reports `Current with the staged source index`.
+- Flat exclusion removed: this pack's own `REPO_MAP.md` went from `Code files indexed: 1` with an empty hot-files table to 13 files with real fan-in (`scripts/source_state.py` imported by 6).
+- One walk: `build_code_index` no longer carries its own copy; the golden test asserts the index file list EQUALS the dependency scan's, rather than checking each separately.
+- Migration verified on a fixture where `scripts/` holds both the pack's tools and an application file: 133 pack files moved, `scripts/my_app_deploy.js` and `src/app.py` stayed at the root, `_agent_ops/` moved with its content, 139 renames in `git status`, and the rebuilt index lists only the application's two files.
+
+### Why
+
+`RISK-0004 could not be fixed by a better heuristic: a flat install and the pack's own checkout are identical by signature, so the rule was guessing -- and it guessed wrong on this repository, silently reducing its own map to one file. Removing the case removes the ambiguity. RISK on session_start was one variable answering two questions, which cost a new project every staleness check on the session that builds its map.`
+
+### Tests Run
+
+```bash
+python -B -m unittest tests.test_workspace_tools
+python -B scripts/check_repo_hygiene.py --root .
+git diff --check
+```
+
+### Results
+
+`30 golden tests passed (26 before this task). Hygiene passed. git diff --check passed.`
+
+### Bugs Found
+
+- The first migration run left `code_index.json` and `REPO_MAP.md` describing the flat layout, because `init_project_ops` skips existing files without `--force` and `--force` would have overwritten project memory.
+
+### Root Cause
+
+`Derived artifacts moved along with project memory but were not invalidated.`
+
+### Fix Applied
+
+`migrate_pack.py deletes exactly those two derived files after the move so initialization rebuilds them; nothing else in _agent_ops is touched.`
+
+### Git Commit
+
+`9b31b28, aa10911, e80c7bf, 58ba5bf.`
+
+### Push Result
+
+`Pushed to origin/main.`
+
+### Remaining Risks
+
+- `A flat install that is never migrated keeps indexing the pack's scripts; that is now a documented state with a tool, not a silent heuristic.`
+- `migrate_pack.py leaves LICENSE, .gitignore and README.md at the root for manual review, since ownership cannot be determined.`
+
+### Next Step
+
+`Optional: run migrate_pack.py against the application repo once its path is known.`

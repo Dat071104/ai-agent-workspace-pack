@@ -110,3 +110,41 @@
 - Pack-relative paths inside pointers are rewritten path-leading only, which keeps re-runs idempotent and leaves prose untouched.
 - `--no-root-adapters` opts out, at the cost of discovery.
 - Editing a pointer by hand is wrong: change the team file in the pack and re-run the installer.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0004`
+
+### Date
+
+`2026-08-28`
+
+### Context
+
+`The exclusion that keeps a workspace pack out of a project's code graph could not distinguish a flat install from the pack's own source checkout: both carry the same marker files at the root.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Keep the heuristic | No work | Guesses; already wrong on this repository, whose own map reported 1 file |
+| B | Record the layout at install time in `<ops>/pack_install.json` and read it back | Keeps flat installs supported | Adds a state file plus a fallback branch, to maintain a mode being retired |
+| C | Remove the root-level exclusion and migrate flat installs | Deletes code; ambiguity disappears with the case; fixes the pack's own map | A flat install indexes pack scripts until migrated |
+
+### Decision
+
+`Choose C. Only a pack in its own subdirectory is excluded, which is unambiguous by construction. scripts/migrate_pack.py converts existing flat installs.`
+
+### Rationale
+
+`The information needed -- is this pack the product or the infrastructure? -- does not exist in the files, so no heuristic can be correct. Option B would encode the answer, but only to keep alive a layout already replaced by the namespaced one.`
+
+### Consequences
+
+- `build_code_index` and `scan_deps` share one `should_skip_path`, so the map and the index cannot drift apart again.
+- The pack's own repo map is useful again: 13 files with real fan-in.
+- Migration is a dry run by default, moves rather than deletes, and refuses a dirty or non-Git worktree.
