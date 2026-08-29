@@ -56,6 +56,16 @@ def pack_folder(value: str, option: str = "--folder") -> Path:
             f"not {value!r}. A pack nested deeper is not recognized as a pack, and its "
             f"own files are then indexed as your project's code."
         )
+    # `<root>/_agent_ops/_agent_ops/` resolves to the wrong half of itself:
+    # resolve_ops_dir() returns `<root>/_agent_ops` as soon as it exists, so
+    # every tool would read the pack root and report a project with real memory
+    # as having none.
+    if folder.name == DEFAULT_OPS_FOLDER:
+        raise ValueError(
+            f"{option} cannot be {DEFAULT_OPS_FOLDER!r}: that name belongs to the project "
+            f"operations folder, and a pack installed there hides the memory it creates "
+            f"inside itself."
+        )
     return folder
 
 

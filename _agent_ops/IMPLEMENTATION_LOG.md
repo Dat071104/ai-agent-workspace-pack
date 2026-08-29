@@ -743,3 +743,74 @@ python -B scripts/embed_pack.py --target <scratch> --folder tools/my-pack   # be
 ### Next Step
 
 `Stop development. Embed into a real project and let the next change come from use.`
+
+---
+
+## Entry
+
+### Date
+
+`2026-08-29`
+
+### Task ID
+
+`TASK-0008`
+
+### Scope
+
+`Close the two remaining routes around the pack-folder invariant from TASK-0007, and the two stale v1 bridge descriptions an English-only grep missed.`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `scripts/source_state.py` | `pack_folder()` also rejects `_agent_ops` |
+| `scripts/init_project_ops.py` | the auto-detected folder is validated by `pack_folder()`; `--install-agents-bridge` help no longer says "becomes the first line" |
+| `README.md` | the Vietnamese blurb no longer says the root AGENTS.md begins with a link to the pack |
+| `tests/test_workspace_tools.py` | 2 contracts added (40 total) |
+
+### Why
+
+`TASK-0007 enforced the depth invariant at --folder and --embedded-folder but not at auto-detection, so the pack's own documented bootstrap command still accepted a pack at tools/my-pack/: reproduced at 15 indexed files, 14 of them pack internals. Separately, --folder _agent_ops passed the depth rule and produced <root>/_agent_ops/_agent_ops/, where resolve_ops_dir() returns the pack root instead; session_start reported a project with full memory as FRESH with a missing REPO_MAP.md.`
+
+### Tests Run
+
+```bash
+python -B -m unittest discover -s tests -q
+python -B scripts/check_repo_hygiene.py --root .
+# both edge cases driven end to end before and after the patch
+```
+
+### Results
+
+`40 golden tests passed (38 before, 2 added). Hygiene passed. Both cases are now refused before any write: the nested bootstrap creates no ops folder at all, and the _agent_ops install leaves the target holding only src/. A negative control confirmed each new test fails against the pre-patch code (AssertionError: 0 == 0).`
+
+### Bugs Found
+
+- `detect_embedded_folder()` returned any relative depth straight into `embedded_folder`, bypassing the validator added in TASK-0007.
+- `--folder _agent_ops` was accepted and made every tool resolve to the pack root instead of the project memory inside it.
+- Two v1 bridge descriptions survived TASK-0007: a Vietnamese README blurb and the `--install-agents-bridge` help text.
+
+### Root Cause
+
+`The invariant was enforced on the explicit inputs but not on the derived one, and the staleness sweep grepped English patterns across three Markdown files while the survivors were Vietnamese prose and a Python help string.`
+
+### Fix Applied
+
+`One validator, now reached by all three entry points including detection. Two wording corrections.`
+
+### Git Commit
+
+`<pending>`
+
+### Push Result
+
+`<pending>`
+
+### Remaining Risks
+
+- `RISK-0007 stays Accepted: no real-harness run, and no CI. The 40/40 figure is a local run recorded here, not an independent GitHub Actions result.`
+
+### Next Step
+
+`STOP development. Embed into a real project and run the three-harness smoke test.`

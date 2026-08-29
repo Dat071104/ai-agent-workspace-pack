@@ -299,3 +299,5 @@
 - `source_state.pack_folder()` is the one validator; `embed_pack.py`, `migrate_pack.py` and `init_project_ops.py --embedded-folder` all use it.
 - `--ops-folder` keeps `relative_folder()`: a nested ops path such as `ai-agent-workspace-pack/_agent_ops` is legitimate, and its leaf name is separately enforced.
 - `migrate_pack.py` can no longer move a pack outside `--target`.
+- The auto-detected folder is validated by the same function as an explicit one. It was not, which left the defect reachable through the pack's own documented bootstrap command; detection now fails loudly instead of falling back to a flat install that hides the pack from nothing.
+- The name `_agent_ops` is rejected as a pack folder. It passes the depth rule but breaks resolution: `resolve_ops_dir()` returns `<root>/_agent_ops` as soon as it exists, so the pack root shadows the real memory at `<root>/_agent_ops/_agent_ops/`.

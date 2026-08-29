@@ -11,7 +11,7 @@ No dependencies. No cloud. Python standard library only. Everything stays local.
 
 > **Embedded pack một thư mục:** dùng `scripts/embed_pack.py` để copy sạch pack
 > vào repo (không clone, không mang `_agent_ops` của source). Root `AGENTS.md`
-> sẽ bắt đầu bằng link tới pack và giữ nguyên host instructions.
+> nhận thêm một managed block có đánh dấu và giữ nguyên host instructions.
 
 ---
 

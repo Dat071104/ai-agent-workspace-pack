@@ -176,6 +176,44 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertIn("single directory name directly under the project root", escaped.stderr)
         self.assertFalse((self.root.parent / "escape").exists())
 
+    def test_auto_detection_obeys_the_same_pack_folder_rule(self) -> None:
+        """The explicit --embedded-folder went through pack_folder(); the
+        auto-detected one did not, which left the whole nested-pack defect
+        reachable through the pack's own documented bootstrap command. A pack
+        hand-placed at tools/my-pack/ and bootstrapped that way produced a
+        project graph of 15 files, 14 of them the pack's own scripts."""
+        self.write("tools/my-pack/TEAM_ROUTER.md", "# copied pack marker\n")
+        self.write("tools/my-pack/core-context/INDEX.template.md", "# INDEX\n")
+        self.write("src/app.py", "def app():\n    return 1\n")
+        nested_scripts = self.root / "tools" / "my-pack" / "scripts"
+        nested_scripts.mkdir(parents=True, exist_ok=True)
+        for name in ("init_project_ops.py", "source_state.py"):
+            shutil.copy2(SCRIPTS / name, nested_scripts / name)
+        nested_init = nested_scripts / "init_project_ops.py"
+
+        detected = self.run_tool(nested_init, "--target", str(self.root), "--no-index", "--no-repo-map")
+        self.assertNotEqual(0, detected.returncode, detected.stdout)
+        self.assertIn("single directory name directly under the project root", detected.stderr)
+        # Refused before writing, and without silently falling back to a flat
+        # install that would leave the pack unexcluded from the code graph.
+        self.assertFalse((self.root / "_agent_ops").exists())
+        self.assertFalse((self.root / "tools" / "my-pack" / "_agent_ops").exists())
+
+    def test_a_pack_may_not_take_the_ops_folder_name(self) -> None:
+        """`--folder _agent_ops` passes a depth check but breaks resolution:
+        the pack root becomes `_agent_ops/` and real memory lands in
+        `_agent_ops/_agent_ops/`, while resolve_ops_dir() returns the pack root
+        as soon as it exists. session_start then reported a project with full
+        memory as FRESH with a missing REPO_MAP.md."""
+        self.write("src/app.py", "def app():\n    return 1\n")
+
+        rejected = self.run_tool(
+            SCRIPTS / "embed_pack.py", "--target", str(self.root), "--folder", "_agent_ops", cwd=PACK_ROOT
+        )
+        self.assertNotEqual(0, rejected.returncode)
+        self.assertIn("belongs to the project operations folder", rejected.stderr)
+        self.assertEqual(["src"], sorted(path.name for path in self.root.iterdir()))
+
     def test_this_pack_runs_the_runtime_tools_it_ships(self) -> None:
         """`_agent_ops/tools/` is generated from `scripts/`. When the two drift,
         this repository is dogfooding a build it never shipped: a bug fixed in

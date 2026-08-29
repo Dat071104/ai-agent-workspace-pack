@@ -818,7 +818,7 @@ def main() -> int:
         action="store_true",
         help=(
             "Explicitly install the workspace-pack bridge in an existing AGENTS.md. "
-            "For --embedded-folder it becomes the first line and preserves all host text."
+            "For --embedded-folder the managed block is prepended, preserving all host text."
         ),
     )
     parser.add_argument(
@@ -862,7 +862,18 @@ def main() -> int:
     if embedded_folder is None and ops_relative_path is None:
         detected = detect_embedded_folder(target)
         if detected is not None:
-            embedded_folder = detected
+            # Detection has to clear the same bar as --embedded-folder. It did
+            # not, which left the whole nested-pack defect reachable through the
+            # pack's own documented bootstrap command.
+            try:
+                embedded_folder = pack_folder(detected.as_posix(), "the detected pack folder")
+            except ValueError as error:
+                parser.error(
+                    f"{error}\n"
+                    f"       This pack is at {detected.as_posix()}/ inside the target. Move it to a "
+                    f"single directory under the project root, or install a fresh copy with "
+                    f"scripts/embed_pack.py."
+                )
             print(
                 "EMBEDDED FOLDER: auto-detected "
                 + detected.as_posix()
