@@ -19,7 +19,7 @@ sys.dont_write_bytecode = True
 TOOLS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS_DIR))
 
-from source_state import code_change_sets, git_changed_paths  # noqa: E402
+from source_state import code_change_sets, git_changed_paths, resolve_ops_dir  # noqa: E402
 
 
 def run(command: list[str], root: Path) -> subprocess.CompletedProcess[str]:
@@ -48,8 +48,9 @@ def main() -> int:
     parser.add_argument(
         "--stage",
         action="store_true",
-        help="Stage only _agent_ops/REPO_MAP.md after a successful refresh.",
+        help="Stage only the active ops folder's REPO_MAP.md after a successful refresh.",
     )
+    parser.add_argument("--ops-folder", default="_agent_ops", help="Project operations folder.")
     args = parser.parse_args()
 
     root = Path(args.root).expanduser().resolve()
@@ -82,13 +83,13 @@ def main() -> int:
         )
         return 2
 
-    ops_dir = root / "_agent_ops"
+    ops_dir = resolve_ops_dir(root, args.ops_folder)
     map_path = ops_dir / "REPO_MAP.md"
     index_path = ops_dir / "code_index.json"
     required_tools = (TOOLS_DIR / "build_code_index.py", TOOLS_DIR / "generate_repo_map.py")
     if not ops_dir.is_dir() or not all(path.is_file() for path in required_tools):
         print(
-            "BLOCKED: _agent_ops/tools is incomplete. Initialize or refresh agent ops before committing code.",
+            "BLOCKED: agent-ops tools are incomplete. Initialize or refresh agent ops before committing code.",
             file=sys.stderr,
         )
         return 2
@@ -120,6 +121,8 @@ def main() -> int:
             str(root),
             "--output",
             str(map_path),
+            "--index",
+            str(index_path),
             "--force",
         ],
         root,
@@ -130,7 +133,8 @@ def main() -> int:
         return map_result.returncode or 1
 
     if args.stage:
-        stage_result = run(["git", "add", "--", "_agent_ops/REPO_MAP.md"], root)
+        map_relative = map_path.relative_to(root).as_posix()
+        stage_result = run(["git", "add", "--", map_relative], root)
         if stage_result.returncode != 0:
             print("BLOCKED: generated REPO_MAP.md could not be staged; commit stopped.", file=sys.stderr)
             print_result(stage_result)
@@ -138,7 +142,7 @@ def main() -> int:
 
     print(f"UPDATED: code index + {map_path.relative_to(root).as_posix()} for {len(staged)} staged code file(s).")
     if args.stage:
-        print("STAGED: _agent_ops/REPO_MAP.md")
+        print(f"STAGED: {map_path.relative_to(root).as_posix()}")
     return 0
 
 

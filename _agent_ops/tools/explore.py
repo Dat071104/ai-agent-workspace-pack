@@ -382,7 +382,7 @@ def main() -> int:
         description="Structural retrieval over _agent_ops/code_index.json."
     )
     parser.add_argument("--root", default=".", help="Repository root.")
-    parser.add_argument("--index", default="_agent_ops/code_index.json", help="Index path.")
+    parser.add_argument("--index", default=None, help="Index path.")
     parser.add_argument("--symbol", help="Definitions, callers, callees, and flow for a symbol.")
     parser.add_argument("--impact", help="Blast radius and tests to run for a symbol.")
     parser.add_argument("--file", dest="file_query", help="What a file holds and who imports it.")
@@ -393,9 +393,14 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.root).expanduser().resolve()
-    index_path = Path(args.index)
-    if not index_path.is_absolute():
-        index_path = root / index_path
+    if args.index:
+        index_path = Path(args.index)
+        if not index_path.is_absolute():
+            index_path = root / index_path
+    else:
+        from source_state import resolve_ops_dir  # noqa: PLC0415
+
+        index_path = resolve_ops_dir(root) / "code_index.json"
     graph = Graph(load_index(index_path, root))
 
     if args.symbol:

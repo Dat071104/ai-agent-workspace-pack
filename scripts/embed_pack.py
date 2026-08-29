@@ -23,7 +23,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from scan_deps import looks_like_pack  # noqa: E402
+from source_state import looks_like_pack  # noqa: E402
 from source_state import worktree_is_clean  # noqa: E402
 
 

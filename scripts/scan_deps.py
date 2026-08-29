@@ -6,12 +6,25 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import re
+import sys
 from collections import deque
 from pathlib import Path
 
 
-CODE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx"}
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from source_state import CODE_SUFFIXES as SUFFIX_LIST  # noqa: E402
+from source_state import DEFAULT_OPS_FOLDER, looks_like_pack  # noqa: E402
+
+
+# Freshness and indexing must agree on what "project code" means, so both read
+# the one list in source_state.py. Two copies of it once disagreed and left a
+# Go repository permanently stale: every commit invalidated the graph and the
+# rebuild then skipped every file that had changed.
+CODE_SUFFIXES = set(SUFFIX_LIST)
 SKIP_DIRS = {
     ".git",
     ".venv",
@@ -25,22 +38,10 @@ SKIP_DIRS = {
     "site-packages",
     # The agent's own memory folder. It holds a copy of these very tools, and
     # indexing them would put the tooling at the top of the project's own hot
-    # files. A non-default --ops-folder name is not skipped automatically.
-    "_agent_ops",
+    # files. init_project_ops.py requires the folder to be named this, so there
+    # is no second name to skip.
+    DEFAULT_OPS_FOLDER,
 }
-# A workspace pack copied INTO a project is infrastructure, not that project's
-# application, so its code is excluded from the project's map and graph.
-#
-# Only a pack in its own subdirectory is excluded. Excluding one at the root was
-# tried and removed: a project with the pack unpacked at its root and the pack's
-# own source checkout have identical signatures, so the rule could not tell
-# "infrastructure" from "the product". It silently reduced the pack's own repo
-# map to a single file. Ambiguity here is worse than the pollution it prevented.
-EMBEDDED_PACK_MARKERS = (
-    "TEAM_ROUTER.md",
-    "core-context",
-    "scripts/init_project_ops.py",
-)
 JS_IMPORT_RE = re.compile(
     r"""(?:from\s+["']([^"']+)["']|import\s*\(?\s*["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\))"""
 )
@@ -66,13 +67,16 @@ def tool_prefix(root: Path) -> str:
     return "scripts"
 
 
-def looks_like_pack(directory: Path) -> bool:
-    """True only for a directory holding the complete workspace-pack signature."""
-    return all((directory / marker).exists() for marker in EMBEDDED_PACK_MARKERS)
-
-
 def namespaced_pack_dirs(root: Path) -> set[str]:
-    """Top-level copied packs to exclude from a host project's code graph."""
+    """Top-level copied packs to exclude from a host project's code graph.
+
+    Only a pack in its own subdirectory is excluded. Excluding one at the root
+    was tried and removed: a project with the pack unpacked at its root and the
+    pack's own source checkout have identical signatures, so the rule could not
+    tell "infrastructure" from "the product". It silently reduced the pack's own
+    repo map to a single file. Ambiguity here is worse than the pollution it
+    prevented.
+    """
 
     try:
         children = [child for child in root.iterdir() if child.is_dir()]
@@ -99,15 +103,25 @@ def should_skip_path(root: Path, path: Path, nested_packs: set[str]) -> bool:
 
 
 def iter_code_files(root: Path, suffixes: frozenset[str] | set[str] | None = None) -> list[Path]:
-    """Project code files. `suffixes` lets a caller narrow the set, never widen it."""
+    """Project code files. `suffixes` lets a caller narrow the set, never widen it.
+
+    Skipped directories are pruned before descending, not filtered afterwards.
+    `rglob("*")` enumerated every entry under `node_modules/` and `.git/` before
+    a single one could be rejected, which is most of the walk in a real project.
+    """
     wanted = CODE_SUFFIXES if suffixes is None else (set(suffixes) & CODE_SUFFIXES)
-    files: list[Path] = []
     nested_packs = namespaced_pack_dirs(root)
-    for path in root.rglob("*"):
-        if should_skip_path(root, path, nested_packs):
-            continue
-        if path.is_file() and path.suffix in wanted:
-            files.append(path)
+    files: list[Path] = []
+    for current, directories, names in os.walk(root):
+        here = Path(current)
+        directories[:] = [
+            name
+            for name in directories
+            if not should_skip_path(root, here / name, nested_packs)
+        ]
+        files += [
+            here / name for name in names if Path(name).suffix in wanted
+        ]
     return files
 
 

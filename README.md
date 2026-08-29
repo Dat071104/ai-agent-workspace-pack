@@ -66,6 +66,10 @@ Step 2 puts four things in your project:
 | The tools themselves | `_agent_ops/tools/` | So the project runs on its own |
 | Agent instructions | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` at your project root | Codex/Cursor/Windsurf auto-load `AGENTS.md`; Claude Code and Gemini CLI don't -- `CLAUDE.md`/`GEMINI.md` are thin adapters that `@`-import it |
 
+`AGENTS.md` is the single canonical entry point. Every harness resolves it
+first, so a rule you write there is in context no matter which tool the session
+is running under.
+
 It never overwrites an existing file. `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md`
 are each written only if your project does not already have one.
 
@@ -82,16 +86,39 @@ This creates `ai-agent-workspace-pack/`, excluding the source `.git/` and its
 project-specific `_agent_ops/`, then creates fresh project state inside the new
 folder. It keeps team instructions, scripts, templates, phase cards, and the
 project `_agent_ops/` state under that one folder. The only root-level integration files
-are the lightweight harness entry points. In particular, the first line of
-`AGENTS.md` is:
+are the lightweight harness entry points.
+
+#### One canonical entry point, three harnesses
+
+Your `AGENTS.md` stays the root of the tree. The installer prepends a managed
+block to it -- plain text between `AI_AGENT_WORKSPACE_PACK` markers -- naming
+where the pack is and what to read for `@start-here`. Every line you already
+wrote follows it unchanged.
 
 ```text
-@ai-agent-workspace-pack/AGENTS.md
+your-project/
+  AGENTS.md          <- your rules + the managed pack block   (Codex reads this)
+  CLAUDE.md          <- @AGENTS.md, then @ai-agent-workspace-pack/AGENTS.md
+  GEMINI.md          <- @./AGENTS.md, then @./ai-agent-workspace-pack/AGENTS.md
+  ai-agent-workspace-pack/
 ```
 
-If `AGENTS.md` already exists, every original line follows unchanged after this
-first line. If it does not exist, the bridge is the complete file. `CLAUDE.md`
-and `GEMINI.md` are created only when absent and import the pack directly.
+Two properties are load-bearing, and earlier revisions of this pack got both
+wrong:
+
+- **The block is prose, not an `@import`.** Claude Code and Gemini CLI expand
+  `@path` inside their own memory files. Codex concatenates `AGENTS.md` and
+  resolves nothing, so a bare `@ai-agent-workspace-pack/AGENTS.md` line reached
+  it as decoration -- the model might open that path, or might not. Prose is a
+  contract; a link only some harnesses follow is not.
+- **`CLAUDE.md` and `GEMINI.md` import your `AGENTS.md` first.** They used to
+  import the pack directly, which meant a project whose real governance lived in
+  its own `AGENTS.md` had those rules on disk and absent from the model's
+  context. Host rules now reach every harness before any pack workflow does.
+
+An install made before this change is upgraded in place the next time the
+installer runs: the old link line is removed, the managed block replaces it, and
+your own text is preserved.
 
 #### Updating an installed pack
 
@@ -299,6 +326,13 @@ wiring, reflection, or runtime registries. So:
 
 Python is parsed with a real AST parser and is accurate. JS/TS uses regex
 (no JS parser ships with Python) and is always marked `weak`.
+
+**Language support is not uniform across the pack.** Memory, the session
+protocol, the hygiene checks and the git safety rules are language-agnostic and
+work in any repository. The code graph -- `REPO_MAP.md`, `code_index.json` and
+`explore.py` -- indexes **Python and JS/TS only**. In a Go or Rust repository
+everything else still works; you simply get no symbol graph, and the tools will
+not claim one is stale.
 
 ---
 

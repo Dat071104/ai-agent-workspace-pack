@@ -591,3 +591,82 @@ git diff --check
 ### Next Step
 
 `Use it on a real project; revisit only when a second project makes a sharper need visible.`
+
+---
+
+## Entry
+
+### Date
+
+`2026-08-29`
+
+### Task ID
+
+`TASK-0006`
+
+### Scope
+
+`Make the root AGENTS.md the one canonical entry point every harness resolves, and stop three copies of "what is project code" from disagreeing.`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `scripts/init_project_ops.py` | bridge v2: one `agents_bridge()` for both layouts, prose instead of an `@path`; legacy v1 block and v1 link line replaced in place; `CLAUDE.md`/`GEMINI.md` import the root `AGENTS.md` first and the pack second; `--ops-folder` leaf name enforced |
+| `scripts/source_state.py` | owns `CODE_SUFFIXES` (Python + JS/TS only), `EMBEDDED_PACK_MARKERS`, `looks_like_pack`; nested pack detected by signature, not by name |
+| `scripts/scan_deps.py` | imports those definitions; `iter_code_files` prunes skipped directories with `os.walk` instead of filtering a full `rglob` |
+| `scripts/session_start.py` | removed a third, unused `CODE_SUFFIXES` copy |
+| `scripts/embed_pack.py`, `scripts/migrate_pack.py` | take `looks_like_pack` from its owner |
+| `_agent_ops/tools/*.py` | refreshed from `scripts/`; the tracked copies had drifted from canonical |
+| `tests/test_workspace_tools.py` | 5 contracts added (37 total) |
+| `README.md`, `AGENTS.md`, `scripts/README.md` | describe the block bridge and the language boundary |
+
+### Why
+
+`Two of these were contract bugs, not polish. The bridge was a link only some harnesses expand, so whether the pack was read at all depended on model behavior; and the generated harness files imported the pack instead of the host's own AGENTS.md, so a project's governance could be preserved on disk and still never reach the model. The third was a self-inflicted blind spot: this repository was running its own stale tracked copies of the runtime tools, so a fix in scripts/ looked verified while the sessions kept executing the old build.`
+
+### Tests Run
+
+```bash
+python -B -m unittest discover -s tests -q
+python -B scripts/check_repo_hygiene.py --root .
+python -B scripts/embed_pack.py --target <scratch project>
+python -B <scratch>/ai-agent-workspace-pack/scripts/init_project_ops.py --target <scratch v1 install>
+```
+
+### Results
+
+`37 golden tests passed (32 before, 5 added). Hygiene passed after removing tests/__pycache__. A scratch fresh install produced the v2 block above preserved host text, with CLAUDE.md/GEMINI.md importing the root first. A scratch project holding the v1 bare link line was upgraded in place: link removed, block installed, host text intact.`
+
+### Bugs Found
+
+- Root `AGENTS.md` bridge was an `@path` line; Codex expands none, so the pack was not reliably read.
+- `CLAUDE.md` / `GEMINI.md` imported the pack directly, bypassing host governance.
+- 8 of 10 tracked `_agent_ops/tools/*.py` differed from `scripts/`; this repo was dogfooding a build it never shipped.
+- `source_state` and `scan_deps` disagreed on project-code suffixes, leaving a Go/Rust/Java repo permanently stale.
+- `--ops-folder` accepted a name no scanner skips, which would index the agent's own tooling as project source.
+
+### Root Cause
+
+`Each piece was verified against the filesystem shape it produced rather than against the context a harness actually receives, and "project code" was defined independently in three files.`
+
+### Fix Applied
+
+`One versioned managed block, one canonical entry point per harness, one suffix list, one pack-signature check, and a test that fails when the tracked runtime copies drift from scripts/.`
+
+### Git Commit
+
+`Not committed: no commit authorization was given for this work.`
+
+### Push Result
+
+`Not pushed.`
+
+### Remaining Risks
+
+- `Codex's lack of @path expansion in AGENTS.md was established from the loader's documented behavior, not from a Codex run in this session. The v2 block is correct either way -- prose is read whether or not an import would also have worked -- so the fix does not depend on that claim.`
+- `RISK-0007: no test drives a real harness. The suite asserts the bytes each harness would load, which is one level closer to the truth than the previous filesystem-shape assertions, but still not an end-to-end harness run.`
+
+### Next Step
+
+`Review the diff and decide on a commit. Nothing here is blocked.`

@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
 from scan_deps import tool_prefix  # noqa: E402
-from source_state import index_source_fingerprint  # noqa: E402
+from source_state import index_source_fingerprint, is_project_code as source_is_project_code, resolve_ops_dir  # noqa: E402
 from summarize_implementation_log import split_entries  # noqa: E402
 
 
@@ -31,20 +31,16 @@ PLACEHOLDER_RES = [
     re.compile(r"<fill in [^>\n]*>"),
 ]
 ROTATE_THRESHOLD = 12
-CODE_SUFFIXES = (".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".rb", ".php", ".cs")
 
 
-def is_project_code(path: str) -> bool:
+def is_project_code(path: str, root: Path | None = None) -> bool:
     """A changed file that should make the code map look stale.
 
     Excludes the agent's own folder: `_agent_ops/tools/` holds copies of these
     very scripts, and counting them made a fresh install report nine changed
     "code files" the moment the ops folder was committed.
     """
-    cleaned = path.strip().replace("\\", "/")
-    if cleaned.startswith("_agent_ops/") or "/_agent_ops/" in cleaned:
-        return False
-    return cleaned.endswith(CODE_SUFFIXES)
+    return source_is_project_code(path, root)
 
 
 def git_changed_paths(root: Path, args: list[str]) -> set[str]:
@@ -69,13 +65,13 @@ def working_tree_code_files(root: Path) -> list[str]:
         ["ls-files", "--others", "--exclude-standard"],
     ):
         paths.update(git_changed_paths(root, args))
-    return sorted(path for path in paths if is_project_code(path))
+    return sorted(path for path in paths if is_project_code(path, root))
 
 
 def code_files_since(root: Path, stamp: str) -> list[str]:
     """Committed and working-tree project code newer than a map/index stamp."""
     committed = git_changed_paths(root, ["diff", "--name-only", f"{stamp}..HEAD"])
-    combined = {path for path in committed if is_project_code(path)}
+    combined = {path for path in committed if is_project_code(path, root)}
     combined.update(working_tree_code_files(root))
     return sorted(combined)
 
@@ -216,8 +212,28 @@ def continuity_block(brief: str, task: str, handoff: str) -> list[str]:
     return out
 
 
+def pack_stamp(ops: Path) -> str:
+    """Revision of the workspace pack this project runs, when it is namespaced.
+
+    A project that cannot name its pack revision cannot tell whether a bug fixed
+    upstream is still live in its own copy.
+    """
+
+    stamp = ops.parent / "PACK_VERSION"
+    if not stamp.is_file():
+        return ""
+    for line in stamp.read_text(encoding="utf-8", errors="ignore").splitlines():
+        if line.startswith("version:"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
 def render(root: Path, ops: Path, log_keep: int) -> str:
     tools = tool_prefix(root)
+    try:
+        ops_reference = ops.relative_to(root).as_posix()
+    except ValueError:
+        ops_reference = str(ops)
     brief_path = ops / "SESSION_BRIEF.md"
     task_path = ops / "CURRENT_TASK.md"
     card_path = ops / "PROJECT_CONTEXT_CARD.md"
@@ -235,21 +251,27 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
     head = git_value(root, ["rev-parse", "--short", "HEAD"])
     branch = git_value(root, ["branch", "--show-current"])
     status = git_value(root, ["status", "--short"])
-    is_git = head != "not available"
+    # Two different questions, and they were conflated. `rev-parse HEAD` fails
+    # in a repository whose first commit does not exist yet, so a brand-new
+    # project was reported as "not a git repository" and silently lost its file
+    # listing, its source fingerprint, and every staleness check on the one
+    # session where the map is built.
+    is_git = git_value(root, ["rev-parse", "--is-inside-work-tree"]) == "true"
+    has_commits = is_git and head != "not available"
     change_sets = (
         {
             "unstaged": {
-                path for path in git_changed_paths(root, ["diff", "--name-only"]) if is_project_code(path)
+                path for path in git_changed_paths(root, ["diff", "--name-only"]) if is_project_code(path, root)
             },
             "staged": {
                 path
                 for path in git_changed_paths(root, ["diff", "--cached", "--name-only"])
-                if is_project_code(path)
+                if is_project_code(path, root)
             },
             "untracked": {
                 path
                 for path in git_changed_paths(root, ["ls-files", "--others", "--exclude-standard"])
-                if is_project_code(path)
+                if is_project_code(path, root)
             },
         }
         if is_git
@@ -266,7 +288,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
         out += [
             f"- Root: `{root}`",
             f"- Branch: `{branch}`",
-            f"- HEAD: `{head}`",
+            f"- HEAD: `{head}`" if has_commits else "- HEAD: none yet (no commits in this repository)",
             f"- Uncommitted changes: {len(dirty)} file(s)",
         ]
         for line in dirty[:15]:
@@ -275,6 +297,15 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             out.append(f"    ... {len(dirty) - 15} more")
     else:
         out.append(f"- Root: `{root}` (not a git repository -- no delta or staleness checks)")
+    if ops_reference.endswith("/_agent_ops"):
+        installed = pack_stamp(ops)
+        pack_folder = ops_reference[: -len("/_agent_ops")]
+        out.append(
+            f"- Workspace pack: `{pack_folder}` at version `{installed}`"
+            if installed
+            else f"- Workspace pack: `{pack_folder}`, version unknown (no PACK_VERSION). "
+            "Refresh it with `embed_pack.py --target . --update` from a source pack."
+        )
     out.append("")
 
     if not ops.exists():
@@ -289,7 +320,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             "",
             "That one script lives in the workspace pack, not in the project: it",
             "needs the pack's core-context/ templates. It copies the rest of the",
-            "tools into `_agent_ops/tools/`, and everything after it runs from the",
+            f"tools into `{ops_reference}/tools/`, and everything after it runs from the",
             "project with no pack present.",
             "",
         ]
@@ -301,6 +332,8 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
     verified = first_value(brief, "Last Verified Commit")
     if not is_git:
         out.append("- Skipped: not a git repository.")
+    elif not has_commits:
+        out.append("- Skipped: no commits yet, so there is nothing to verify memory against.")
     elif not commit_exists(root, verified):
         out.append(
             "- SESSION_BRIEF has no usable `Last Verified Commit`. Treat project "
@@ -349,7 +382,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             "- `REPO_MAP.md` is missing. Generate it before grepping the repository:",
             "",
             "```bash",
-            f"python {tools}/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force",
+            f"python {tools}/generate_repo_map.py --root . --output {ops_reference}/REPO_MAP.md --force",
             "```",
         ]
     else:
@@ -370,8 +403,12 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             elif change_sets["staged"]:
                 out.append("- Current with the staged source index; ready for the pending commit.")
             else:
-                out.append(f"- Current with indexed source state at HEAD ({head}).")
-        elif not is_git or not commit_exists(root, map_sha):
+                out.append(
+                    f"- Current with indexed source state at HEAD ({head})."
+                    if has_commits
+                    else "- Current with the staged source index; no commits yet."
+                )
+        elif not has_commits or not commit_exists(root, map_sha):
             out.append("- Present; freshness unknown (no usable commit stamp).")
         elif map_sha.startswith(head) or head.startswith(map_sha):
             if worktree_code:
@@ -428,7 +465,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
                 out.append(f"- Current with the staged source index ({counts}); commit pending.")
             else:
                 out.append(f"- Current with indexed source state ({counts}).")
-        elif not is_git or not commit_exists(root, index_sha):
+        elif not has_commits or not commit_exists(root, index_sha):
             out.append(f"- Present ({counts}); freshness unknown.")
         elif index_sha.startswith(head) or head.startswith(index_sha):
             if worktree_code:
@@ -514,8 +551,8 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
                 f"- Over the rotation threshold ({log_keep}). Rotate before it becomes a context cost:",
                 "",
                 "```bash",
-                f"python {tools}/summarize_implementation_log.py --log _agent_ops/IMPLEMENTATION_LOG.md \\",
-                f"    --rotate --keep {log_keep} --output _agent_ops/LOG_SUMMARY.md --force",
+                f"python {tools}/summarize_implementation_log.py --log {ops_reference}/IMPLEMENTATION_LOG.md \\",
+                f"    --rotate --keep {log_keep} --output {ops_reference}/LOG_SUMMARY.md --force",
                 "```",
             ]
         else:
@@ -538,25 +575,13 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
     ]
 
     out += [
-        "## Durable Recordkeeping Gate",
-        "",
-        "Before a meaningful completion report, classify the work actually done,",
-        "not the task prompt's file list. Implementation, test, audit, gate, or",
-        "verification evidence requires an implementation-log entry; durable",
-        "phase/milestone state requires a project-context update; material",
-        "trade-offs require a decision entry. Write triggered records before the",
-        "Closure Receipt. A missing filename is never a not-needed reason.",
-        "",
-    ]
-
-    out += [
         "## Reminder",
         "",
         "This output covers the mechanical checks only. Still owed to the user:",
         "the Session Receipt, the routing decision, the token/risk level, and at",
         "most one clarifying question. If Session Continuity says CONTINUATION,",
         "read the handoff before any of that. Managed-session permission covers",
-        "`_agent_ops/` only -- never source, config, or git.",
+        f"`{ops_reference}/` only -- never source, config, or git.",
         "",
     ]
     return "\n".join(out).rstrip() + "\n"
@@ -580,7 +605,7 @@ def main() -> int:
     if not root.exists() or not root.is_dir():
         parser.error(f"Root must be an existing directory: {root}")
 
-    print(render(root, root / args.ops_folder, max(args.log_keep, 1)))
+    print(render(root, resolve_ops_dir(root, args.ops_folder), max(args.log_keep, 1)))
     return 0
 
 

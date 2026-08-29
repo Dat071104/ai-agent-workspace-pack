@@ -14,26 +14,27 @@ import subprocess
 from pathlib import Path
 
 
-CODE_SUFFIXES = (
-    ".py",
-    ".js",
-    ".jsx",
-    ".ts",
-    ".tsx",
-    ".go",
-    ".rs",
-    ".java",
-    ".rb",
-    ".php",
-    ".cs",
-)
+# The languages the scanner can actually parse (see scan_deps.py). Freshness is
+# judged against this list, never against a wider one: a suffix that marks the
+# graph stale but that the rebuild then ignores leaves the repository
+# permanently stale, which trains everyone to ignore the warning.
+CODE_SUFFIXES = (".py", ".js", ".jsx", ".ts", ".tsx")
 DEFAULT_OPS_FOLDER = "_agent_ops"
-NAMESPACED_PACK_FOLDER = "ai-agent-workspace-pack"
+# A workspace pack copied INTO a project is infrastructure, not that project's
+# application. It is recognized by its file signature rather than by its folder
+# name, so renaming the install folder cannot turn pack internals back into
+# project source.
 EMBEDDED_PACK_MARKERS = ("TEAM_ROUTER.md", "core-context", "scripts/init_project_ops.py")
 
 
 def normalize_path(path: str) -> str:
     return path.strip().replace("\\", "/")
+
+
+def looks_like_pack(directory: Path) -> bool:
+    """True only for a directory holding the complete workspace-pack signature."""
+
+    return all((directory / marker).exists() for marker in EMBEDDED_PACK_MARKERS)
 
 
 def is_project_code(path: str, root: Path | None = None) -> bool:
@@ -42,10 +43,9 @@ def is_project_code(path: str, root: Path | None = None) -> bool:
     cleaned = normalize_path(path)
     if cleaned.startswith(f"{DEFAULT_OPS_FOLDER}/") or f"/{DEFAULT_OPS_FOLDER}/" in cleaned:
         return False
-    if root and cleaned.startswith(f"{NAMESPACED_PACK_FOLDER}/"):
-        pack_root = root / NAMESPACED_PACK_FOLDER
-        if all((pack_root / marker).exists() for marker in EMBEDDED_PACK_MARKERS):
-            return False
+    head, _, rest = cleaned.partition("/")
+    if root is not None and rest and looks_like_pack(root / head):
+        return False
     return cleaned.endswith(CODE_SUFFIXES)
 
 

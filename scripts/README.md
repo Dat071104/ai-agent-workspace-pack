@@ -44,7 +44,7 @@ python scripts/init_project_ops.py --target "D:\MyProject"
 #   --no-tools      do not copy the tools into <target>/_agent_ops/tools/
 #   --embedded-folder ai-agent-workspace-pack
 #                   keep project operations inside a copied pack folder and
-#                   use a first-line root AGENTS.md bridge to it
+#                   use a managed root AGENTS.md block pointing at it
 #   --no-agents-md  do not create AGENTS.md at the target root
 #   --install-agents-bridge  explicitly add/update the managed bridge in an
 #                       existing embedded project's AGENTS.md

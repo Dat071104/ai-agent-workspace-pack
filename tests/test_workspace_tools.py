@@ -21,6 +21,14 @@ sys.dont_write_bytecode = True
 PACK_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = PACK_ROOT / "scripts"
 
+sys.path.insert(0, str(SCRIPTS))
+
+from init_project_ops import AGENTS_BRIDGE_BEGIN as BRIDGE_BEGIN  # noqa: E402
+from init_project_ops import AGENTS_BRIDGE_END as BRIDGE_END  # noqa: E402
+from init_project_ops import RUNTIME_TOOLS  # noqa: E402
+from scan_deps import CODE_SUFFIXES as SCANNED_SUFFIXES  # noqa: E402
+from source_state import CODE_SUFFIXES as FRESHNESS_SUFFIXES  # noqa: E402
+
 
 class WorkspaceToolsGoldenTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -84,6 +92,125 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
             and edge["conf"] == confidence
         ]
         self.assertTrue(matches, f"missing {confidence} import {source} -> {target}")
+
+    def assert_root_bridge(self, pack_prefix: str, host_tail: str) -> str:
+        """The root AGENTS.md is what EVERY harness loads, so it must carry the
+        pack instruction as literal text, not as an `@path` only some harnesses
+        expand, and it must never lose a line the host wrote."""
+        content = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertTrue(content.startswith(BRIDGE_BEGIN), content[:120])
+        self.assertEqual(1, content.count(BRIDGE_BEGIN))
+        self.assertEqual(1, content.count(BRIDGE_END))
+        self.assertNotIn("AI_AGENT_WORKSPACE_PACK:BEGIN v1", content)
+        if pack_prefix:
+            self.assertIn(f"`{pack_prefix}/AGENTS.md`", content)
+            self.assertIn(f"`{pack_prefix}/TEAM_ROUTER.md`", content)
+            # The superseded bare link must be gone, not merely outnumbered.
+            self.assertNotIn(f"@{pack_prefix}/AGENTS.md", content)
+        self.assertTrue(content.endswith(host_tail), content[-200:])
+        return content
+
+    def test_freshness_and_indexing_agree_on_what_project_code_is(self) -> None:
+        """These two lists were separate. source_state counted .go/.rs/.java as
+        project code; scan_deps parses none of them. A Go repository was told
+        its graph was stale on every commit, the rebuild then skipped every file
+        that had changed, and the next session was told the same thing again."""
+        self.assertEqual(set(FRESHNESS_SUFFIXES), set(SCANNED_SUFFIXES))
+
+        self.write("src/service.go", "package main\n\nfunc main() {}\n")
+        self.write("src/app.py", "def app():\n    return 1\n")
+        scan = self.run_tool(SCRIPTS / "scan_deps.py", "--root", str(self.root), "--output", "json", cwd=PACK_ROOT)
+        self.assertEqual(0, scan.returncode, scan.stderr)
+        indexed = sorted(json.loads(scan.stdout)["graph"])
+        self.assertEqual(["src/app.py"], indexed)
+
+        # And the file the scanner will not index must not be the reason the
+        # graph is reported stale.
+        sys.path.insert(0, str(SCRIPTS))
+        from source_state import is_project_code  # noqa: PLC0415
+
+        self.assertFalse(is_project_code("src/service.go", self.root))
+        self.assertTrue(is_project_code("src/app.py", self.root))
+
+    def test_ops_folder_name_is_an_invariant_not_a_preference(self) -> None:
+        """The scanner, the hygiene check and the freshness check all skip one
+        folder name. A free-form --ops-folder installed the agent's own tooling
+        somewhere they do not skip, and the project's code graph then answered
+        questions about the pack instead of about the project."""
+        rejected = self.init_project("--ops-folder", ".agent-state")
+        self.assertNotEqual(0, rejected.returncode)
+        self.assertIn("--ops-folder must end in _agent_ops", rejected.stderr)
+        self.assertFalse((self.root / ".agent-state").exists())
+
+        # A different parent is still fine; only the leaf name is fixed.
+        nested = self.init_project("--ops-folder", "tools/_agent_ops", "--no-index", "--no-repo-map")
+        self.assertEqual(0, nested.returncode, nested.stderr)
+        self.assertTrue((self.root / "tools" / "_agent_ops" / "INDEX.md").is_file())
+
+    def test_this_pack_runs_the_runtime_tools_it_ships(self) -> None:
+        """`_agent_ops/tools/` is generated from `scripts/`. When the two drift,
+        this repository is dogfooding a build it never shipped: a bug fixed in
+        `scripts/` stays live in every session that runs its own copy, and the
+        fix looks verified because the tests exercise `scripts/` only."""
+        drifted = [
+            name
+            for name in RUNTIME_TOOLS
+            if (PACK_ROOT / "_agent_ops" / "tools" / name).read_bytes() != (SCRIPTS / name).read_bytes()
+        ]
+        self.assertEqual(
+            [],
+            drifted,
+            "stale runtime copies; refresh with: python scripts/init_project_ops.py --target .",
+        )
+
+    def test_every_harness_reaches_host_governance_before_the_pack(self) -> None:
+        """The invariant the whole layout exists for. A host rule that lives on
+        disk but never enters the model's context is not a rule, so each harness
+        entry point must resolve the host's own AGENTS.md, and the root file
+        must name the pack in prose -- Codex concatenates AGENTS.md and expands
+        no `@path`, so a bare link reaches it as decoration."""
+        self.write("ai-agent-workspace-pack/TEAM_ROUTER.md", "# copied pack marker\n")
+        self.write("ai-agent-workspace-pack/core-context/.keep", "")
+        self.write("ai-agent-workspace-pack/scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
+        self.write("AGENTS.md", "# Host rules\nNever touch production config.\n")
+
+        installed = self.init_project(
+            "--embedded-folder", "ai-agent-workspace-pack", "--install-agents-bridge"
+        )
+        self.assertEqual(0, installed.returncode, installed.stderr)
+
+        # Codex: no import expansion, so the host file itself must carry both
+        # the host rule and the instruction to read the pack.
+        agents = self.assert_root_bridge(
+            "ai-agent-workspace-pack", "# Host rules\nNever touch production config.\n"
+        )
+        self.assertIn("Never touch production config.", agents)
+        self.assertIn("`ai-agent-workspace-pack/START_HERE.md`", agents)
+
+        # Claude Code and Gemini CLI: the host file first, the pack second.
+        for memory_file, prefix in (("CLAUDE.md", "@"), ("GEMINI.md", "@./")):
+            lines = (self.root / memory_file).read_text(encoding="utf-8").splitlines()
+            self.assertEqual(
+                [prefix + "AGENTS.md", prefix + "ai-agent-workspace-pack/AGENTS.md"],
+                lines[:2],
+                memory_file,
+            )
+
+    def test_a_v1_install_is_upgraded_in_place_by_a_later_pack(self) -> None:
+        """The v1 bridge was a bare `@path` first line. A project that installed
+        it must end up on the current bridge without a second one appearing and
+        without losing the text its own author wrote around it."""
+        self.write("ai-agent-workspace-pack/TEAM_ROUTER.md", "# copied pack marker\n")
+        self.write("ai-agent-workspace-pack/core-context/.keep", "")
+        self.write("ai-agent-workspace-pack/scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
+        self.write("AGENTS.md", "@ai-agent-workspace-pack/AGENTS.md\n# Host rules\nKeep this.\n")
+
+        # No --install-agents-bridge: refreshing a bridge the project already
+        # accepted is regenerating pack-owned text, which is what lets an update
+        # carry this fix into a project installed before it existed.
+        upgraded = self.init_project("--embedded-folder", "ai-agent-workspace-pack")
+        self.assertEqual(0, upgraded.returncode, upgraded.stderr)
+        self.assert_root_bridge("ai-agent-workspace-pack", "# Host rules\nKeep this.\n")
 
     def test_init_builds_graph_in_order_and_is_idempotent(self) -> None:
         self.make_source_fixture()
@@ -317,7 +444,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         agents = (embedded / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("## Pack Mode: Embedded", agents)
         self.assertIn("START_HERE.md", agents)
-        self.assertIn("AI_AGENT_WORKSPACE_PACK:BEGIN v1", agents)
+        self.assertIn(BRIDGE_BEGIN, agents)
         embedded_check = self.run_tool(
             SCRIPTS / "init_project_ops.py",
             "--target",
@@ -334,7 +461,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
 
         default = self.init_project()
         self.assertEqual(0, default.returncode, default.stderr)
-        self.assertIn("WARN embedded pack detected but AGENTS bridge is missing", default.stdout)
+        self.assertIn("WARN workspace pack detected but the AGENTS.md bridge is missing", default.stdout)
         self.assertEqual(
             "# Existing project rules\nKeep this marker.\n",
             (self.root / "AGENTS.md").read_text(encoding="utf-8"),
@@ -345,7 +472,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertIn("AGENTS BRIDGE: INSTALLED", installed.stdout)
         agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("Keep this marker.", agents)
-        self.assertEqual(1, agents.count("AI_AGENT_WORKSPACE_PACK:BEGIN v1"))
+        self.assertEqual(1, agents.count(BRIDGE_BEGIN))
 
         second = self.init_project("--install-agents-bridge")
         self.assertEqual(0, second.returncode, second.stderr)
@@ -375,11 +502,15 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertTrue((ops / "REPO_MAP.md").is_file())
         self.assertIn("1 code files indexed", installed.stdout)
 
-        bridge = "@ai-agent-workspace-pack/AGENTS.md\n"
-        agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertEqual(bridge + "# Host rules\nKeep this text exactly.\n", agents)
-        self.assertIn("@ai-agent-workspace-pack/AGENTS.md", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
-        self.assertIn("@./ai-agent-workspace-pack/AGENTS.md", (self.root / "GEMINI.md").read_text(encoding="utf-8"))
+        agents = self.assert_root_bridge("ai-agent-workspace-pack", "# Host rules\nKeep this text exactly.\n")
+
+        # Host governance first for every harness, then the pack behind it.
+        claude = (self.root / "CLAUDE.md").read_text(encoding="utf-8")
+        gemini = (self.root / "GEMINI.md").read_text(encoding="utf-8")
+        self.assertEqual("@AGENTS.md", claude.splitlines()[0])
+        self.assertEqual("@ai-agent-workspace-pack/AGENTS.md", claude.splitlines()[1])
+        self.assertEqual("@./AGENTS.md", gemini.splitlines()[0])
+        self.assertEqual("@./ai-agent-workspace-pack/AGENTS.md", gemini.splitlines()[1])
 
         check = self.init_project("--embedded-folder", "ai-agent-workspace-pack", "--check-agents-bridge")
         self.assertEqual(0, check.returncode, check.stderr)
@@ -446,10 +577,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
             "--install-agents-bridge",
         )
         self.assertEqual(0, installed.returncode, installed.stderr)
-        self.assertEqual(
-            "@ai-agent-workspace-pack/AGENTS.md\n",
-            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
-        )
+        self.assert_root_bridge("ai-agent-workspace-pack", "-->\n")
 
     def test_embed_pack_copies_clean_source_and_initializes_fresh_nested_ops(self) -> None:
         self.write("AGENTS.md", "# Host rules\n")
@@ -465,10 +593,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
             "ai-agent-workspace-pack\n",
             (pack / "_agent_ops" / "PROJECT_CONTEXT_CARD.md").read_text(encoding="utf-8"),
         )
-        self.assertEqual(
-            "@ai-agent-workspace-pack/AGENTS.md\n# Host rules\n",
-            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
-        )
+        self.assert_root_bridge("ai-agent-workspace-pack", "# Host rules\n")
 
     def test_named_directory_without_pack_signature_remains_project_code(self) -> None:
         self.write("ai-agent-workspace-pack/src/host_feature.py", "def host_feature():\n    return True\n")
@@ -507,12 +632,13 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
 
         installed = self.init_project("--install-agents-bridge")
         self.assertEqual(0, installed.returncode, installed.stderr)
-        self.assertIn("managed bridge v1 updated", installed.stdout)
+        self.assertIn("managed bridge v2 updated in place", installed.stdout)
         agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertTrue(agents.startswith("# Host rules\n"))
         self.assertTrue(agents.endswith("# Host footer\n"))
         self.assertNotIn("old bridge", agents)
-        self.assertEqual(1, agents.count("AI_AGENT_WORKSPACE_PACK:BEGIN v1"))
+        self.assertNotIn("AI_AGENT_WORKSPACE_PACK:BEGIN v1", agents)
+        self.assertEqual(1, agents.count(BRIDGE_BEGIN))
 
     def test_nested_function_calls_are_not_attributed_to_outer_owner(self) -> None:
         self.write(
@@ -806,7 +932,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
             "# Host rules\nKeep this text exactly.\n",
             (self.root / "AGENTS.md").read_text(encoding="utf-8"),
         )
-        self.assertIn("no harness will read the pack", installed.stdout)
+        self.assertIn("no harness is told to read it", installed.stdout)
         self.assertIn(
             "python ai-agent-workspace-pack/scripts/init_project_ops.py --target . --install-agents-bridge",
             installed.stdout,
@@ -821,10 +947,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
             "--install-agents-bridge",
         )
         self.assertEqual(0, bridged.returncode, bridged.stderr)
-        self.assertEqual(
-            "@ai-agent-workspace-pack/AGENTS.md\n# Host rules\nKeep this text exactly.\n",
-            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
-        )
+        self.assert_root_bridge("ai-agent-workspace-pack", "# Host rules\nKeep this text exactly.\n")
 
         # An explicit ops folder still wins over detection.
         flat = self.run_tool(
@@ -952,10 +1075,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         )
 
         # The root ends up in the namespaced shape, host text intact.
-        self.assertEqual(
-            "@ai-agent-workspace-pack/AGENTS.md\n# Host rules\nKeep this text exactly.\n",
-            (self.root / "AGENTS.md").read_text(encoding="utf-8"),
-        )
+        self.assert_root_bridge("ai-agent-workspace-pack", "# Host rules\nKeep this text exactly.\n")
         self.assertTrue((self.root / ".codex" / "agents" / "tester.toml").is_file())
         self.assertTrue((self.root / ".claude" / "skills" / "tester-team" / "SKILL.md").is_file())
 

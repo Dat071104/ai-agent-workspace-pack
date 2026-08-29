@@ -6,12 +6,25 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import re
+import sys
 from collections import deque
 from pathlib import Path
 
 
-CODE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx"}
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from source_state import CODE_SUFFIXES as SUFFIX_LIST  # noqa: E402
+from source_state import DEFAULT_OPS_FOLDER, looks_like_pack  # noqa: E402
+
+
+# Freshness and indexing must agree on what "project code" means, so both read
+# the one list in source_state.py. Two copies of it once disagreed and left a
+# Go repository permanently stale: every commit invalidated the graph and the
+# rebuild then skipped every file that had changed.
+CODE_SUFFIXES = set(SUFFIX_LIST)
 SKIP_DIRS = {
     ".git",
     ".venv",
@@ -25,35 +38,9 @@ SKIP_DIRS = {
     "site-packages",
     # The agent's own memory folder. It holds a copy of these very tools, and
     # indexing them would put the tooling at the top of the project's own hot
-    # files. A non-default --ops-folder name is not skipped automatically.
-    "_agent_ops",
-}
-# A manually embedded workspace pack is infrastructure, not the target
-# project's application. Without this exclusion, its own `scripts/*.py` crowd
-# the map and graph of a small project. Detect the complete pack signature
-# first; never skip a generic directory such as `scripts/` by name alone.
-EMBEDDED_PACK_MARKERS = (
-    "TEAM_ROUTER.md",
-    "core-context",
-    "scripts/init_project_ops.py",
-)
-EMBEDDED_PACK_DIRS = {
-    ".claude",
-    ".codex",
-    "advisor-team",
-    "analyze-team",
-    "bug-fix-team",
-    "build-team",
-    "clean-code-team",
-    "commands",
-    "core-context",
-    "examples",
-    "handoff-team",
-    "harness",
-    "prompting-team",
-    "repo-hygiene-team",
-    "scripts",
-    "tester-team",
+    # files. init_project_ops.py requires the folder to be named this, so there
+    # is no second name to skip.
+    DEFAULT_OPS_FOLDER,
 }
 JS_IMPORT_RE = re.compile(
     r"""(?:from\s+["']([^"']+)["']|import\s*\(?\s*["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\))"""
@@ -80,30 +67,61 @@ def tool_prefix(root: Path) -> str:
     return "scripts"
 
 
-def is_embedded_pack(root: Path) -> bool:
-    """True only when this root contains a complete manually embedded pack."""
-    return all((root / marker).exists() for marker in EMBEDDED_PACK_MARKERS)
+def namespaced_pack_dirs(root: Path) -> set[str]:
+    """Top-level copied packs to exclude from a host project's code graph.
+
+    Only a pack in its own subdirectory is excluded. Excluding one at the root
+    was tried and removed: a project with the pack unpacked at its root and the
+    pack's own source checkout have identical signatures, so the rule could not
+    tell "infrastructure" from "the product". It silently reduced the pack's own
+    repo map to a single file. Ambiguity here is worse than the pollution it
+    prevented.
+    """
+
+    try:
+        children = [child for child in root.iterdir() if child.is_dir()]
+    except OSError:
+        return set()
+    return {child.name for child in children if looks_like_pack(child)}
 
 
-def should_skip_path(root: Path, path: Path, embedded_pack: bool) -> bool:
-    """Keep project code, excluding generic artifacts and detected pack internals."""
+def should_skip_path(root: Path, path: Path, nested_packs: set[str]) -> bool:
+    """Keep project code, excluding generic artifacts and a nested pack.
+
+    The single skip rule for this repository. The map and the symbol index both
+    call it, because two independent copies of it once disagreed: REPO_MAP.md
+    reported the project's real file count while the graph answered with pack
+    internals.
+    """
     try:
         rel_parts = path.relative_to(root).parts
     except ValueError:
         return True
     if any(part in SKIP_DIRS for part in rel_parts):
         return True
-    return bool(embedded_pack and rel_parts and rel_parts[0] in EMBEDDED_PACK_DIRS)
+    return bool(rel_parts and rel_parts[0] in nested_packs)
 
 
-def iter_code_files(root: Path) -> list[Path]:
+def iter_code_files(root: Path, suffixes: frozenset[str] | set[str] | None = None) -> list[Path]:
+    """Project code files. `suffixes` lets a caller narrow the set, never widen it.
+
+    Skipped directories are pruned before descending, not filtered afterwards.
+    `rglob("*")` enumerated every entry under `node_modules/` and `.git/` before
+    a single one could be rejected, which is most of the walk in a real project.
+    """
+    wanted = CODE_SUFFIXES if suffixes is None else (set(suffixes) & CODE_SUFFIXES)
+    nested_packs = namespaced_pack_dirs(root)
     files: list[Path] = []
-    embedded_pack = is_embedded_pack(root)
-    for path in root.rglob("*"):
-        if should_skip_path(root, path, embedded_pack):
-            continue
-        if path.is_file() and path.suffix in CODE_SUFFIXES:
-            files.append(path)
+    for current, directories, names in os.walk(root):
+        here = Path(current)
+        directories[:] = [
+            name
+            for name in directories
+            if not should_skip_path(root, here / name, nested_packs)
+        ]
+        files += [
+            here / name for name in names if Path(name).suffix in wanted
+        ]
     return files
 
 

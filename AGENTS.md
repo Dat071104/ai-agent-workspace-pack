@@ -6,9 +6,14 @@ When this file is reached through a root bridge at
 `ai-agent-workspace-pack/AGENTS.md`, that directory is the **pack root**. Keep
 all pack and project-ops paths under it: for example run
 `python ai-agent-workspace-pack/_agent_ops/tools/session_start.py --root .`.
-The root `AGENTS.md` bridge is intentionally only its first link line followed
-by any host-owned instructions; never move the pack's teams, scripts, or
-templates into the application root.
+The root `AGENTS.md` carries a managed block between
+`AI_AGENT_WORKSPACE_PACK:BEGIN/END` markers, followed by every host-owned line
+unchanged. That block is deliberately prose rather than an `@path` import: only
+some harnesses expand one, so a link cannot be the contract. Nothing else moves
+to the application root -- never relocate the pack's teams, scripts, or
+templates there. The generated `CLAUDE.md` and `GEMINI.md` import the root
+`AGENTS.md` first and the pack second, so host governance reaches every harness
+ahead of any pack workflow.
 
 The one exception is harness discovery: `.codex/agents/` and `.claude/agents/`
 plus `.claude/skills/` must sit at the repository root, because no harness looks
@@ -77,8 +82,10 @@ Managed-session invariants:
   those writes are already authorized. Run it through the pack folder --
   `python ai-agent-workspace-pack/scripts/init_project_ops.py --target .` --
   which detects that it lives inside the project and keeps everything nested.
-  If the root `AGENTS.md` has no bridge line yet, the run says so and prints the
-  one command that prepends it; that command edits a host file, so ask first.
+  If the root `AGENTS.md` has no managed block yet, the run says so and prints
+  the one command that installs it; that command adds text to a host file, so
+  ask first. An outdated block is refreshed automatically -- it is generated
+  pack-owned text, and leaving a project on a broken bridge is worse.
   That bootstrap means: create the ops
   records, build `REPO_MAP.md` and the symbol index, then fill the new session's
   `SESSION_BRIEF.md` and `CURRENT_TASK.md` from the stated goal and append one
@@ -197,17 +204,19 @@ Advisor persona (how to communicate):
   clarifying question. One question, not five.
 - No filler. Professional disagreement is not hostility; stay collaborative.
 
-<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->
+<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v2 -->
 ## AI Agent Workspace Pack
 
-Instructions outside this managed block remain authoritative. This block is an
-approved, narrowly scoped amendment for the workflow below.
+Generated block. Instructions outside it remain authoritative: this is a
+narrowly scoped amendment that may add workflow and may never weaken a rule
+stated elsewhere in this file.
+
+This repository is the workspace pack itself.
 
 When a user message starts with `@start-here`, read `START_HERE.md` and
 `TEAM_ROUTER.md`, then load only the selected team's `SKILL.md`.
 
-Pack instructions may add workflow but must not weaken existing project rules.
-`@start-here` authorizes only `_agent_ops/` writes defined by the pack; source,
-configuration, dependencies, git, destructive actions, and external services
-remain governed by the project's existing rules.
-<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->
+`@start-here` authorizes only `_agent_ops/` writes defined by the pack.
+Source, configuration, dependencies, git, destructive actions, and external
+services remain governed by this repository's own rules.
+<!-- AI_AGENT_WORKSPACE_PACK:END v2 -->

@@ -9,11 +9,14 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 # Running a tool must never leave __pycache__ inside someone else's repository.
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from source_state import DEFAULT_OPS_FOLDER  # noqa: E402
 
 
 TEMPLATE_MAP = {
@@ -237,26 +240,13 @@ python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_M
   before writing a new one.
 """
 
-EMBEDDED_MODE = """## Pack Mode: Embedded
+EMBEDDED_MODE_TEMPLATE = """## Pack Mode: Embedded
 
 This repository contains the full workspace pack (`TEAM_ROUTER.md` is present).
 Treat `@start-here` as a literal session marker. The managed bridge below is
 the project entry point for routing it safely.
 
-<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->
-## AI Agent Workspace Pack
-
-Instructions outside this managed block remain authoritative. This block is an
-approved, narrowly scoped amendment for the workflow below.
-
-When a user message starts with `@start-here`, read `START_HERE.md` and
-`TEAM_ROUTER.md`, then load only the selected team's `SKILL.md`.
-
-Pack instructions may add workflow but must not weaken existing project rules.
-`@start-here` authorizes only `_agent_ops/` writes defined by the pack; source,
-configuration, dependencies, git, destructive actions, and external services
-remain governed by the project's existing rules.
-<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->
+<!-- PACK_BRIDGE -->
 
 If `_agent_ops/` is missing, bootstrap it with
 `python scripts/init_project_ops.py --target .`; that creates only agent-ops
@@ -272,23 +262,23 @@ or `@start-here` routing instructions are available unless the user supplies an
 embedded pack or an explicit team playbook.
 """
 
-AGENTS_BRIDGE_BEGIN = "<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->"
-AGENTS_BRIDGE_END = "<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->"
+# The root AGENTS.md bridge.
+#
+# Deliberately prose, not an `@path` import. Claude Code and Gemini CLI expand
+# `@path` inside their own memory files; Codex concatenates AGENTS.md verbatim
+# and resolves nothing. A bridge that only works when the model happens to open
+# a path it read is behavior, not a contract -- so the block states what to read
+# in text every harness receives identically.
+BRIDGE_VERSION = "v2"
+AGENTS_BRIDGE_BEGIN = f"<!-- AI_AGENT_WORKSPACE_PACK:BEGIN {BRIDGE_VERSION} -->"
+AGENTS_BRIDGE_END = f"<!-- AI_AGENT_WORKSPACE_PACK:END {BRIDGE_VERSION} -->"
 AGENTS_BRIDGE_PREFIX = "<!-- AI_AGENT_WORKSPACE_PACK:"
-AGENTS_BRIDGE = """<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->
-## AI Agent Workspace Pack
-
-Instructions outside this managed block remain authoritative. This block is an
-approved, narrowly scoped amendment for the workflow below.
-
-When a user message starts with `@start-here`, read `START_HERE.md` and
-`TEAM_ROUTER.md`, then load only the selected team's `SKILL.md`.
-
-Pack instructions may add workflow but must not weaken existing project rules.
-`@start-here` authorizes only `_agent_ops/` writes defined by the pack; source,
-configuration, dependencies, git, destructive actions, and external services
-remain governed by the project's existing rules.
-<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->"""
+# Superseded block markers. install_agents_bridge() replaces one in place, so a
+# project updated from an older pack ends with exactly one bridge rather than
+# two that disagree about where the pack lives.
+LEGACY_BRIDGE_BLOCKS = (
+    ("<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->", "<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->"),
+)
 
 
 def write_tools(ops_dir: Path, ops_relative: str) -> list[str]:
@@ -375,9 +365,15 @@ def install_repo_map_hook(target: Path, ops_relative: str) -> str:
 
 
 def target_agents_content(target: Path, ops_relative: str) -> str:
-    """One generated entry point, accurate for embedded and runtime-only installs."""
-    mode = EMBEDDED_MODE if (target / "TEAM_ROUTER.md").is_file() else RUNTIME_ONLY_MODE
-    return TARGET_AGENTS_MD.replace("<!-- PACK_MODE -->", mode.rstrip()).replace("_agent_ops", ops_relative)
+    """One generated entry point, accurate for embedded and runtime-only installs.
+
+    The managed bridge is substituted last, so it stays byte-identical to what
+    agents_bridge() produces and a freshly generated file reports INSTALLED
+    rather than OUTDATED on the very next check.
+    """
+    mode = EMBEDDED_MODE_TEMPLATE if (target / "TEAM_ROUTER.md").is_file() else RUNTIME_ONLY_MODE
+    body = TARGET_AGENTS_MD.replace("<!-- PACK_MODE -->", mode.rstrip()).replace("_agent_ops", ops_relative)
+    return body.replace("<!-- PACK_BRIDGE -->", agents_bridge(None))
 
 
 def write_target_agents_md(target: Path, ops_relative: str) -> str:
@@ -385,72 +381,149 @@ def write_target_agents_md(target: Path, ops_relative: str) -> str:
 
     Codex, Cursor, and Windsurf auto-discover AGENTS.md; Claude Code and Gemini
     CLI do not (they default to CLAUDE.md / GEMINI.md respectively), so
-    write_target_claude_md()/write_target_gemini_md() below give those two a
-    thin adapter that imports this file instead of duplicating it. Without any
-    of this, everything installed under _agent_ops/ is invisible unless the
-    user remembers to point at it every session. Never overwritten: a project
-    that already has one has already made this decision.
+    write_harness_adapter() below gives those two a thin adapter that imports
+    this file instead of duplicating it. Without any of this, everything
+    installed under _agent_ops/ is invisible unless the user remembers to point
+    at it every session. Never overwritten: a project that already has one has
+    already made this decision.
     """
     destination = target / "AGENTS.md"
     return write_if_absent(destination, target_agents_content(target, ops_relative), False)
 
 
-def claude_md_adapter(import_line: str) -> str:
-    return f"""{import_line}
+def harness_adapter(harness: str, memory_file: str, imports: list[str]) -> str:
+    """A thin memory file that imports the project's canonical instructions.
 
-Claude Code reads `CLAUDE.md`, not `AGENTS.md`. The import above pulls in
-this project's canonical agent instructions so they are not duplicated
-across two files. Add Claude-specific instructions below this line.
-"""
-
-
-def gemini_md_adapter(import_line: str) -> str:
-    return f"""{import_line}
-
-Gemini CLI defaults to `GEMINI.md`. The import above pulls in this project's
-canonical agent instructions so they are not duplicated across two files.
-Add Gemini-specific instructions below this line.
-"""
-
-
-def write_target_claude_md(target: Path, import_line: str = "@AGENTS.md") -> str:
-    """Drop a thin CLAUDE.md at the project root if it has none.
-
-    Claude Code's own docs recommend exactly this pattern for an AGENTS.md
-    that other tools also read: `@AGENTS.md` as an import, expanded into
-    context at session start. Never overwritten: a project with its own
-    CLAUDE.md has already made that decision.
+    More than one import means a namespaced install: the host's own AGENTS.md
+    comes first and stays authoritative, the pack second. Importing only the
+    pack -- which this did before -- left a project whose rules live in its own
+    AGENTS.md with those rules on disk and absent from the model's context.
     """
-    return write_if_absent(target / "CLAUDE.md", claude_md_adapter(import_line), False)
+
+    if len(imports) > 1:
+        note = (
+            "The first import pulls in this project's canonical agent "
+            "instructions, which stay authoritative; the second pulls in the "
+            "workspace pack they point to. Neither is duplicated here."
+        )
+    else:
+        note = (
+            "The import above pulls in this project's canonical agent "
+            "instructions so they are not duplicated across two files."
+        )
+    body = wrap(f"{harness} reads `{memory_file}`, not `AGENTS.md`. {note}")
+    footer = wrap(f"Add {harness}-specific instructions below this line.")
+    return "\n".join(imports) + "\n\n" + body + "\n\n" + footer + "\n"
 
 
-def write_target_gemini_md(target: Path, import_line: str = "@./AGENTS.md") -> str:
-    """Drop a thin GEMINI.md at the project root if it has none.
+def write_harness_adapter(target: Path, memory_file: str, harness: str, imports: list[str]) -> list[str]:
+    """Create the adapter when absent; otherwise report what it fails to import.
 
-    Gemini CLI's `@path` import requires a leading `./` for a same-directory
-    file, unlike Claude Code's `@AGENTS.md`. Never overwritten: a project
-    with its own GEMINI.md has already made that decision.
+    A host-owned memory file is never modified, so an existing one that predates
+    this pack can only be warned about -- the same discoverability gap AGENTS.md
+    itself had, one level deeper.
     """
-    return write_if_absent(target / "GEMINI.md", gemini_md_adapter(import_line), False)
+
+    destination = target / memory_file
+    existed = destination.exists()
+    messages = [write_if_absent(destination, harness_adapter(harness, memory_file, imports), False)]
+    if not existed:
+        return messages
+    content = destination.read_text(encoding="utf-8", errors="ignore")
+    missing = [line for line in imports if line not in content]
+    if missing:
+        messages.append(
+            f"WARN existing {memory_file} does not import "
+            + " or ".join(line.lstrip("@./") or "AGENTS.md" for line in missing)
+            + f", so {harness} may never see this project's agent instructions. "
+            "Add:\n         " + "\n         ".join(missing)
+        )
+    return messages
 
 
-def imports_agents_md(destination: Path, import_line: str) -> bool:
-    """True if an existing CLAUDE.md/GEMINI.md already imports AGENTS.md.
+def legacy_bridge_line(embedded_folder: Path | None) -> str:
+    """The v1 namespaced bridge: a bare `@path` link on the first line."""
 
-    A host-owned file is never modified (see write_target_claude_md/
-    write_target_gemini_md), so its bootstrap step can only warn, not fix,
-    the case where that file predates this pack and has no import -- the same
-    discoverability gap AGENTS.md itself had before those adapters existed,
-    one level deeper.
+    return "" if embedded_folder is None else f"@{embedded_folder.as_posix()}/AGENTS.md"
+
+
+def wrap(paragraph: str) -> str:
+    """One paragraph reflowed to a readable width.
+
+    The pack folder name is interpolated into this text, so hand-wrapped
+    literals go ragged for every folder name but the one they were measured
+    against.
     """
-    try:
-        return import_line in destination.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        return False
+
+    return textwrap.fill(" ".join(paragraph.split()), width=78)
 
 
-def agents_bridge_status(target: Path) -> tuple[str, str]:
-    """Return a structural status for the optional host-owned AGENTS bridge."""
+def agents_bridge(embedded_folder: Path | None = None) -> str:
+    """The managed block, addressed to where the pack actually lives."""
+
+    if embedded_folder is None:
+        prefix = ""
+        entry = [
+            wrap("This repository is the workspace pack itself."),
+            wrap(
+                "When a user message starts with `@start-here`, read "
+                "`START_HERE.md` and `TEAM_ROUTER.md`, then load only the "
+                "selected team's `SKILL.md`."
+            ),
+        ]
+    else:
+        prefix = embedded_folder.as_posix() + "/"
+        entry = [
+            wrap(
+                f"The workspace pack is installed at `{prefix}`. Reach it through "
+                "this file, not through an import: not every harness expands an "
+                "`@path`, so the steps below are the only instruction all of them "
+                "are guaranteed to receive."
+            ),
+            wrap("When a user message starts with `@start-here`, read in this order:"),
+            "\n".join(
+                (
+                    f"1. `{prefix}AGENTS.md` -- the pack's operating rules",
+                    f"2. `{prefix}START_HERE.md`",
+                    f"3. `{prefix}TEAM_ROUTER.md`",
+                    "4. Only the selected team's `SKILL.md`",
+                )
+            ),
+        ]
+
+    paragraphs = [
+        "## AI Agent Workspace Pack",
+        wrap(
+            "Generated block. Instructions outside it remain authoritative: this "
+            "is a narrowly scoped amendment that may add workflow and may never "
+            "weaken a rule stated elsewhere in this file."
+        ),
+        *entry,
+        wrap(
+            f"`@start-here` authorizes only `{prefix}_agent_ops/` writes defined by "
+            "the pack. Source, configuration, dependencies, git, destructive "
+            "actions, and external services remain governed by this repository's "
+            "own rules."
+        ),
+    ]
+    return AGENTS_BRIDGE_BEGIN + "\n" + "\n\n".join(paragraphs) + "\n" + AGENTS_BRIDGE_END
+
+
+def find_block(content: str, begin: str, end: str) -> tuple[int, int] | None:
+    """Span of exactly one balanced marker pair, or None when it is not there."""
+
+    if content.count(begin) != 1 or content.count(end) != 1:
+        return None
+    start = content.index(begin)
+    stop = content.index(end)
+    if stop < start:
+        return None
+    return start, stop + len(end)
+
+
+def agents_bridge_status(target: Path, embedded_folder: Path | None = None) -> tuple[str, str]:
+    """Structural status of the pack-owned block in the host's AGENTS.md."""
+
     destination = target / "AGENTS.md"
     if not destination.exists():
         return "MISSING", "AGENTS.md does not exist"
@@ -459,90 +532,64 @@ def agents_bridge_status(target: Path) -> tuple[str, str]:
     except (OSError, UnicodeError) as error:
         return "CORRUPT", f"cannot read AGENTS.md safely: {error}"
 
-    begins = content.count(AGENTS_BRIDGE_BEGIN)
-    ends = content.count(AGENTS_BRIDGE_END)
-    any_marker = AGENTS_BRIDGE_PREFIX in content
-    if begins == 0 and ends == 0:
-        if any_marker:
-            return "CORRUPT", "unsupported bridge marker or version"
-        return "MISSING", "no managed bridge block"
-    if begins != 1 or ends != 1:
+    span = find_block(content, AGENTS_BRIDGE_BEGIN, AGENTS_BRIDGE_END)
+    if span is not None:
+        start, stop = span
+        if content[start:stop] == agents_bridge(embedded_folder):
+            return "INSTALLED", f"managed bridge {BRIDGE_VERSION}"
+        return "OUTDATED", f"managed block differs from bridge {BRIDGE_VERSION}"
+    if AGENTS_BRIDGE_BEGIN in content or AGENTS_BRIDGE_END in content:
         return "CORRUPT", "expected exactly one BEGIN and one END marker"
 
-    start = content.index(AGENTS_BRIDGE_BEGIN)
-    end_start = content.index(AGENTS_BRIDGE_END)
-    if end_start < start:
-        return "CORRUPT", "END marker appears before BEGIN marker"
-    end = end_start + len(AGENTS_BRIDGE_END)
-    if content[start:end] == AGENTS_BRIDGE:
-        return "INSTALLED", "managed bridge v1"
-    return "OUTDATED", "managed block differs from bridge v1"
+    for begin, end in LEGACY_BRIDGE_BLOCKS:
+        if find_block(content, begin, end) is not None:
+            return "OUTDATED", "managed block from an earlier pack revision"
+        if begin in content or end in content:
+            return "CORRUPT", "unbalanced marker from an earlier pack revision"
+    if AGENTS_BRIDGE_PREFIX in content:
+        return "CORRUPT", "unsupported bridge marker or version"
+    line = legacy_bridge_line(embedded_folder)
+    if line and line in content.splitlines():
+        return "OUTDATED", "bare @path link from an earlier pack revision"
+    return "MISSING", "no managed bridge block"
 
 
-def install_agents_bridge(target: Path) -> str:
-    """Append or update only the pack-owned bridge block in AGENTS.md."""
+def install_agents_bridge(target: Path, embedded_folder: Path | None = None) -> str:
+    """Write only the pack-owned block, preserving every host-owned line."""
+
     destination = target / "AGENTS.md"
-    status, detail = agents_bridge_status(target)
+    status, detail = agents_bridge_status(target, embedded_folder)
     if status == "CORRUPT":
         return f"AGENTS BRIDGE: CORRUPT ({detail}); not modified"
     if status == "INSTALLED":
-        return "AGENTS BRIDGE: INSTALLED (managed bridge v1; unchanged)"
-    if status == "MISSING":
-        content = destination.read_text(encoding="utf-8")
-        separator = "" if content.endswith("\n") else "\n"
-        destination.write_text(content + separator + "\n" + AGENTS_BRIDGE + "\n", encoding="utf-8")
-        return "AGENTS BRIDGE: INSTALLED (managed bridge v1 appended)"
+        return f"AGENTS BRIDGE: INSTALLED (managed bridge {BRIDGE_VERSION}; unchanged)"
 
-    content = destination.read_text(encoding="utf-8")
-    start = content.index(AGENTS_BRIDGE_BEGIN)
-    end = content.index(AGENTS_BRIDGE_END, start) + len(AGENTS_BRIDGE_END)
-    destination.write_text(content[:start] + AGENTS_BRIDGE + content[end:], encoding="utf-8")
-    return "AGENTS BRIDGE: INSTALLED (managed bridge v1 updated)"
-
-
-def namespaced_bridge_line(embedded_folder: Path) -> str:
-    """The root entry point for one copied pack directory."""
-
-    return f"@{embedded_folder.as_posix()}/AGENTS.md"
-
-
-def namespaced_agents_bridge_status(target: Path, embedded_folder: Path) -> tuple[str, str]:
-    """Check whether the pack link is literally the first AGENTS.md line."""
-
-    destination = target / "AGENTS.md"
-    if not destination.exists():
-        return "MISSING", "AGENTS.md does not exist"
-    try:
-        lines = destination.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeError) as error:
-        return "CORRUPT", f"cannot read AGENTS.md safely: {error}"
-    expected = namespaced_bridge_line(embedded_folder)
-    if lines and lines[0] == expected:
-        return "INSTALLED", "namespaced bridge is first line"
-    if expected in lines:
-        return "OUTDATED", "namespaced bridge is not the first line"
-    return "MISSING", "no namespaced bridge line"
-
-
-def install_namespaced_agents_bridge(target: Path, embedded_folder: Path) -> str:
-    """Prepend the pack link while preserving every host-owned AGENTS.md line."""
-
-    destination = target / "AGENTS.md"
-    status, detail = namespaced_agents_bridge_status(target, embedded_folder)
-    if status == "CORRUPT":
-        return f"AGENTS BRIDGE: CORRUPT ({detail}); not modified"
-    if status == "INSTALLED":
-        return "AGENTS BRIDGE: INSTALLED (namespaced bridge unchanged)"
-
-    expected = namespaced_bridge_line(embedded_folder)
+    block = agents_bridge(embedded_folder)
     content = destination.read_text(encoding="utf-8") if destination.exists() else ""
-    # An earlier install may have left its exact bridge line below host rules.
-    # Remove only that unambiguous pack-owned line, never surrounding text.
-    remaining = [line for line in content.splitlines(keepends=True) if line.rstrip("\r\n") != expected]
-    suffix = "".join(remaining)
-    destination.write_text(expected + "\n" + suffix, encoding="utf-8")
-    action = "created" if not content else "prepended"
-    return f"AGENTS BRIDGE: INSTALLED (namespaced bridge {action}; host text preserved)"
+    existed = bool(content)
+    # Drop the v1 namespaced link line, and only that exact pack-owned line.
+    line = legacy_bridge_line(embedded_folder)
+    if line:
+        content = "".join(raw for raw in content.splitlines(keepends=True) if raw.rstrip("\r\n") != line)
+
+    for begin, end in ((AGENTS_BRIDGE_BEGIN, AGENTS_BRIDGE_END), *LEGACY_BRIDGE_BLOCKS):
+        span = find_block(content, begin, end)
+        if span is None:
+            continue
+        start, stop = span
+        destination.write_text(content[:start] + block + content[stop:], encoding="utf-8")
+        return f"AGENTS BRIDGE: INSTALLED (managed bridge {BRIDGE_VERSION} updated in place)"
+
+    if not content.strip():
+        destination.write_text(block + "\n", encoding="utf-8")
+        action = "replaced a bare link" if existed else "created"
+        return f"AGENTS BRIDGE: INSTALLED (managed bridge {BRIDGE_VERSION} {action})"
+    if embedded_folder is not None:
+        destination.write_text(block + "\n\n" + content, encoding="utf-8")
+        return f"AGENTS BRIDGE: INSTALLED (managed bridge {BRIDGE_VERSION} prepended; host text preserved)"
+    separator = "" if content.endswith("\n") else "\n"
+    destination.write_text(content + separator + "\n" + block + "\n", encoding="utf-8")
+    return f"AGENTS BRIDGE: INSTALLED (managed bridge {BRIDGE_VERSION} appended; host text preserved)"
 
 
 # --------------------------------------------------------------------------- #
@@ -718,7 +765,11 @@ def main() -> int:
     parser.add_argument(
         "--ops-folder",
         default=None,
-        help="Operations folder inside the target (default: _agent_ops, or <embedded-folder>/_agent_ops).",
+        help=(
+            "Where to put project operations inside the target. The final path "
+            "component must be _agent_ops; only its parent is free, for example "
+            "ai-agent-workspace-pack/_agent_ops."
+        ),
     )
     parser.add_argument(
         "--embedded-folder",
@@ -801,6 +852,12 @@ def main() -> int:
         ops_relative_path = relative_folder(args.ops_folder, "--ops-folder") if args.ops_folder else None
     except ValueError as error:
         parser.error(str(error))
+    # The scanner, the hygiene check and the freshness check all skip exactly
+    # one folder name. A free-form name here would leave the agent's own tooling
+    # indexed as the project's source, which is a silent wrong answer rather
+    # than an error, so the name is an invariant instead of a convention.
+    if ops_relative_path is not None and ops_relative_path.name != DEFAULT_OPS_FOLDER:
+        parser.error(f"--ops-folder must end in {DEFAULT_OPS_FOLDER}: {args.ops_folder}")
     if embedded_folder is None and ops_relative_path is None:
         detected = detect_embedded_folder(target)
         if detected is not None:
@@ -815,17 +872,13 @@ def main() -> int:
         if not (embedded_root / "TEAM_ROUTER.md").is_file():
             parser.error(f"--embedded-folder is not a copied workspace pack: {embedded_root}")
         if ops_relative_path is None:
-            ops_relative_path = embedded_folder / "_agent_ops"
+            ops_relative_path = embedded_folder / DEFAULT_OPS_FOLDER
     else:
-        ops_relative_path = ops_relative_path or Path("_agent_ops")
+        ops_relative_path = ops_relative_path or Path(DEFAULT_OPS_FOLDER)
     ops_relative = ops_relative_path.as_posix()
     flat_embedded = (target / "TEAM_ROUTER.md").is_file()
     if args.check_agents_bridge:
-        status, detail = (
-            namespaced_agents_bridge_status(target, embedded_folder)
-            if embedded_folder
-            else agents_bridge_status(target)
-        )
+        status, detail = agents_bridge_status(target, embedded_folder)
         print(f"AGENTS BRIDGE: {status} ({detail})")
         return 0 if status == "INSTALLED" else 1
     if args.install_agents_bridge and not (embedded_folder or flat_embedded):
@@ -898,81 +951,43 @@ def main() -> int:
     agents_existed = (target / "AGENTS.md").exists()
     if args.no_agents_md:
         print(f"SKIP AGENTS.md (--no-agents-md): {target / 'AGENTS.md'}")
-    elif embedded_folder:
-        if agents_existed and not args.install_agents_bridge:
-            status, detail = namespaced_agents_bridge_status(target, embedded_folder)
-            if status == "MISSING":
-                print(
-                    "WARN copied pack detected but the namespaced AGENTS.md bridge is missing, "
-                    "so no harness will read the pack. Prepend it without touching your own text:\n"
-                    "         python " + embedded_folder.as_posix() + "/scripts/init_project_ops.py "
-                    "--target . --install-agents-bridge"
-                )
-            else:
-                print(f"AGENTS BRIDGE: {status} ({detail})")
-        else:
-            print(install_namespaced_agents_bridge(target, embedded_folder))
-
-        claude_import = f"@{embedded_folder.as_posix()}/AGENTS.md"
-        gemini_import = f"@./{embedded_folder.as_posix()}/AGENTS.md"
-        claude_destination = target / "CLAUDE.md"
-        claude_existed = claude_destination.exists()
-        print(write_target_claude_md(target, claude_import))
-        if claude_existed and not imports_agents_md(claude_destination, claude_import):
-            print(
-                "WARN existing CLAUDE.md does not import the copied pack, so Claude Code "
-                "may never see its agent instructions. Add this line:\n"
-                f"         {claude_import}"
-            )
-
-        gemini_destination = target / "GEMINI.md"
-        gemini_existed = gemini_destination.exists()
-        print(write_target_gemini_md(target, gemini_import))
-        if gemini_existed and not imports_agents_md(gemini_destination, gemini_import):
-            print(
-                "WARN existing GEMINI.md does not import the copied pack, so Gemini CLI "
-                "may never see its agent instructions. Add this line:\n"
-                f"         {gemini_import}"
-            )
-
-        if args.no_root_adapters:
-            print("SKIP root harness adapters (--no-root-adapters): subagents and team skills stay undiscovered.")
-        else:
-            for line in install_root_adapters(target, embedded_root, embedded_folder, args.force):
-                print(line)
     else:
-        print(write_target_agents_md(target, ops_relative))
-        if args.install_agents_bridge:
-            print(install_agents_bridge(target))
-        elif flat_embedded and agents_existed:
-            status, detail = agents_bridge_status(target)
-            if status == "MISSING":
-                print(
-                    "WARN embedded pack detected but AGENTS bridge is missing. "
-                    "Re-run with --install-agents-bridge to add the managed bridge."
-                )
+        if embedded_folder is None:
+            print(write_target_agents_md(target, ops_relative))
+        # One bridge owner for both layouts. A missing bridge adds text to a
+        # host file, so it needs --install-agents-bridge; refreshing a bridge
+        # the project already accepted is regenerating pack-owned text, which
+        # is what lets `embed_pack.py --update` carry a bridge fix into an
+        # installed project at all.
+        status, detail = agents_bridge_status(target, embedded_folder)
+        forced = args.install_agents_bridge or (embedded_folder is not None and not agents_existed)
+        if forced or status == "OUTDATED":
+            print(install_agents_bridge(target, embedded_folder))
+        elif status == "MISSING" and (embedded_folder or flat_embedded):
+            pack_scripts = (embedded_folder.as_posix() + "/scripts") if embedded_folder else "scripts"
+            print(
+                "WARN workspace pack detected but the AGENTS.md bridge is missing, so no "
+                "harness is told to read it. Install it without touching your own text:\n"
+                f"         python {pack_scripts}/init_project_ops.py --target . --install-agents-bridge"
+            )
+        else:
+            print(f"AGENTS BRIDGE: {status} ({detail})")
+
+        # Every harness resolves the same root AGENTS.md, then the pack behind it.
+        pack_suffix = f"{embedded_folder.as_posix()}/AGENTS.md" if embedded_folder else ""
+        claude_imports = ["@AGENTS.md"] + ([f"@{pack_suffix}"] if pack_suffix else [])
+        gemini_imports = ["@./AGENTS.md"] + ([f"@./{pack_suffix}"] if pack_suffix else [])
+        for line in write_harness_adapter(target, "CLAUDE.md", "Claude Code", claude_imports):
+            print(line)
+        for line in write_harness_adapter(target, "GEMINI.md", "Gemini CLI", gemini_imports):
+            print(line)
+
+        if embedded_folder:
+            if args.no_root_adapters:
+                print("SKIP root harness adapters (--no-root-adapters): subagents and team skills stay undiscovered.")
             else:
-                print(f"AGENTS BRIDGE: {status} ({detail})")
-
-        claude_destination = target / "CLAUDE.md"
-        claude_existed = claude_destination.exists()
-        print(write_target_claude_md(target))
-        if claude_existed and not imports_agents_md(claude_destination, "@AGENTS.md"):
-            print(
-                "WARN existing CLAUDE.md does not import AGENTS.md, so Claude Code "
-                "may never see this project's agent instructions. Add this line:\n"
-                "         @AGENTS.md"
-            )
-
-        gemini_destination = target / "GEMINI.md"
-        gemini_existed = gemini_destination.exists()
-        print(write_target_gemini_md(target))
-        if gemini_existed and not imports_agents_md(gemini_destination, "@./AGENTS.md"):
-            print(
-                "WARN existing GEMINI.md does not import AGENTS.md, so Gemini CLI "
-                "may never see this project's agent instructions. Add this line:\n"
-                "         @./AGENTS.md"
-            )
+                for line in install_root_adapters(target, embedded_root, embedded_folder, args.force):
+                    print(line)
 
     print("")
     print("Done. Existing files were preserved unless --force was used.")

@@ -8,16 +8,16 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`dd81340`
+`72bfb85`
 
 ## Indexed Source Fingerprint
 
-`sha256:14:eec37d878d679c2479418d64024210e4d74b9c0c1356ec50bcc13af807b3b62f`
+`sha256:14:471615b65119a92ca17c0b6fc63c9846ed52ccb1c2c26c64338a01a004dfb597`
 
 ## Snapshot
 
 - Branch: `main`
-- Generated: `2026-08-28`
+- Generated: `2026-08-29`
 - Code files indexed: 14
 - Stack: Unknown
 
@@ -37,8 +37,8 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 | File | Imported by | Imports |
 | --- | --- | --- |
-| `scripts/source_state.py` | 8 | 0 |
-| `scripts/scan_deps.py` | 7 | 0 |
+| `scripts/source_state.py` | 10 | 0 |
+| `scripts/scan_deps.py` | 5 | 1 |
 | `scripts/generate_context_card.py` | 3 | 0 |
 | `scripts/build_code_index.py` | 1 | 3 |
 | `scripts/generate_repo_map.py` | 1 | 3 |
@@ -46,23 +46,23 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-190 symbols, 372 edges (exact 198, heuristic 174, ambiguous 0, weak 0).
+194 symbols, 388 edges (exact 199, heuristic 187, ambiguous 2, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `read_text` | 43 | `scripts/session_start.py:80` |
-| `WorkspaceToolsGoldenTests.write` | 30 | `tests/test_workspace_tools.py:34` |
-| `WorkspaceToolsGoldenTests.init_project` | 23 | `tests/test_workspace_tools.py:53` |
-| `WorkspaceToolsGoldenTests.run_tool` | 20 | `tests/test_workspace_tools.py:40` |
+| `read_text` | 42 | `scripts/session_start.py:79` |
+| `WorkspaceToolsGoldenTests.write` | 33 | `tests/test_workspace_tools.py:42` |
+| `WorkspaceToolsGoldenTests.init_project` | 26 | `tests/test_workspace_tools.py:61` |
+| `WorkspaceToolsGoldenTests.run_tool` | 21 | `tests/test_workspace_tools.py:48` |
 | `run` | 18 | `scripts/refresh_repo_map.py:25` |
+| `WorkspaceToolsGoldenTests.assert_root_bridge` | 7 | `tests/test_workspace_tools.py:96` |
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
 | `Graph.label` | 5 | `scripts/explore.py:100` |
-| `write_if_absent` | 5 | `scripts/init_project_ops.py:127` |
-| `tool_prefix` | 5 | `scripts/scan_deps.py:49` |
+| `tool_prefix` | 5 | `scripts/scan_deps.py:50` |
 | `resolve_ops_dir` | 5 | `scripts/source_state.py:52` |
-| `WorkspaceToolsGoldenTests.make_source_fixture` | 5 | `tests/test_workspace_tools.py:56` |
+| `WorkspaceToolsGoldenTests.make_source_fixture` | 5 | `tests/test_workspace_tools.py:64` |
 | `Graph.find` | 4 | `scripts/explore.py:83` |
 
 Query it instead of grepping:
@@ -85,10 +85,10 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
-| `tests/test_workspace_tools.py` | 1038 |
-| `scripts/init_project_ops.py` | 991 |
-| `scripts/session_start.py` | 614 |
-| `scripts/scan_deps.py` | 511 |
+| `tests/test_workspace_tools.py` | 1158 |
+| `scripts/init_project_ops.py` | 1006 |
+| `scripts/session_start.py` | 613 |
+| `scripts/scan_deps.py` | 525 |
 | `scripts/build_code_index.py` | 497 |
 | `scripts/explore.py` | 427 |
 | `scripts/generate_repo_map.py` | 421 |

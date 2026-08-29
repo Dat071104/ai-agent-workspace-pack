@@ -31,7 +31,6 @@ PLACEHOLDER_RES = [
     re.compile(r"<fill in [^>\n]*>"),
 ]
 ROTATE_THRESHOLD = 12
-CODE_SUFFIXES = (".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".rb", ".php", ".cs")
 
 
 def is_project_code(path: str, root: Path | None = None) -> bool:

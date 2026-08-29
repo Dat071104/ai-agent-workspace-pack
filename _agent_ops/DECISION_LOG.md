@@ -187,3 +187,78 @@
 - Files the current revision no longer ships are removed, so a renamed pack file does not linger in an older install.
 - An update refuses a dirty or non-Git worktree unless `--allow-dirty`, keeping it revertible.
 - An install made before this change reports `version unknown` rather than pretending to be current.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0006`
+
+### Date
+
+`2026-08-29`
+
+### Context
+
+`The root AGENTS.md bridge was a bare "@ai-agent-workspace-pack/AGENTS.md" line, and the generated CLAUDE.md / GEMINI.md imported the pack directly. Both were treated as contracts; neither is one. Codex concatenates AGENTS.md and expands no @path, so the bridge reached it as decoration. And a project whose real governance lives in its own AGENTS.md had those rules preserved on disk but absent from Claude's and Gemini's context.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Keep the `@path` bridge and rely on the model opening the path it read | No change | Behavior, not a contract; silently correct on some runs and silently wrong on others |
+| B | Managed prose block in the root AGENTS.md, and harness memory files that import the root first and the pack second | One canonical entry point every harness resolves identically; host rules always precede pack workflow | Claude and Gemini need two import lines instead of one |
+| C | Duplicate the pack's instructions into the root AGENTS.md | Guaranteed in context | Two copies that drift; defeats the point of the namespaced layout |
+
+### Decision
+
+`Choose B. The root AGENTS.md is the single canonical entry point; the pack is reached from it.`
+
+### Rationale
+
+`A rule that is on disk but not in context is not a rule. The only text every harness is guaranteed to receive identically is the literal content of the file it auto-discovers, so the instruction lives there as prose. The @path imports remain, but as an optimization for the harnesses that expand them, never as the mechanism the design depends on.`
+
+### Consequences
+
+- The managed block is versioned (`v2`). A v1 block or the v1 bare link line is replaced in place, so an older install upgrades without a second bridge appearing.
+- Refreshing an existing bridge no longer requires `--install-agents-bridge`: it regenerates pack-owned text. Installing a bridge where none exists still requires the flag, because that adds text to a host file.
+- `CLAUDE.md` / `GEMINI.md` carry two import lines in a namespaced install, host file first.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0007`
+
+### Date
+
+`2026-08-29`
+
+### Context
+
+`source_state.CODE_SUFFIXES listed .go, .rs, .java, .rb, .php and .cs as project code; scan_deps -- the scanner that builds the graph -- parses only Python and JS/TS. A Go repository was told its graph was stale on every commit, the rebuild ignored every changed file, and the next session was told the same thing.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Write parsers for Go, Rust and Java | Widest coverage | Large, and each parser is a new source of wrong `exact` edges |
+| B | One suffix list, owned by `source_state.py`, narrowed to what the scanner parses | Freshness can never disagree with indexing | The graph stays Python + JS/TS, and the README has to say so |
+
+### Decision
+
+`Choose B, and state the language boundary in the README rather than implying uniform support.`
+
+### Rationale
+
+`A staleness warning that no rebuild can clear is worse than no warning: it trains the reader to ignore the one signal that is supposed to mean something. The memory, protocol, hygiene and git layers really are language-agnostic; only the code graph is not, and saying which is which costs one paragraph.`
+
+### Consequences
+
+- `source_state.py` owns `CODE_SUFFIXES`, `EMBEDDED_PACK_MARKERS` and `looks_like_pack`; `scan_deps.py` imports them.
+- A nested pack is detected by signature rather than by the hardcoded folder name, so renaming the install folder no longer turns pack internals back into project source.
+- `--ops-folder` now requires the leaf name `_agent_ops`, the one name every tool skips.
