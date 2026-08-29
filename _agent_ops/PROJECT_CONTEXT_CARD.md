@@ -12,7 +12,7 @@ Vietnamese: `Bo cong cu van hanh tai su dung cho AI coding agent, phuc vu viec r
 
 ## Current Phase / State
 
-`Namespaced embedded-pack v2 is feature-complete locally and validated. embed_pack.py materializes a clean ai-agent-workspace-pack/ directory with fresh nested project operations, the root AGENTS.md begins with a preserving bridge, and generated root pointers under .codex/agents/, .claude/agents/, and .claude/skills/ restore the four subagents and nine team skills that root-only harness discovery would otherwise lose. The symbol index now excludes a nested pack, matching REPO_MAP.md. Copying the pack folder into a project and running its own bootstrap command now selects the namespaced layout automatically. Released at ad6f01c on origin/main. TASK-0004 then closed the two carried-over defects: a repository with no commits is reported as a repository, and the ambiguous root-level pack exclusion was removed in favour of migration, restoring this pack's own repo map to 13 indexed files. TASK-0005 closed the last structural gap for a reusable pack: `embed_pack.py --update` refreshes an installed copy without touching `_agent_ops/`, and every install is stamped with `PACK_VERSION`, which `session_start` reports. TASK-0006 then replaced the entry point itself: the root `AGENTS.md` carries a managed prose block (bridge v2) instead of a bare `@path` link that only some harnesses expand, and the generated `CLAUDE.md` / `GEMINI.md` import the host's own `AGENTS.md` before the pack, so host governance can no longer be preserved on disk while missing from the model's context. An older install is upgraded in place. Released at 21a08a8 on origin/main.`
+`Namespaced embedded-pack v2 is feature-complete locally and validated. embed_pack.py materializes a clean ai-agent-workspace-pack/ directory with fresh nested project operations, the root AGENTS.md begins with a preserving bridge, and generated root pointers under .codex/agents/, .claude/agents/, and .claude/skills/ restore the four subagents and nine team skills that root-only harness discovery would otherwise lose. The symbol index now excludes a nested pack, matching REPO_MAP.md. Copying the pack folder into a project and running its own bootstrap command now selects the namespaced layout automatically. Released at ad6f01c on origin/main. TASK-0004 then closed the two carried-over defects: a repository with no commits is reported as a repository, and the ambiguous root-level pack exclusion was removed in favour of migration, restoring this pack's own repo map to 13 indexed files. TASK-0005 closed the last structural gap for a reusable pack: `embed_pack.py --update` refreshes an installed copy without touching `_agent_ops/`, and every install is stamped with `PACK_VERSION`, which `session_start` reports. TASK-0006 then replaced the entry point itself: the root `AGENTS.md` carries a managed prose block (bridge v2) instead of a bare `@path` link that only some harnesses expand, and the generated `CLAUDE.md` / `GEMINI.md` import the host's own `AGENTS.md` before the pack, so host governance can no longer be preserved on disk while missing from the model's context. An older install is upgraded in place. Released at 21a08a8. TASK-0007 then enforced that a pack folder is one directory directly under the project root -- nested deeper, no scanner recognizes it and the pack's own files are indexed as the project's code -- and corrected the README passages still describing the v1 link bridge. Released at 3357901 on origin/main.`
 
 Update this section when a durable phase or gate becomes accepted, rejected, or
 blocked, even when the task prompt only names task-level files. Put detailed
@@ -50,11 +50,12 @@ avoid code that is syntactically right but semantically wrong.
 - `Use a namespaced embedded layout for new copies while retaining the legacy flat bridge for compatibility.`
 - `The bridge is prose, not an import: a link only some harnesses expand cannot be the contract (DEC-0006).`
 - `The code graph covers Python and JS/TS only, and freshness is judged against exactly that list (DEC-0007).`
+- `A pack folder is one directory under the project root; detection depth is enforced, not documented (DEC-0008).`
 
 ## Current Branch / Commit
 
 - Branch: `main`
-- Commit: `21a08a8` bridge v2 released on origin/main.
+- Commit: `3357901` bridge v2 plus the pack-folder invariant, released on origin/main.
 
 ## How to Run
 
@@ -76,7 +77,7 @@ python -B tests/test_workspace_tools.py
 
 ## Next Step
 
-`Use the pack on a real project; revisit only when real use makes a sharper need visible.`
+`Development stops here. Embed into a real project; the next change should come from use, not from review.`
 
 ## Do Not Do
 
@@ -85,7 +86,7 @@ python -B tests/test_workspace_tools.py
 
 ## Last Verified Commit
 
-`21a08a8`
+`3357901`
 
 ## Last Updated
 
