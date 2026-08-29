@@ -656,11 +656,11 @@ python -B <scratch>/ai-agent-workspace-pack/scripts/init_project_ops.py --target
 
 ### Git Commit
 
-`Not committed: no commit authorization was given for this work.`
+`21a08a8`
 
 ### Push Result
 
-`Not pushed.`
+`Pushed to origin/main (72bfb85..21a08a8).`
 
 ### Remaining Risks
 
@@ -669,4 +669,4 @@ python -B <scratch>/ai-agent-workspace-pack/scripts/init_project_ops.py --target
 
 ### Next Step
 
-`Review the diff and decide on a commit. Nothing here is blocked.`
+`Use the pack on a real project. The entry-point invariant is closed; further work should come from use, not speculation.`
