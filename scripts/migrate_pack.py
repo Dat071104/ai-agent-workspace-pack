@@ -25,7 +25,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from source_state import looks_like_pack  # noqa: E402
+from source_state import looks_like_pack, pack_folder  # noqa: E402
 from source_state import worktree_is_clean  # noqa: E402
 
 
@@ -90,7 +90,11 @@ def main() -> int:
         description="Move a flat workspace-pack install into one namespaced folder."
     )
     parser.add_argument("--target", required=True, help="Project directory holding the flat install.")
-    parser.add_argument("--folder", default=DEFAULT_FOLDER, help="Destination folder inside the project.")
+    parser.add_argument(
+        "--folder",
+        default=DEFAULT_FOLDER,
+        help="Destination folder name, directly under the project root.",
+    )
     parser.add_argument(
         "--apply",
         action="store_true",
@@ -106,13 +110,19 @@ def main() -> int:
     target = Path(args.target).expanduser().resolve()
     if not target.is_dir():
         parser.error(f"Target must be an existing directory: {target}")
+    # This was unvalidated: `--folder ../elsewhere` moved the pack out of the
+    # project entirely, and an absolute path ignored --target altogether.
+    try:
+        folder = pack_folder(args.folder)
+    except ValueError as error:
+        parser.error(str(error))
     source = Path(__file__).resolve().parents[1]
     if target == source:
         parser.error("Refusing to migrate this pack's own source checkout.")
     if not looks_like_pack(target):
         parser.error(f"No flat workspace-pack install found at {target}")
 
-    destination = target / args.folder
+    destination = target / folder
     if destination.exists():
         parser.error(f"Destination already exists; not merged into: {destination}")
 
@@ -125,10 +135,10 @@ def main() -> int:
     print(f"Destination: {destination}")
     print(f"Pack files to move: {len(moves)}")
     for relative in moves[:20]:
-        print(f"  {relative.as_posix()} -> {args.folder}/{relative.as_posix()}")
+        print(f"  {relative.as_posix()} -> {folder.as_posix()}/{relative.as_posix()}")
     if len(moves) > 20:
         print(f"  ... {len(moves) - 20} more")
-    print(f"Project memory: {'_agent_ops/ -> ' + args.folder + '/_agent_ops/' if ops.is_dir() else 'none found'}")
+    print(f"Project memory: {'_agent_ops/ -> ' + folder.as_posix() + '/_agent_ops/' if ops.is_dir() else 'none found'}")
     print(f"Root AGENTS.md: {'managed flat block removed, host text kept' if strips_bridge else 'left as is'}")
     print("Derived artifacts rebuilt after the move: code_index.json, REPO_MAP.md")
     print("Never moved (host-shared or regenerated): " + ", ".join(sorted(NEVER_MOVED)))
@@ -185,7 +195,7 @@ def main() -> int:
             "--target",
             str(target),
             "--embedded-folder",
-            Path(args.folder).as_posix(),
+            folder.as_posix(),
             "--install-agents-bridge",
         ],
         cwd=str(target),

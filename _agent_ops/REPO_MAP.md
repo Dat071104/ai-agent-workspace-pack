@@ -8,11 +8,11 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`72bfb85`
+`78c62ca`
 
 ## Indexed Source Fingerprint
 
-`sha256:14:471615b65119a92ca17c0b6fc63c9846ed52ccb1c2c26c64338a01a004dfb597`
+`sha256:14:a607cd958bb74cdceb0f401c6f34edf77f9f962ac49f572a2881859d5c891762`
 
 ## Snapshot
 
@@ -46,22 +46,22 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-194 symbols, 388 edges (exact 199, heuristic 187, ambiguous 2, weak 0).
+195 symbols, 392 edges (exact 201, heuristic 189, ambiguous 2, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
 | `read_text` | 42 | `scripts/session_start.py:79` |
-| `WorkspaceToolsGoldenTests.write` | 33 | `tests/test_workspace_tools.py:42` |
+| `WorkspaceToolsGoldenTests.write` | 34 | `tests/test_workspace_tools.py:42` |
 | `WorkspaceToolsGoldenTests.init_project` | 26 | `tests/test_workspace_tools.py:61` |
-| `WorkspaceToolsGoldenTests.run_tool` | 21 | `tests/test_workspace_tools.py:48` |
+| `WorkspaceToolsGoldenTests.run_tool` | 22 | `tests/test_workspace_tools.py:48` |
 | `run` | 18 | `scripts/refresh_repo_map.py:25` |
 | `WorkspaceToolsGoldenTests.assert_root_bridge` | 7 | `tests/test_workspace_tools.py:96` |
 | `git_value` | 6 | `scripts/generate_context_card.py:12` |
 | `Graph.label` | 5 | `scripts/explore.py:100` |
 | `tool_prefix` | 5 | `scripts/scan_deps.py:50` |
-| `resolve_ops_dir` | 5 | `scripts/source_state.py:52` |
+| `resolve_ops_dir` | 5 | `scripts/source_state.py:74` |
 | `WorkspaceToolsGoldenTests.make_source_fixture` | 5 | `tests/test_workspace_tools.py:64` |
 | `Graph.find` | 4 | `scripts/explore.py:83` |
 
@@ -85,8 +85,8 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
-| `tests/test_workspace_tools.py` | 1158 |
-| `scripts/init_project_ops.py` | 1006 |
+| `tests/test_workspace_tools.py` | 1187 |
+| `scripts/init_project_ops.py` | 1007 |
 | `scripts/session_start.py` | 613 |
 | `scripts/scan_deps.py` | 525 |
 | `scripts/build_code_index.py` | 497 |

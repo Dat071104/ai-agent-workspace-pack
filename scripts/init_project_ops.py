@@ -16,7 +16,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from source_state import DEFAULT_OPS_FOLDER  # noqa: E402
+from source_state import DEFAULT_OPS_FOLDER, pack_folder  # noqa: E402
 
 
 TEMPLATE_MAP = {
@@ -776,7 +776,8 @@ def main() -> int:
         default=None,
         help=(
             "Copied workspace-pack folder inside the target, for example ai-agent-workspace-pack. "
-            "Keeps project operations inside that folder and installs its root AGENTS.md bridge."
+            "One directory name directly under the target root. Keeps project operations inside "
+            "that folder and installs its root AGENTS.md bridge."
         ),
     )
     parser.add_argument(
@@ -848,7 +849,7 @@ def main() -> int:
         parser.error(f"Target is not a directory: {target}")
 
     try:
-        embedded_folder = relative_folder(args.embedded_folder, "--embedded-folder") if args.embedded_folder else None
+        embedded_folder = pack_folder(args.embedded_folder, "--embedded-folder") if args.embedded_folder else None
         ops_relative_path = relative_folder(args.ops_folder, "--ops-folder") if args.ops_folder else None
     except ValueError as error:
         parser.error(str(error))

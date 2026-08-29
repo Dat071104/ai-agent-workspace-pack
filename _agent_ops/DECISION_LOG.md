@@ -262,3 +262,40 @@
 - `source_state.py` owns `CODE_SUFFIXES`, `EMBEDDED_PACK_MARKERS` and `looks_like_pack`; `scan_deps.py` imports them.
 - A nested pack is detected by signature rather than by the hardcoded folder name, so renaming the install folder no longer turns pack internals back into project source.
 - `--ops-folder` now requires the leaf name `_agent_ops`, the one name every tool skips.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0008`
+
+### Date
+
+`2026-08-29`
+
+### Context
+
+`--folder accepted any relative path, so a pack could be installed at tools/my-pack/. The scanner detects a pack among the root's immediate children and freshness reads only the first path component, so neither saw it: a scratch install produced 15 indexed files, 14 of them the pack's own scripts and 1 the actual application. migrate_pack.py validated nothing at all, so --folder ../escape moved the pack out of the project.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Make the scanner search for a pack at any depth | `--folder` stays free-form | Walks the whole tree to answer "is this infrastructure"; a vendored copy of the pack inside a dependency would start excluding real project code |
+| B | Require the pack folder to be one directory directly under the project root | Detection stays a single `iterdir()`; the rule is checked once, where the pack is placed | `--folder tools/my-pack` is no longer accepted |
+
+### Decision
+
+`Choose B. Depth one is the precondition the existing detection was already written against; enforce it instead of re-deriving it in every scanner.`
+
+### Rationale
+
+`The permissive path was never a supported layout, only an unvalidated one -- it silently produced a code graph about the pack rather than about the project, which is a wrong answer rather than an error. Option A would make an inexpensive check expensive and would create a new false-positive class.`
+
+### Consequences
+
+- `source_state.pack_folder()` is the one validator; `embed_pack.py`, `migrate_pack.py` and `init_project_ops.py --embedded-folder` all use it.
+- `--ops-folder` keeps `relative_folder()`: a nested ops path such as `ai-agent-workspace-pack/_agent_ops` is legitimate, and its leaf name is separately enforced.
+- `migrate_pack.py` can no longer move a pack outside `--target`.

@@ -66,12 +66,16 @@ Step 2 puts four things in your project:
 | The tools themselves | `_agent_ops/tools/` | So the project runs on its own |
 | Agent instructions | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` at your project root | Codex/Cursor/Windsurf auto-load `AGENTS.md`; Claude Code and Gemini CLI don't -- `CLAUDE.md`/`GEMINI.md` are thin adapters that `@`-import it |
 
-`AGENTS.md` is the single canonical entry point. Every harness resolves it
-first, so a rule you write there is in context no matter which tool the session
-is running under.
+`AGENTS.md` is the single canonical entry point. The generated `CLAUDE.md` and
+`GEMINI.md` adapters import it first, so a rule you write there is in context
+whichever of those tools the session runs under. A `CLAUDE.md` or `GEMINI.md`
+your project already had is host-owned: it is preserved untouched, and the
+installer warns rather than editing it if it does not import `AGENTS.md`.
 
-It never overwrites an existing file. `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md`
-are each written only if your project does not already have one.
+It never replaces host-owned instruction content. `CLAUDE.md` and `GEMINI.md`
+are written only if your project does not already have one. An existing
+`AGENTS.md` keeps every line you wrote; the only thing the installer may add or
+refresh there is the marked workspace-pack bridge block.
 
 ### Namespaced embedded pack: one copied folder
 
@@ -218,8 +222,10 @@ is always overwritten; your memory files are not).
 
 - **Namespaced embedded pack (recommended):** run `embed_pack.py` from a local
   source pack to create `ai-agent-workspace-pack/`. The pack and its
-  `_agent_ops/` state stay contained; root `AGENTS.md` is only a first-line
-  link that preserves any host instructions below it.
+  `_agent_ops/` state stay contained; root `AGENTS.md` gains only a marked
+  bridge block and keeps every host instruction around it. The pack folder is
+  one directory directly under the project root -- nested deeper it is no
+  longer recognized as a pack, and its own files get indexed as your code.
 - **Flat embedded pack (legacy compatibility):** copy this whole pack into the
   project root before initialization. `AGENTS.md`, `START_HERE.md`,
   `TEAM_ROUTER.md`, and the team folders stay available, but this can collide

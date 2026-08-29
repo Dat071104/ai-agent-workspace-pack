@@ -37,6 +37,28 @@ def looks_like_pack(directory: Path) -> bool:
     return all((directory / marker).exists() for marker in EMBEDDED_PACK_MARKERS)
 
 
+def pack_folder(value: str, option: str = "--folder") -> Path:
+    """Validate an install folder: one directory directly under the project root.
+
+    Not a general relative path. `namespaced_pack_dirs()` looks for a pack among
+    the root's immediate children and `is_project_code()` examines only the
+    first path component, so a pack installed at `tools/my-pack/` is invisible
+    to both and its own scripts are indexed as the host project's source. Depth
+    one is what makes that detection total, so it is enforced where the pack is
+    placed rather than re-derived by every scanner.
+    """
+
+    cleaned = value.replace("\\", "/").strip().rstrip("/")
+    folder = Path(cleaned) if cleaned else Path()
+    if not cleaned or folder.is_absolute() or len(folder.parts) != 1 or folder.parts[0] in {".", ".."}:
+        raise ValueError(
+            f"{option} must be a single directory name directly under the project root, "
+            f"not {value!r}. A pack nested deeper is not recognized as a pack, and its "
+            f"own files are then indexed as your project's code."
+        )
+    return folder
+
+
 def is_project_code(path: str, root: Path | None = None) -> bool:
     """True when a changed path should invalidate code-navigation artifacts."""
 

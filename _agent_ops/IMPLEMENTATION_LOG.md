@@ -670,3 +670,76 @@ python -B <scratch>/ai-agent-workspace-pack/scripts/init_project_ops.py --target
 ### Next Step
 
 `Use the pack on a real project. The entry-point invariant is closed; further work should come from use, not speculation.`
+
+---
+
+## Entry
+
+### Date
+
+`2026-08-29`
+
+### Task ID
+
+`TASK-0007`
+
+### Scope
+
+`Close the nested --folder edge case found reviewing 21a08a8, and the README passages still describing the v1 link bridge.`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `scripts/source_state.py` | `pack_folder()`: a pack folder is one directory directly under the project root |
+| `scripts/embed_pack.py` | replaced its weaker local `safe_folder()` with it |
+| `scripts/migrate_pack.py` | validates `--folder` at all for the first time |
+| `scripts/init_project_ops.py` | `--embedded-folder` uses it; `--ops-folder` keeps the nested-path validator |
+| `README.md` | bridge block instead of a first-line link; "never overwrites an existing file" narrowed to what is actually true |
+| `tests/test_workspace_tools.py` | 1 contract added (38 total) |
+
+### Why
+
+`The scanner detects an installed pack among the root's immediate children and freshness reads only the first path component. A pack deeper than that is invisible to both, so the project's own code graph describes the pack instead of the project -- a wrong answer, not an error. And migrate_pack.py validated nothing, so --folder could move the pack out of the project entirely.`
+
+### Tests Run
+
+```bash
+python -B -m unittest discover -s tests -q
+python -B scripts/check_repo_hygiene.py --root .
+python -B scripts/embed_pack.py --target <scratch> --folder tools/my-pack   # before and after
+```
+
+### Results
+
+`38 golden tests passed (37 before, 1 added). Hygiene passed. Before the fix, --folder tools/my-pack installed successfully and the project index held 15 files, 14 of them pack internals; after it, the command is rejected before any write and the target keeps only src/. A negative control confirmed the new test fails against the old permissive rule (AssertionError: 0 == 0 : tools/my-pack).`
+
+### Bugs Found
+
+- `embed_pack.py --folder` accepted a nested path the pack-detection logic cannot see.
+- `migrate_pack.py --folder` had no validation, so an absolute path or `..` escaped `--target`.
+- README still described the v1 first-line link bridge in two places, and claimed the installer "never overwrites an existing file" -- the bridge does modify an existing `AGENTS.md`, inside its markers.
+
+### Root Cause
+
+`An invariant the scanners were written against was never enforced where the pack is placed, so three argument parsers each re-derived a weaker version of it.`
+
+### Fix Applied
+
+`One validator in source_state.py next to looks_like_pack(); all three call sites use it. README states what is preserved rather than claiming nothing is ever written.`
+
+### Git Commit
+
+`<pending>`
+
+### Push Result
+
+`<pending>`
+
+### Remaining Risks
+
+- `RISK-0007 stays Accepted: still no real-harness run. The next step is usage, not more architecture.`
+
+### Next Step
+
+`Stop development. Embed into a real project and let the next change come from use.`

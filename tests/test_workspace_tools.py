@@ -147,6 +147,35 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(0, nested.returncode, nested.stderr)
         self.assertTrue((self.root / "tools" / "_agent_ops" / "INDEX.md").is_file())
 
+    def test_a_pack_folder_is_one_directory_under_the_project_root(self) -> None:
+        """Depth is what makes pack detection total. `namespaced_pack_dirs()`
+        looks among the root's immediate children and `is_project_code()` reads
+        only the first path component, so a pack at `tools/my-pack/` is a pack
+        to neither: a scratch install that way produced 15 indexed files, 14 of
+        them the pack's own scripts and 1 the actual application."""
+        self.write("src/app.py", "def app():\n    return 1\n")
+
+        for folder in ("tools/my-pack", "../escape", ".", ""):
+            rejected = self.run_tool(
+                SCRIPTS / "embed_pack.py", "--target", str(self.root), "--folder", folder, cwd=PACK_ROOT
+            )
+            self.assertNotEqual(0, rejected.returncode, folder)
+            self.assertIn("single directory name directly under the project root", rejected.stderr)
+        # Rejected before any write, not cleaned up afterwards.
+        self.assertEqual(["src"], sorted(path.name for path in self.root.iterdir()))
+
+        # migrate_pack.py had no validation at all, so --folder could leave the
+        # target directory entirely.
+        self.write("TEAM_ROUTER.md", "# flat install marker\n")
+        self.write("core-context/.keep", "")
+        self.write("scripts/init_project_ops.py", "def pack_tool():\n    pass\n")
+        escaped = self.run_tool(
+            SCRIPTS / "migrate_pack.py", "--target", str(self.root), "--folder", "../escape", cwd=PACK_ROOT
+        )
+        self.assertNotEqual(0, escaped.returncode)
+        self.assertIn("single directory name directly under the project root", escaped.stderr)
+        self.assertFalse((self.root.parent / "escape").exists())
+
     def test_this_pack_runs_the_runtime_tools_it_ships(self) -> None:
         """`_agent_ops/tools/` is generated from `scripts/`. When the two drift,
         this repository is dogfooding a build it never shipped: a bug fixed in
