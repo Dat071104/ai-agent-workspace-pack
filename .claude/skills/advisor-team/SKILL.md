@@ -6,7 +6,8 @@ description: Use this for a senior advisor/mentor overview of a whole project. R
 # Advisor Team (adapter)
 
 This is a Claude Code adapter. The source of truth is `advisor-team/SKILL.md` at
-the repo root. Read that file and its references, then follow it exactly.
+the repo root. Read that file and follow it exactly. Open a reference below only
+when the step you are on names it; do not preload them.
 
 References: `advisor-team/ADVISORY_PROMPT.md`,
 `advisor-team/OPPORTUNITY_REGISTER_TEMPLATE.md`,

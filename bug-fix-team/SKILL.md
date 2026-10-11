@@ -94,8 +94,9 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
     has a known ceiling. Only call symbols verified to exist (Correctness Guards).
 15. Test. The failing test from step 3 now passes (without a harness, the
     recorded repro command now succeeds). Run the tests `explore.py --impact` lists for
-    the touched symbols. Run `build-team/SELF_REVIEW_CHECKLIST.md` limited to
-    Bug / Risk / Scale / Missing test; if that changed source, re-run the
+    the touched symbols. Obvious: the Quick Self-Check in
+    `build-team/PONYTAIL_RULES.md`. Medium/Hard: `build-team/SELF_REVIEW_CHECKLIST.md`
+    limited to Bug / Risk / Scale / Missing test. If either changed source, re-run the
     relevant checks. Re-check that the fix still serves the original goal from
     step 1, and that it did not push the affected module toward a new failure
     (under-edit). Report `git diff HEAD --shortstat -- <task files>` plus the

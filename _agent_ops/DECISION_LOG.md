@@ -376,3 +376,41 @@
 
 - New `build-team/PONYTAIL_RULES.md` and `build-team/SELF_REVIEW_CHECKLIST.md`; bug-fix-team and the `bug_fixer` agent point to them.
 - Re-syncing with upstream is a deliberate, recorded decision, never automatic.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0011`
+
+### Date
+
+`2026-10-11`
+
+### Context
+
+`After TASK-0009 the docs an agent loads for a small build grew from ~2.5k to ~4.9k estimated tokens. Two causes: every Claude Code adapter said "read that file and its references", so an S task preloaded both templates and the full review checklist; and S had no lighter review than the M/L checklist.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Keep one checklist for every size | Single review path | S pays the M/L context cost |
+| B | Quick Self-Check (5 checks) inside PONYTAIL_RULES.md for S/Obvious; adapters load references lazily | Both paths already read PONYTAIL_RULES, so no new file and no duplication; fixes the preload for all nine teams | M/L also read the quick check (~+2%) |
+| C | Separate quick-check file | M/L unaffected | One more file, and S/Obvious would open two files instead of one |
+
+### Decision
+
+`Choose B, and trim duplicated prose in PONYTAIL_RULES.md to offset most of the M/L cost.`
+
+### Rationale
+
+`Measured (chars/4 estimate, no tokenizer offline): build S 4907 -> 3190 (-35%), bug Obvious 5381 -> 3405 (-37%), build M/L 4907 -> 4995 (+1.8%), bug Medium 4921 -> 5007 (+1.7%). S and Obvious are the most frequent paths; the M/L increase is under the noise of one source file read.`
+
+### Consequences
+
+- S and Obvious never open SELF_REVIEW_CHECKLIST.md or the templates; S no longer opens the effort rubric either (only M vs L does).
+- The shortcut debt-ledger command now lives only in advisor-team/SKILL.md.
+- Savings are estimates; an exact count needs the Anthropic count_tokens API.

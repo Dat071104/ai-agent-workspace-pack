@@ -1099,3 +1099,74 @@ python -B scripts/check_repo_hygiene.py --root .
 ### Next Step
 
 `Embed into a real Java or C# project and let use drive the next change; optional follow-up: a lighter S path that does not load SELF_REVIEW_CHECKLIST.md, measured before claiming token savings.`
+
+## Entry
+
+### Date
+
+`2026-10-11`
+
+### Task ID
+
+`TASK-0010`
+
+### Scope
+
+`Lighter S / Obvious path that does not read SELF_REVIEW_CHECKLIST.md, with context measured before and after (DEC-0011).`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `build-team/PONYTAIL_RULES.md` | Quick Self-Check (S build, Obvious bug); duplicated prose trimmed; ledger command left to advisor-team |
+| `build-team/SKILL.md` | S sized inline (rubric only for M vs L); step 10 S -> Quick Self-Check, M/L -> full checklist |
+| `bug-fix-team/SKILL.md` | step 15 Obvious -> Quick Self-Check, Medium/Hard -> checklist |
+| `build-team/SELF_REVIEW_CHECKLIST.md` | header scoped to M/L and Medium/Hard |
+| `.claude/skills/*/SKILL.md` (9) | "read that file and its references" -> open a reference only when the current step names it |
+
+### Why
+
+`The adapters made every Claude Code team preload all references, and S had no lighter review than M/L.`
+
+### Tests Run
+
+```bash
+python -B <scratchpad>/measure_context.py . 07fa40a before
+python -B <scratchpad>/measure_context.py . WORKTREE after
+python -B -m unittest discover -s tests -q
+python -B scripts/check_repo_hygiene.py --root .
+python -B scripts/embed_pack.py --target <scratch repo>   # adapter pointers resolve
+```
+
+### Results
+
+`Estimated tokens (chars/4): build S 4907 -> 3190 (-35%); bug Obvious 5381 -> 3405 (-37%); build M/L 4907 -> 4995 (+1.8%); bug Medium 4921 -> 5007 (+1.7%). Pre-ponytail build was 2534. 65 tests OK, hygiene PASS, embed: 17 adapters, all build-team references resolve.`
+
+### Bugs Found
+
+- `All nine Claude Code adapters instructed preloading every reference.`
+
+### Root Cause
+
+`Adapter boilerplate written before Tier-2 lazy loading was applied to references.`
+
+### Fix Applied
+
+`See Files Changed.`
+
+### Git Commit
+
+`None yet -- awaiting user authorization.`
+
+### Push Result
+
+`None.`
+
+### Remaining Risks
+
+- `Token figures are chars/4 estimates, not a Claude tokenizer count.`
+- `Whether a model obeys "do not preload" is harness behaviour; not verified in a live Claude Code session.`
+
+### Next Step
+
+`User review; commit and push on approval.`

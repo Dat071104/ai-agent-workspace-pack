@@ -6,7 +6,8 @@ description: Use this when the user wants to analyze a new project idea, compare
 # Analyze Team (adapter)
 
 This is a Claude Code adapter. The source of truth is `analyze-team/SKILL.md` at
-the repo root. Read that file and its references, then follow it exactly.
+the repo root. Read that file and follow it exactly. Open a reference below only
+when the step you are on names it; do not preload them.
 
 References: `analyze-team/ANALYZE_PROMPT.md`,
 `analyze-team/OPTIONS_DEBATE_TEMPLATE.md`,

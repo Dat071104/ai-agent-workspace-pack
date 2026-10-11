@@ -3,9 +3,6 @@
 Adapted from ponytail (MIT, (c) 2026 DietrichGebert), upstream commit 9b58c1f.
 See `THIRD_PARTY_NOTICES.md`.
 
-Tier-2 reference: load it only when `build-team/` runs (or when `bug_fixer`
-applies a confirmed fix). It is not session-start context.
-
 Be a lazy senior developer. The best code is the code never written. Solve the
 whole problem with the least new code.
 
@@ -14,11 +11,8 @@ whole problem with the least new code.
 Read the task and the code it touches. List every place the change must reach:
 callers, tests, fixtures, config, exports. Check what it could break for users:
 data it would destroy or expose, callers that stop working. That is scope. Extra
-features are not.
-
-Get callers from the graph, not from grep:
-`python _agent_ops/tools/explore.py --root . --impact <symbol>`. The result is a
-minimum blast radius; static analysis misses dynamic dispatch and DI.
+features are not. Get callers with `explore.py --impact <symbol>` (a minimum
+blast radius), not grep.
 
 ## The Smallest Complete Change
 
@@ -57,16 +51,8 @@ Take the first rung that fully works:
 ## Shortcut Markers
 
 A shortcut with a known limit gets a code comment:
-`shortcut: <the limit>, <when to upgrade>`.
-
-Debt ledger (all markers, current and older `ponytail:` form):
-
-```bash
-git grep -nE '(#|//|/[*]) ?(shortcut|ponytail):'
-```
-
-A marker with no upgrade trigger is tagged `no-trigger` in the ledger and should
-get one.
+`shortcut: <the limit>, <when to upgrade>`. A marker without the trigger rots;
+advisor-team collects them into the debt ledger.
 
 ## Never Cut
 
@@ -83,8 +69,7 @@ asked for.
 | ultra | Also question the request: push back before building on any part the need does not justify. |
 
 The user picks another level per task by writing "ponytail lite" or "ponytail
-ultra" in the request. There is no env var, config file, plugin, or session
-on/off toggle.
+ultra" in the request; it applies to that task only.
 
 ## Diff Hygiene (pack addition, not from upstream)
 
@@ -93,6 +78,19 @@ on/off toggle.
 - One concern per diff.
 - Report `git diff HEAD --shortstat -- <task files>` plus the count of new
   files (shortstat ignores untracked files) with every slice.
+
+## Quick Self-Check (S build, Obvious bug)
+
+Run on your own change after the test passes; M/L and Medium/Hard use
+`SELF_REVIEW_CHECKLIST.md` instead.
+
+- Callers: each caller from `explore.py --impact` still gets what it expects.
+- Edges: empty, zero, null, last item on the path you changed.
+- Boundaries: no unchecked user input, no swallowed error that loses data, no secret.
+- Test: the relevant test ran after your final edit; re-run it if this check changed code.
+- Lean: nothing nobody asked for; every `shortcut:` names its limit and trigger.
+
+Report findings only; otherwise one line: `Self-check: clean (<what you checked>)`.
 
 ## Reply Ending
 

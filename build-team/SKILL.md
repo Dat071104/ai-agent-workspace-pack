@@ -29,12 +29,12 @@ audits, fixes, or cleans; this is the one that writes new code.
 1. Re-anchor: restate the goal in one line. Check `_agent_ops/SESSION_BRIEF.md`
    for constraints and non-goals, and `_agent_ops/CURRENT_TASK.md` for work
    already in flight. Check git state; warn if the tree is dirty or behind the
-   base branch. **Size the change** with S/M/L from
-   `advisor-team/EFFORT_COMPLEXITY_RUBRIC.md`. S = one file, no new public
+   base branch. **Size the change.** S = one file, no new public
    interface, no change to business semantics (if they are unclear it is not S:
    ask). S skips the templates and steps 2, 5, 7: its 5-line inline plan (goal,
    file, ladder rung, test, risk) is the plan, with one confirmation. M/L keep
-   the full flow below.
+   the full flow below; to tell M from L use
+   `advisor-team/EFFORT_COMPLEXITY_RUBRIC.md`.
 2. **Business rules gate (M/L).** Read `Business Rules & Acceptance Criteria` in
    `_agent_ops/PROJECT_CONTEXT_CARD.md`. If it is empty or does not cover this
    feature, STOP and ask for the acceptance criteria. Do not invent them. Code
@@ -79,8 +79,9 @@ audits, fixes, or cleans; this is the one that writes new code.
    invent a symbol. Run the narrowest meaningful test; use `tester-team/` or the
    `tester` subagent for a wider check. Do not report a test as passing unless
    it ran.
-10. **Self-review.** Run `SELF_REVIEW_CHECKLIST.md` on the task's files. Fix every
-    Must fix, list the rest. If that changed source, re-run the relevant checks
+10. **Self-review.** S: the Quick Self-Check in `PONYTAIL_RULES.md` (do not
+    open the full checklist). M/L: `SELF_REVIEW_CHECKLIST.md` on the task's
+    files. Fix every Must fix, list the rest. If that changed source, re-run the relevant checks
     (not necessarily the full suite) before reporting.
 11. Update `_agent_ops/CURRENT_TASK.md` as you go: files touched, approaches
     ruled out, next step. If you added or moved files, rebuild the index and map

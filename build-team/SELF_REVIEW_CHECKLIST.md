@@ -3,9 +3,9 @@
 Adapted from ponytail-review (MIT, (c) 2026 DietrichGebert), upstream commit
 9b58c1f. See `THIRD_PARTY_NOTICES.md`.
 
-Tier-2 reference: run it on the task's files after verification, before
-reporting. `bug-fix-team/` reuses it limited to Bug / Risk / Scale / Missing
-test. It changes no code. Fix every Must fix before reporting.
+For M/L builds and Medium/Hard bugs (bug-fix: Bug / Risk / Scale / Missing
+test only); S and Obvious use the Quick Self-Check in `PONYTAIL_RULES.md`.
+Changes no code. Fix every Must fix first.
 
 Review like the senior developer who will be paged when it breaks. Order of
 importance: correct, safe, holds under load, tested, fast, lean. Every extra
