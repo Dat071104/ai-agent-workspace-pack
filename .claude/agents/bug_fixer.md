@@ -17,5 +17,7 @@ Key rules:
   broaden if needed.
 - Never use `git add .`. Stage explicit files only, and commit only if the user
   allowed it.
+- Apply build-team/PONYTAIL_RULES.md at level full; end with what was skipped
+  and any risk.
 - Report files changed, commands run, results, and remaining risks. Do not claim
   tests passed unless they ran.

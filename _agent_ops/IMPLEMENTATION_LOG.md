@@ -814,3 +814,288 @@ python -B scripts/check_repo_hygiene.py --root .
 ### Next Step
 
 `STOP development. Embed into a real project and run the three-harness smoke test.`
+
+## Entry
+
+### Date
+
+`2026-10-11`
+
+### Task ID
+
+`TASK-0009` (planning only)
+
+### Scope
+
+`Plan the ponytail integration and the plan / bug-fix / agent-ops / codegraph upgrade for execution by a later session. No source changed.`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `_agent_ops/PLAN_PONYTAIL_UPGRADE.md` | new: 9-slice plan with acceptance criteria |
+| `_agent_ops/HANDOFF.md` | new: open handoff to the executing session |
+| `_agent_ops/DECISION_LOG.md` | DEC-0009, DEC-0010 |
+| `_agent_ops/CURRENT_TASK.md`, `_agent_ops/SESSION_BRIEF.md` | TASK-0009 state |
+
+### Why
+
+`The user is joining a large company and wants minimal diffs, no speculative code, and tooling that holds on large repos, using the embedded @start-here workflow.`
+
+### Tests Run
+
+```bash
+python -B scripts/session_start.py --root .
+# codegraph baseline on a depth-1 clone of django/django (3,044 .py files), outside this repo
+python -I scripts/build_code_index.py --root <clone> --output <scratch>/idx.json --quiet
+python -I scripts/generate_repo_map.py --root <clone> --output <scratch>/map.md --force
+python -I scripts/explore.py --root <clone> --index <scratch>/idx.json --impact get_object_or_404
+```
+
+### Results
+
+`Index build 9.1 s (full rebuild every run), repo map 7.3 s (re-resolves all imports via scan_deps.build_graph instead of reading the index), explore query 0.3 s, index 27 MB, 95,312 edges of which 42% ambiguous. Golden tests were not run: nothing executable changed.`
+
+### Bugs Found
+
+- `generate_repo_map.py` duplicates the import resolution already stored in code_index.json, doubling commit-hook time.
+- `bug-fix-team/SKILL.md` step 15 says "after permission" although managed-session ops writes are already authorized.
+
+### Root Cause
+
+`Not applicable (planning).`
+
+### Fix Applied
+
+`None; both are scheduled in plan slices S2 and S5.`
+
+### Git Commit
+
+`None.`
+
+### Push Result
+
+`None.`
+
+### Remaining Risks
+
+- `The benchmark is one run on one machine; S2 must re-measure before and after.`
+
+### Next Step
+
+`Executing session starts at plan slice S1.`
+
+## Entry
+
+### Date
+
+`2026-10-11`
+
+### Task ID
+
+`TASK-0009`
+
+### Scope
+
+`Execute the revised plan with parallel subagents: ponytail rules into build-team, bug-fix fast path, advisor/analyze Next Step Card, deterministic closure_check, Java + C# in the codegraph. Codegraph speed (S2) and --changed (S3) were dropped by the user.`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `build-team/PONYTAIL_RULES.md`, `build-team/SELF_REVIEW_CHECKLIST.md`, `THIRD_PARTY_NOTICES.md` | new: vendored ponytail rules (MIT, @9b58c1f), self-review checklist, notice |
+| `build-team/SKILL.md` + templates + README | size gate S/M/L, ladder at step 4, scope list, self-review step 10, diff/rung/verdict in report |
+| `bug-fix-team/SKILL.md` | failing test first, triage Obvious/Medium/Hard, root cause once, managed-session log wording |
+| `advisor-team/*`, `analyze-team/*`, `commands/analyze.md` | evidence intake, Lean lens, Option 0, weighted criteria, reversibility, pre-mortem, Next Step Card template |
+| `scripts/closure_check.py`, `tests/test_closure_check.py` | new read-only receipt drafter; compact receipt rule in protocol, start-here, work |
+| `scripts/extract_java_csharp.py`, `tests/test_java_csharp.py`, `source_state.py`, `scan_deps.py`, `build_code_index.py`, `generate_repo_map.py`, `explore.py`, `README.md` | Java + C# regex extraction, weak calls, Spring/ASP.NET routes, Java import via package line |
+| `scripts/init_project_ops.py`, `tests/test_workspace_tools.py` | RUNTIME_TOOLS += extract_java_csharp.py, closure_check.py; tool-count asserts use len(RUNTIME_TOOLS) |
+| `.claude/skills/*`, `.claude/agents/bug_fixer.md`, `.codex/agents/bug_fixer.toml`, `TEAM_ROUTER.md`, `scripts/README.md` | adapter references, router phrases, tool table row |
+| `_agent_ops/tools/*`, `_agent_ops/SESSION_PROTOCOL.md` | resynced from scripts/ and core-context/ |
+
+### Why
+
+`User request: big-company-grade minimal diffs, better plans and next-step recommendations, Java/C# coverage, same @start-here usage.`
+
+### Tests Run
+
+```bash
+python -B -m unittest discover -s tests -q
+python -B scripts/check_repo_hygiene.py --root .
+python -B scripts/closure_check.py --root .
+# read-only Sonnet tester: cross-file consistency + embed_pack.py smoke test on a Python/Java/C# demo repo
+```
+
+### Results
+
+`58 tests OK (40 before; +7 closure_check, +7 Java/C#, +4 regression tests for review findings). Hygiene PASS. Embed smoke: bridge installed, 17 root adapters, session_start FRESH with current map/index, entrypoints show GET /orders for Java and C#, --impact total exact with tests/test_service.py, adapters resolve PONYTAIL_RULES and SELF_REVIEW_CHECKLIST from the host root.`
+
+### Bugs Found
+
+- closure_check reported every untracked ops file as `updated` on a fresh bootstrap, so `--strict` passed with no log written.
+- Java annotations with array arguments (`@GetMapping({"/a"})`, `@SuppressWarnings({..})`) dropped the route.
+- Generic method calls (`Load<Widget>(id)`) were not recorded.
+- Two hard-coded tool counts (10) in the golden tests; four documentation nits.
+
+### Root Cause
+
+`Untracked files show in git status as changes; statement_start treated braces inside annotation parentheses as statement boundaries; the call regex required the name directly before "(".`
+
+### Fix Applied
+
+`Untracked ops files are a distinct "decide" state (log stays MISSING); braces inside parentheses are neutralized for statement_start only; the call regex accepts a tight generic argument list. Each fix has a test that failed first.`
+
+### Git Commit
+
+`None -- awaiting user authorization.`
+
+### Push Result
+
+`None.`
+
+### Remaining Risks
+
+- `RISK-0009: Java/C# extraction verified on fixtures only, not on a real enterprise repo.`
+- `RISK-0010: vendored ponytail text drift.`
+- `No real harness run of @start-here; files and pointers verified only.`
+
+### Next Step
+
+`User reviews the diff; on approval stage explicit files, run refresh_repo_map.py --stage, commit, then push on a separate OK.`
+
+## Entry
+
+### Date
+
+`2026-10-11`
+
+### Task ID
+
+`TASK-0009` (review fixes)
+
+### Scope
+
+`Fix the findings of an external read-only review of the uncommitted TASK-0009 work, without adding files, teams, or startup reads.`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `scripts/closure_check.py` (+ tools copy) | required records judged before "absent"; mtime-only ignored files print `unverified`, never `updated` |
+| `scripts/extract_java_csharp.py` (+ tools copy) | CALL_NOISE removed (resolution already drops unresolved names); constant route args -> `VERB <unresolved:X>`; generics nest one level |
+| `tests/test_closure_check.py`, `tests/test_java_csharp.py` | 5 regression tests, each seen failing first |
+| `build-team/SKILL.md`, `SELF_REVIEW_CHECKLIST.md`, `PONYTAIL_RULES.md`, `SLICE_PLAN_TEMPLATE.md` | explicit S path (skips 2, 5, 7; one confirmation); re-verify after self-review edits; review input = staged + unstaged + untracked task files; shortstat scoped with new-file count |
+| `bug-fix-team/SKILL.md` | hypotheses/directions/fallbacks marked Medium/Hard only; re-verify clause |
+
+### Why
+
+`Review reproduced: --strict exit 0 with no log; store.get() call dropped; @GetMapping(PATH) recorded as GET /; Load<List<Widget>> missed; self-review blind to new/staged files; S/Obvious paths contradicted their output contracts; no re-test after self-review fixes.`
+
+### Tests Run
+
+```bash
+python -B -m unittest discover -s tests -q
+python -B scripts/check_repo_hygiene.py --root .
+# root re-ran the reviewer's repros on a fresh temp repo: closure_check --strict, explore --impact get, --entrypoints, --symbol Load
+```
+
+### Results
+
+`63 tests OK. Hygiene PASS. Repros: --strict exit 2 with MISSING for the absent log; Handler.run calls Store.get; routes shown as GET <unresolved:PATH>/<unresolved:Path>; Svc.List -> Load edge present. Docs word count 2979 -> 2962.`
+
+### Bugs Found
+
+- `See Why; 7 findings, all confirmed by reading the code before fixing.`
+
+### Root Cause
+
+`Branch ordering in closure_check; noise filtering at extraction instead of resolution; empty string doubling as "no argument" and "unparsed argument"; docs added fast paths without amending the contracts below them.`
+
+### Fix Applied
+
+`See Files Changed.`
+
+### Git Commit
+
+`None -- awaiting user authorization.`
+
+### Push Result
+
+`None.`
+
+### Remaining Risks
+
+- `Generic nesting deeper than one level is still missed (documented in the module docstring).`
+- `Docs context when build-team runs is ~2.4k words vs ~0.96k before; the gain must come from fewer wasted lines and rework, not from fewer input tokens -- unmeasured.`
+- `No real Claude Code / Codex @start-here run.`
+
+### Next Step
+
+`User review; on OK commit with explicit staging and refresh_repo_map.py --stage.`
+
+## Entry
+
+### Date
+
+`2026-10-11`
+
+### Task ID
+
+`TASK-0009` (review round 2)
+
+### Scope
+
+`Fix the three remaining findings of the second external review, then commit and push (authorized by the user).`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `scripts/extract_java_csharp.py` (+ tools copy) | a route path is known only when the whole argument is one literal (`"/api" + SUFFIX` -> unresolved); C# verbatim `@"..."` accepted; absolute C# action routes (`/x`, `~/x`) drop the prefix before the unresolved check |
+| `tests/test_java_csharp.py` | 2 regression tests, both seen failing first |
+| `bug-fix-team/SKILL.md` | "reason across multiple hypotheses" safety rule scoped to Medium/Hard |
+
+### Why
+
+`Reviewer reproduced GET /api for "/api" + SUFFIX, GET / for @"/orders", and GET <unresolved:PREFIX> for an absolute [HttpGet("/health")] under [Route(PREFIX)] -- the same "guessed path reported as fact" class as round 1.`
+
+### Tests Run
+
+```bash
+python -B -m unittest discover -s tests -q
+python -B scripts/check_repo_hygiene.py --root .
+```
+
+### Results
+
+`65 tests OK; hygiene PASS. extract_java_csharp.py is 400 lines (at the threshold).`
+
+### Bugs Found
+
+- `See Why.`
+
+### Root Cause
+
+`_first_string matched the first literal anywhere at the start of the argument instead of requiring the whole first argument to be a literal; join_route ran the unresolved guard before the absolute-route rule.`
+
+### Fix Applied
+
+`Top-level first-argument split, full-literal match; rule order swapped.`
+
+### Git Commit
+
+`See git log (TASK-0009 commit).`
+
+### Push Result
+
+`Recorded in the session report.`
+
+### Remaining Risks
+
+- `closure_check --strict exits 0 when records have only mtime evidence; exit 0 means "nothing MISSING", not "closure complete".`
+- `Same-name methods in several classes give weak edges; more than 4 candidates drop the call (AMBIGUITY_CAP).`
+- `Generic nesting beyond one level, real-harness @start-here run: unverified.`
+
+### Next Step
+
+`Embed into a real Java or C# project and let use drive the next change; optional follow-up: a lighter S path that does not load SELF_REVIEW_CHECKLIST.md, measured before claiming token savings.`

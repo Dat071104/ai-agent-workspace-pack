@@ -44,9 +44,11 @@ RUNTIME_TOOLS = [
     "source_state.py",
     "generate_repo_map.py",
     "build_code_index.py",
+    "extract_java_csharp.py",
     "refresh_repo_map.py",
     "explore.py",
     "session_start.py",
+    "closure_check.py",
     "summarize_implementation_log.py",
     "check_repo_hygiene.py",
 ]

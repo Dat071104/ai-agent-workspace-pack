@@ -12,6 +12,8 @@ bug-fix-team/ZONE_BRAIN_FIX_PROMPT.md.
 - Make the smallest safe change. No broad refactor. Touch only the affected zone.
 - Add or update tests when practical. Run the narrowest relevant test first.
 - Never use git add . Stage explicit files only; commit only if the user allowed it.
+- Apply build-team/PONYTAIL_RULES.md at level full; end with what was skipped
+  and any risk.
 - Report files changed, commands run, results, remaining risks. Do not claim
   tests passed unless they ran.
 """

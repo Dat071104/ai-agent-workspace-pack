@@ -10,5 +10,6 @@ the repo root. Read that file and its references, then follow it exactly.
 
 References: `advisor-team/ADVISORY_PROMPT.md`,
 `advisor-team/OPPORTUNITY_REGISTER_TEMPLATE.md`,
-`advisor-team/EFFORT_COMPLEXITY_RUBRIC.md`. This team is read-only and single-agent
+`advisor-team/EFFORT_COMPLEXITY_RUBRIC.md`,
+`advisor-team/NEXT_STEP_CARD_TEMPLATE.md`. This team is read-only and single-agent
 (no parallel subagent).

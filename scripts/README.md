@@ -105,6 +105,7 @@ python scripts/summarize_implementation_log.py --log "_agent_ops/IMPLEMENTATION_
 | Which files does *this* change touch? | `scan_deps.py` |
 | Is my memory stale relative to the code? | `session_start.py` |
 | Is the log getting expensive to read? | `summarize_implementation_log.py --rotate` |
+| Which ops records does this work still owe before closure? | `closure_check.py` |
 | Is this repo safe to make public? | `check_repo_hygiene.py` |
 
 ## Safety

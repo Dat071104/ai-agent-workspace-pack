@@ -322,7 +322,7 @@ on the call path. **Where a bug shows up is rarely where it lives.**
 | `exact` | Resolved through real imports/scope | Yes |
 | `heuristic` | Name is unique in the repo, so inferred | Probably |
 | `ambiguous` | Several functions share this name | **Open the file and check** |
-| `weak` | Regex-extracted JS/TS | **Verify before relying on it** |
+| `weak` | Regex-extracted JS/TS, Java, C# | **Verify before relying on it** |
 
 This is deliberate. A static analyzer **cannot** see dynamic dispatch, DI
 wiring, reflection, or runtime registries. So:
@@ -330,15 +330,18 @@ wiring, reflection, or runtime registries. So:
 - `--impact` gives the **minimum** blast radius, never the maximum
 - "nothing calls this" is a **candidate** for dead code, never a verdict
 
-Python is parsed with a real AST parser and is accurate. JS/TS uses regex
-(no JS parser ships with Python) and is always marked `weak`.
+Python is parsed with a real AST parser and is accurate. JS/TS, Java and C#
+use regex (no parser for them ships with Python), so their calls are always
+marked `weak`.
 
 **Language support is not uniform across the pack.** Memory, the session
 protocol, the hygiene checks and the git safety rules are language-agnostic and
 work in any repository. The code graph -- `REPO_MAP.md`, `code_index.json` and
-`explore.py` -- indexes **Python and JS/TS only**. In a Go or Rust repository
-everything else still works; you simply get no symbol graph, and the tools will
-not claim one is stale.
+`explore.py` -- indexes **Python, JS/TS, Java and C#**. Java and C# are
+regex-extracted: every call edge is `weak`, and C# has no file import edges
+(`using` names namespaces, not files). In a Go or Rust repository everything
+else still works; you simply get no symbol graph, and the tools will not claim
+one is stale.
 
 ---
 
@@ -540,8 +543,8 @@ Being straight with you:
 - **It does not make the model smarter.** Hard problems stay hard. It stops the
   model wasting effort re-learning what it already knew.
 - **The code graph only sees static structure** in `.py`, `.js`, `.jsx`, `.ts`,
-  `.tsx`. Dynamic dispatch, DI, reflection, and route registries are invisible.
-  Never conclude "this file is dead" from the graph alone.
+  `.tsx`, `.java`, `.cs` (Java/C# by regex, calls `weak`). Dynamic dispatch,
+  DI, reflection, and route registries are invisible. Never conclude "this file is dead" from the graph alone.
 - **The Closure Receipt is a contract, not a daemon.** The requirement is
   repeated in the always-on agent rules, generated target instructions,
   templates, and commands, and a golden test guards that propagation. It still

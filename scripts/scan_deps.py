@@ -16,6 +16,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from extract_java_csharp import java_file_imports, resolve_java_import  # noqa: E402
 from source_state import CODE_SUFFIXES as SUFFIX_LIST  # noqa: E402
 from source_state import DEFAULT_OPS_FOLDER, looks_like_pack  # noqa: E402
 
@@ -36,6 +37,8 @@ SKIP_DIRS = {
     ".pytest_cache",
     ".mypy_cache",
     "site-packages",
+    "obj",  # .NET build output
+    ".gradle",
     # The agent's own memory folder. It holds a copy of these very tools, and
     # indexing them would put the tooling at the top of the project's own hot
     # files. init_project_ops.py requires the folder to be named this, so there
@@ -151,6 +154,10 @@ def js_imports(path: Path) -> list[str]:
 def imports_for(path: Path) -> list[str]:
     if path.suffix == ".py":
         return py_imports(path)
+    if path.suffix == ".java":
+        return java_file_imports(path)
+    if path.suffix == ".cs":
+        return []  # `using` names namespaces, not files
     return js_imports(path)
 
 
@@ -424,6 +431,8 @@ def resolve_import(root: Path, source: Path, import_name: str) -> tuple[Path | N
     """Resolve one import to a file in this repo, with a provenance tag."""
     if source.suffix == ".py":
         return resolve_python_import(root, source, import_name)
+    if source.suffix == ".java":
+        return resolve_java_import(root, source, import_name)
     return resolve_js_import(root, source, import_name)
 
 

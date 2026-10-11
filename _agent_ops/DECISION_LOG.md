@@ -262,6 +262,7 @@
 - `source_state.py` owns `CODE_SUFFIXES`, `EMBEDDED_PACK_MARKERS` and `looks_like_pack`; `scan_deps.py` imports them.
 - A nested pack is detected by signature rather than by the hardcoded folder name, so renaming the install folder no longer turns pack internals back into project source.
 - `--ops-folder` now requires the leaf name `_agent_ops`, the one name every tool skips.
+- 2026-10-11: the suffix list grew to `.java`/`.cs` together with their extractor -- see DEC-0009.
 
 ---
 
@@ -301,3 +302,77 @@
 - `migrate_pack.py` can no longer move a pack outside `--target`.
 - The auto-detected folder is validated by the same function as an explicit one. It was not, which left the defect reachable through the pack's own documented bootstrap command; detection now fails loudly instead of falling back to a flat install that hides the pack from nothing.
 - The name `_agent_ops` is rejected as a pack folder. It passes the depth rule but breaks resolution: `resolve_ops_dir()` returns `<root>/_agent_ops` as soon as it exists, so the pack root shadows the real memory at `<root>/_agent_ops/_agent_ops/`.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0009`
+
+### Date
+
+`2026-10-11`
+
+### Context
+
+`The user is moving to a large company whose stack is not known yet and asked for Java and C# in the code graph. DEC-0007 narrowed CODE_SUFFIXES to what the scanner parses and rejected writing parsers for more languages.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Keep Python + JS/TS only | No new extractor code | Graph is blind on the two most common enterprise stacks |
+| B | Regex extractors for Java and C#, every call edge `weak`, Java imports resolved via the `package` line as `heuristic` | Same pattern and honesty level as the existing JS/TS path; stdlib only | Call edges are leads, not proof; C# `using` gives no file edges |
+| C | Real parsers (tree-sitter) | Accurate edges | New dependency, breaks the stdlib-only rule |
+
+### Decision
+
+`Choose B. Partially supersedes DEC-0007 option B: the suffix list grows, but only together with an extractor, so freshness and indexing still agree.`
+
+### Rationale
+
+`DEC-0007's failure was a suffix the scanner could not parse, not more languages as such. Adding the suffix and the extractor in one change keeps its invariant; tagging calls weak keeps the graph from claiming certainty it does not have.`
+
+### Consequences
+
+- `source_state.CODE_SUFFIXES` gains `.java` and `.cs` in the same slice as `scripts/extract_java_csharp.py` (plan S8).
+- Java/C# edges are never `exact`; README and REPO_MAP Limits state the boundary.
+
+---
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0010`
+
+### Date
+
+`2026-10-11`
+
+### Context
+
+`build-team and bug-fix-team plan carefully but have no rule that drives the diff toward the smallest complete change. ponytail (MIT, github.com/dietrichgebert/ponytail @ 9b58c1f) is a tested rule set for exactly that, shipped as a multi-harness plugin.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Vendor + adapt the core rules into build-team; bug-fix reuses them | Self-contained, works in every harness and in embed mode | Vendored text can drift from upstream |
+| B | A plus standalone review/debt commands | More entry points | More surface to maintain; tester-team already owns audits |
+| C | Reference the external plugin | No copied text | Not available to Codex/Gemini in an embedded project; outside dependency |
+
+### Decision
+
+`Choose A, default level full, with MIT attribution in THIRD_PARTY_NOTICES.md and the upstream commit pinned.`
+
+### Rationale
+
+`The pack must work when copied into a project with nothing else installed. Only the rules carry value inside the pack; plugin mechanics (hooks, env config, scoreboard) do not.`
+
+### Consequences
+
+- New `build-team/PONYTAIL_RULES.md` and `build-team/SELF_REVIEW_CHECKLIST.md`; bug-fix-team and the `bug_fixer` agent point to them.
+- Re-syncing with upstream is a deliberate, recorded decision, never automatic.

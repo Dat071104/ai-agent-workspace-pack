@@ -20,14 +20,17 @@ Clarify:
 Ask concise clarifying questions if the goal, constraints, or success criteria are unclear.
 
 Options:
-Create 2-4 implementation or architecture options.
+State the decision criteria and their weights first.
+Create Option 0 (do nothing / smallest version) plus 2-3 implementation or
+architecture options.
 For each option, include:
 - summary,
 - benefits,
 - tradeoffs,
 - risks,
 - estimated effort,
-- testing implications.
+- testing implications,
+- reversibility (two-way or one-way door) and a one-line pre-mortem.
 
 Recommendation:
 Recommend one option and explain why.

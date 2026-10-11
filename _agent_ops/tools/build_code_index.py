@@ -14,12 +14,13 @@ claim to resolve dynamic dispatch:
     exact      resolved through the file's own imports or its local scope
     heuristic  the name is unique across the repo, so the target is inferred
     ambiguous  several definitions share the name; all candidates are kept
-    weak       extracted by regex (JS/TS), not by a real parser
+    weak       extracted by regex (JS/TS, Java, C#), not by a real parser
 
 Consumers must surface `conf`. An edge is a lead, not a proof.
 
-Standard library only: Python is parsed with `ast`; JS/TS falls back to regex
-because no JS parser ships with Python. Output is JSON rather than SQLite so the
+Standard library only: Python is parsed with `ast`; JS/TS, Java and C# fall back
+to regex (Java/C# live in `extract_java_csharp.py`) because no such parser ships
+with Python. Output is JSON rather than SQLite so the
 index stays greppable, diffable, and does not trip the pack's own hygiene rules
 about tracked `*.db` files.
 """
@@ -40,6 +41,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
+from extract_java_csharp import extract_csharp, extract_java  # noqa: E402
 from scan_deps import iter_code_files, resolve_import  # noqa: E402
 from source_state import index_source_fingerprint, resolve_ops_dir  # noqa: E402
 
@@ -48,6 +50,7 @@ from source_state import index_source_fingerprint, resolve_ops_dir  # noqa: E402
 # the index and REPO_MAP.md cannot drift apart again.
 PY_SUFFIXES = {".py"}
 JS_SUFFIXES = {".js", ".jsx", ".ts", ".tsx"}
+REGEX_EXTRACTORS = {".java": ("java", extract_java), ".cs": ("csharp", extract_csharp)}
 
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "route"}
 
@@ -299,6 +302,10 @@ def build_index(root: Path, max_files: int = 0) -> dict:
         if path.suffix in PY_SUFFIXES:
             per_file[rel] = extract_python(root, path, rel)
             per_file[rel]["lang"] = "python"
+        elif path.suffix in REGEX_EXTRACTORS:
+            lang, extractor = REGEX_EXTRACTORS[path.suffix]
+            per_file[rel] = extractor(path, rel)
+            per_file[rel]["lang"] = lang
         else:
             per_file[rel] = extract_js(path, rel)
             per_file[rel]["lang"] = "js"
@@ -352,7 +359,9 @@ def build_index(root: Path, max_files: int = 0) -> dict:
             candidates = [c for c in by_name.get(base, []) if symbols[c]["kind"] == "class"]
             same_file = [c for c in candidates if symbols[c]["file"] == info["file"]]
             if same_file:
-                edges.append({"from": ident, "to": same_file[0], "kind": "EXTENDS", "conf": "exact"})
+                # Same-file scoping is only proof where a real parser read it.
+                conf = "exact" if info["lang"] == "python" else "heuristic"
+                edges.append({"from": ident, "to": same_file[0], "kind": "EXTENDS", "conf": conf})
             elif len(candidates) == 1:
                 edges.append(
                     {"from": ident, "to": candidates[0], "kind": "EXTENDS", "conf": "heuristic"}
@@ -365,7 +374,7 @@ def build_index(root: Path, max_files: int = 0) -> dict:
 
     # CALLS: resolve each raw call name to one or more definitions.
     for rel, data in per_file.items():
-        weak = data["lang"] == "js"
+        weak = data["lang"] != "python"  # regex-extracted: never exact
         local = {
             info["name"]: sym_id(rel, qual)
             for qual, info in data["symbols"].items()

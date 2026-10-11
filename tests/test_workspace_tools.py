@@ -283,7 +283,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.make_source_fixture()
         first = self.init_project()
         self.assertEqual(0, first.returncode, first.stderr)
-        self.assertEqual(10, len(list((self.root / "_agent_ops" / "tools").glob("*.py"))))
+        self.assertEqual(len(RUNTIME_TOOLS), len(list((self.root / "_agent_ops" / "tools").glob("*.py"))))
         self.assertTrue((self.root / "AGENTS.md").is_file())
         self.assertIn("## Pack Mode: Runtime-only", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
 
@@ -306,7 +306,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
 
         second = self.init_project()
         self.assertEqual(0, second.returncode, second.stderr)
-        self.assertEqual(10, second.stdout.count("UPDATE: "))
+        self.assertEqual(len(RUNTIME_TOOLS), second.stdout.count("UPDATE: "))
         self.assertIn("SKIP existing: " + str(self.root / "AGENTS.md"), second.stdout)
 
     def test_init_propagates_prompt_independent_closure_gate(self) -> None:

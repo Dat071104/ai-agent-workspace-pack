@@ -1,6 +1,6 @@
 ---
 name: build-team
-description: Use this when the user wants to implement a new feature, endpoint, module, or behavior change in an existing codebase. Plans the change, confirms placement and business rules, then writes code in one serialized lane with tests. Not for bug fixes or cleanup.
+description: Use this when the user wants to implement a new feature, endpoint, module, or behavior change in an existing codebase. Plans the change, confirms placement and business rules, then writes the smallest complete change (ponytail rules) in one serialized lane with tests and a self-review. Not for bug fixes or cleanup.
 ---
 
 # Skill: Build Team
@@ -8,9 +8,7 @@ description: Use this when the user wants to implement a new feature, endpoint, 
 ## Purpose
 
 Implement new behavior in an existing codebase. Every other team either advises,
-audits, fixes, or cleans; this is the one that writes new code. It exists so a
-request like "add feature X" has a destination instead of detouring through
-`analyze-team` and `prompting-team`.
+audits, fixes, or cleans; this is the one that writes new code.
 
 ## When to Use
 
@@ -31,8 +29,13 @@ request like "add feature X" has a destination instead of detouring through
 1. Re-anchor: restate the goal in one line. Check `_agent_ops/SESSION_BRIEF.md`
    for constraints and non-goals, and `_agent_ops/CURRENT_TASK.md` for work
    already in flight. Check git state; warn if the tree is dirty or behind the
-   base branch.
-2. **Business rules gate.** Read `Business Rules & Acceptance Criteria` in
+   base branch. **Size the change** with S/M/L from
+   `advisor-team/EFFORT_COMPLEXITY_RUBRIC.md`. S = one file, no new public
+   interface, no change to business semantics (if they are unclear it is not S:
+   ask). S skips the templates and steps 2, 5, 7: its 5-line inline plan (goal,
+   file, ladder rung, test, risk) is the plan, with one confirmation. M/L keep
+   the full flow below.
+2. **Business rules gate (M/L).** Read `Business Rules & Acceptance Criteria` in
    `_agent_ops/PROJECT_CONTEXT_CARD.md`. If it is empty or does not cover this
    feature, STOP and ask for the acceptance criteria. Do not invent them. Code
    that compiles but encodes a guessed rule is the most expensive failure this
@@ -43,7 +46,8 @@ request like "add feature X" has a destination instead of detouring through
    module when an existing one owns the concern.
    `python _agent_ops/tools/explore.py --root . --entrypoints` lists the routes already
    wired up, which is the fastest way to see where a new endpoint belongs.
-4. **Reuse scan.** Before writing a function, look for an existing one:
+4. **Reuse scan + smallest complete change.** Before writing a function, look
+   for an existing one:
 
    ```bash
    python _agent_ops/tools/explore.py --root . --symbol <concept>
@@ -52,17 +56,20 @@ request like "add feature X" has a destination instead of detouring through
 
    `--symbol` finds definitions that already carry the name or concept;
    `--file` lists everything the owning module already exposes. State explicitly
-   what you are reusing and what is genuinely new. Duplicating logic that
-   already exists is the seed of the next "fixing one bug created another".
-5. **Contract first.** Write down the interface before the implementation:
+   what you are reusing and what is genuinely new. Then apply `PONYTAIL_RULES.md` (level `full` unless the user wrote "ponytail
+   lite" or "ponytail ultra"): state the ladder rung chosen and what was skipped
+   by design.
+5. **Contract first (M/L).** Write down the interface before the implementation:
    function/endpoint signature, inputs, outputs, error cases, and the observable
    acceptance criterion for each business rule.
 6. **Impact statement.** Name the files to be created and modified, the blast
-   radius, and any cross-boundary effect. When the change modifies an existing
+   radius, and any cross-boundary effect, covering the ponytail scope list:
+   callers, tests, fixtures, config, exports, and any data that could be
+   destroyed or exposed. When the change modifies an existing
    symbol rather than only adding one, get the radius from the graph:
    `python _agent_ops/tools/explore.py --root . --impact <symbol>`. If the change must
    cross a module boundary, say so before editing, not after.
-7. **Plan and confirm.** Present steps 3-6 as a short plan with a token/risk
+7. **Plan and confirm (M/L).** Present steps 3-6 as a short plan with a token/risk
    level. Get confirmation before writing code. Offer to split into slices when
    the change spans more than one module.
 8. Implement ONE slice. One responsibility per change. One serialized writer
@@ -72,14 +79,19 @@ request like "add feature X" has a destination instead of detouring through
    invent a symbol. Run the narrowest meaningful test; use `tester-team/` or the
    `tester` subagent for a wider check. Do not report a test as passing unless
    it ran.
-10. Update `_agent_ops/CURRENT_TASK.md` as you go: files touched, approaches
+10. **Self-review.** Run `SELF_REVIEW_CHECKLIST.md` on the task's files. Fix every
+    Must fix, list the rest. If that changed source, re-run the relevant checks
+    (not necessarily the full suite) before reporting.
+11. Update `_agent_ops/CURRENT_TASK.md` as you go: files touched, approaches
     ruled out, next step. If you added or moved files, rebuild the index and map
     so the next session is not reasoning on a stale graph:
     `python _agent_ops/tools/build_code_index.py --root .` and
     `python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
-11. Report the slice: files changed, tests run with real output, what is still
-    unimplemented. Ask before starting the next slice.
-12. Before the Closure Receipt, classify actual work under
+12. Report the slice: files changed, `git diff HEAD --shortstat -- <task files>`
+    plus the count of new files, ladder rung, tests run with real output,
+    self-review verdict, what is still unimplemented. End with one or two lines
+    on what was skipped or not checked and any risk. Ask before the next slice.
+13. Before the Closure Receipt, classify actual work under
     `_agent_ops/SESSION_PROTOCOL.md`; the prompt's file list never waives a
     triggered implementation-log, project-context, or decision record. Commit
     only if the user allowed it. For a source-changing commit, stage source
@@ -89,13 +101,12 @@ request like "add feature X" has a destination instead of detouring through
 ## Expected Output Contract
 
 - Goal restatement and non-goals.
-- Business rules and acceptance criteria used (or the question blocking them).
-- Placement decision with the `REPO_MAP.md` evidence behind it.
-- What is reused vs newly written.
-- Interface contract before implementation.
-- Files to create/modify, blast radius, cross-boundary warnings.
-- Token/risk level and a confirmation question before writing code.
-- After each slice: files changed, tests run, real results, remaining work.
+- M/L before coding: business rules and acceptance criteria (or the blocking
+  question), placement with `REPO_MAP.md` evidence, reused vs new, interface
+  contract, files and blast radius, cross-boundary warnings, token/risk level,
+  confirmation question.
+- S: the 5-line plan, then the slice report only.
+- After each slice: the step 12 report.
 - Closure Receipt per `_agent_ops/SESSION_PROTOCOL.md`.
 
 ## Safety Rules
@@ -117,6 +128,8 @@ request like "add feature X" has a destination instead of detouring through
   next "fixing one bug created another" report.
 - No overlapping side effects: two code paths must not write the same state
   without one clear owner.
+- Lean guard: no code nobody asked for; every `shortcut:` names its ceiling and
+  trigger.
 - Anti-drift: re-read the goal before each slice. If the work has drifted, stop
   and flag it.
 - Honesty: unfinished is reported as unfinished. Untested is reported as

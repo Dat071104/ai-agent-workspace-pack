@@ -38,7 +38,7 @@ CONF_NOTE = {
     "exact": "",
     "heuristic": " (name unique repo-wide; inferred)",
     "ambiguous": " (several definitions share this name -- verify which one runs)",
-    "weak": " (regex-extracted JS/TS; low confidence)",
+    "weak": " (regex-extracted JS/TS/Java/C#; low confidence)",
 }
 # Trust order, worst first. A multi-hop path is only as trustworthy as its
 # weakest edge, so this ranks which edge conf "wins" when combining them.

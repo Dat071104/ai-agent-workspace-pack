@@ -168,6 +168,13 @@ this completion order instead: classify actual work against the table, write
 every triggered durable record, then print this block before any meaningful
 completion report.
 
+Before printing it, run `python _agent_ops/tools/closure_check.py --root .`. It
+is read-only: it drafts the rows it can prove (code changed since
+`Last Verified Commit`, which ops files were touched) and marks the rest
+`MISSING` or `decide`. Resolve every `MISSING` and `decide` row, writing the
+record first when a trigger fired. The tool is advisory; the receipt remains
+the agent's statement of what was actually written.
+
 ```text
 Closure Receipt
 - CURRENT_TASK.md      : updated (files touched, next step) | not needed (<why>)
@@ -191,6 +198,10 @@ Rules:
 - If an explicit user instruction blocks an otherwise triggered write, say
   "blocked by user direction (<constraint>)"; do not label the record
   not needed.
+- Compact form: print each updated row on its own line, but not-needed rows
+  that share the same missing trigger may share ONE line, for example
+  `- DECISION_LOG, RISK_REGISTER, PROJECT_CONTEXT_CARD: not needed (no trade-off, no new risk, no milestone)`.
+  Every ops file must still appear by name.
 - The receipt states what was actually written. Do not list a file as updated
   before writing it.
 - Routing, questions, and read-only reports do not need a receipt. Anything that

@@ -18,7 +18,7 @@ from pathlib import Path
 # judged against this list, never against a wider one: a suffix that marks the
 # graph stale but that the rebuild then ignores leaves the repository
 # permanently stale, which trains everyone to ignore the warning.
-CODE_SUFFIXES = (".py", ".js", ".jsx", ".ts", ".tsx")
+CODE_SUFFIXES = (".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".cs")
 DEFAULT_OPS_FOLDER = "_agent_ops"
 # A workspace pack copied INTO a project is infrastructure, not that project's
 # application. It is recognized by its file signature rather than by its folder

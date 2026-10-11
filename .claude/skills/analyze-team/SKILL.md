@@ -10,4 +10,5 @@ the repo root. Read that file and its references, then follow it exactly.
 
 References: `analyze-team/ANALYZE_PROMPT.md`,
 `analyze-team/OPTIONS_DEBATE_TEMPLATE.md`,
-`analyze-team/DECISION_CONFIRMATION_TEMPLATE.md`.
+`analyze-team/DECISION_CONFIRMATION_TEMPLATE.md`,
+`advisor-team/NEXT_STEP_CARD_TEMPLATE.md` (shared closing card).

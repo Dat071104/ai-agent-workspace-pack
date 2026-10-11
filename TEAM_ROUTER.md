@@ -11,8 +11,8 @@ Use this file before loading any long team folder. Route first, then load only t
 | Idea, architecture, options, roadmap | `analyze-team/` | Medium | No | — | Yes, before creating files or context cards |
 | Create prompt, harness, phase prompt | `prompting-team/` | Medium to Very Heavy | No | — | Yes, before writing prompt files or autonomous prompts |
 | Test, audit, QA, production readiness | `tester-team/` | Medium to Very Heavy | No | `tester` (read-only) | Yes, before running expensive checks |
-| Implement a new feature, endpoint, or module | `build-team/` | Medium to Heavy | No | `tester` (read-only, to verify) | Yes, before writing code |
-| Bug report or suspected broken behavior | `bug-fix-team/` | Medium | No | `bug_hunter` (read-only), `bug_fixer` (write) | Yes, before fixing |
+| Implement a new feature, endpoint, or module (smallest complete change, ponytail `full`) | `build-team/` | Medium to Heavy | No | `tester` (read-only, to verify) | Yes, before writing code |
+| Bug report or suspected broken behavior (failing test first; fast path when obvious) | `bug-fix-team/` | Medium | No | `bug_hunter` (read-only), `bug_fixer` (write) | Yes, before fixing |
 | Cleanup, refactor, repo is messy | `clean-code-team/` | Very Heavy | No | — | Yes, before every cleanup batch |
 | Git safety, public repo, release check | `repo-hygiene-team/` | Light to Medium | No | `repo_hygiene_reviewer` (read-only) | Yes, before deleting/staging/committing |
 | Handoff, report, continue later | `handoff-team/` | Light to Medium | No | — | Yes, before writing handoff files |

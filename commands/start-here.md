@@ -106,7 +106,9 @@ Do this:
     implementation/test/audit/gate/verification evidence, the project context
     card for durable state, and the decision log for material trade-offs. Then
     print the Closure Receipt: one row per ops file, each resolved as
-    updated-with-what or not-needed-with-a-missing-trigger. Do not stage,
+    updated-with-what or not-needed-with-a-missing-trigger. Draft it first
+    with `python _agent_ops/tools/closure_check.py --root .` and resolve every
+    MISSING/decide row. Do not stage,
     commit, or push them automatically.
 
 Rules:

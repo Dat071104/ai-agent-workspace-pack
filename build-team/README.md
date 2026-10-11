@@ -21,3 +21,5 @@ Files:
 - `SKILL.md`
 - `FEATURE_CONTRACT_TEMPLATE.md`
 - `SLICE_PLAN_TEMPLATE.md`
+- `PONYTAIL_RULES.md` (smallest complete change; adapted from ponytail, see `THIRD_PARTY_NOTICES.md`)
+- `SELF_REVIEW_CHECKLIST.md` (review your own diff before reporting)

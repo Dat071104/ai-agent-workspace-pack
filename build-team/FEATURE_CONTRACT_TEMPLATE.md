@@ -43,6 +43,14 @@ rather than stated, mark it and confirm before implementing.
 
 Genuinely new code: `<what has no existing equivalent, and why>`
 
+## Smallest Complete Change
+
+Per `build-team/PONYTAIL_RULES.md`.
+
+- Rung chosen (1-6): `<rung and why the earlier rungs did not fit>`
+- Skipped by design: `<features, options, or flexibility nobody asked for>`
+- Shortcuts (`shortcut: <limit>, <when to upgrade>`): `<ceiling + upgrade trigger, or none>`
+
 ## Impact
 
 - Files to create: `<paths>`

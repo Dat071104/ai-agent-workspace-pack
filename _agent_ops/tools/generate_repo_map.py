@@ -58,7 +58,11 @@ def choose_depth(paths: list[str], max_depth: int = 3) -> int:
 
 
 def is_entry_point(rel_path: str) -> bool:
-    return Path(rel_path).stem in ENTRY_STEMS
+    stem = Path(rel_path).stem
+    # `Program.cs` is the .NET entry; Spring Boot's is `XxxApplication.java`.
+    return stem in ENTRY_STEMS or stem == "Program" or (
+        rel_path.endswith(".java") and stem.endswith("Application")
+    )
 
 
 def collect_modules(
@@ -280,7 +284,7 @@ def render_map(
         lines += [
             "## Modules",
             "",
-            "No Python or JS/TS files were found. This map covers only those",
+            "No Python, JS/TS, Java or C# files were found. This map covers only those",
             "languages; describe other stacks manually in `PROJECT_CONTEXT_CARD.md`.",
             "",
         ]
@@ -365,7 +369,9 @@ def render_map(
         "",
         "## Limits",
         "",
-        "- Covers `.py`, `.js`, `.jsx`, `.ts`, `.tsx` only.",
+        "- Covers `.py`, `.js`, `.jsx`, `.ts`, `.tsx`, `.java`, `.cs` only. Java and C#",
+        "  are regex-extracted (not parsed): their calls are always `weak`, and C#",
+        "  has no file import edges because `using` names namespaces, not files.",
         "- Relative imports resolve exactly. Absolute Python imports and JS path",
         "  aliases are inferred by probing parent directories, so they can be wrong;",
         "  package imports (`react`, `numpy`) are not followed at all.",

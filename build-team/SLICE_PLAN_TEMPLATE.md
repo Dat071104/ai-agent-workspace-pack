@@ -8,10 +8,10 @@ clean rollback point when a later slice turns out to be wrong.
 
 ## Slices
 
-| # | Slice | Files | Depends on | Verifiable by | Status |
-| --- | --- | --- | --- | --- | --- |
-| 1 | `<smallest working increment>` | `<paths>` | - | `<test/command>` | Planned |
-| 2 | `<next>` | `<paths>` | 1 | `<test/command>` | Planned |
+| # | Slice | Files | Depends on | Verifiable by | Diff budget (+/-) | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `<smallest working increment>` | `<paths>` | - | `<test/command>` | `<+N/-M>` | Planned |
+| 2 | `<next>` | `<paths>` | 1 | `<test/command>` | `<+N/-M>` | Planned |
 
 ## Rules
 
@@ -27,6 +27,8 @@ clean rollback point when a later slice turns out to be wrong.
 ### Slice `<n>`: `<name>`
 
 - Files changed: `<paths>`
+- Diff: `<git diff HEAD --shortstat -- <task files>>` + `<N>` new files
+- Self-review verdict: `<Verdict line from SELF_REVIEW_CHECKLIST.md>`
 - Reused: `<what existing code was used instead of new code>`
 - Tests run: `<command>`
 - Results: `<real output; do not claim a pass that did not run>`
