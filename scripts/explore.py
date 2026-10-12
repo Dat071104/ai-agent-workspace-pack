@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
@@ -45,6 +46,7 @@ CONF_NOTE = {
 CONF_RANK = {"exact": 0, "heuristic": 1, "ambiguous": 2, "weak": 3}
 TEST_HINTS = ("test", "spec", "__tests__")
 MAX_LIST = 25
+MAX_TEST_BYTES = 512 * 1024  # text fallback skips bigger files (fixtures, bundles)
 
 
 def load_index(path: Path, root: Path) -> dict:
@@ -247,7 +249,25 @@ def render_symbol(graph: Graph, root: Path, query: str, snippet_lines: int) -> l
     return out
 
 
-def render_impact(graph: Graph, query: str, depth: int) -> list[str]:
+def candidate_tests(graph: Graph, root: Path, name: str, defining_file: str) -> list[str]:
+    """Test files that mention the symbol or its file by text. Unverified, never graph edges."""
+    word = re.compile(r"\b" + re.escape(name) + r"\b")
+    base = defining_file.rsplit("/", 1)[-1]
+    found = []
+    for rel in sorted(f for f in graph.index["files"] if any(h in f.lower() for h in TEST_HINTS)):
+        path = root / rel
+        try:
+            if path.stat().st_size > MAX_TEST_BYTES:
+                continue
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if word.search(text) or base in text:
+            found.append(rel)
+    return found
+
+
+def render_impact(graph: Graph, query: str, depth: int, root: Path | None = None) -> list[str]:
     matches = graph.find(query)
     if not matches:
         return [f"No symbol matches `{query}`."]
@@ -297,6 +317,18 @@ def render_impact(graph: Graph, query: str, depth: int) -> list[str]:
     else:
         out.append("- No test file in the affected set. Either coverage is missing here,")
         out.append("  or the tests reach this code dynamically and the index cannot see it.")
+        guesses = candidate_tests(graph, root, symbol_name(graph.symbols[target]), graph.symbols[target]["file"]) if root else []
+        if guesses:
+            out += [
+                "",
+                "## Candidate tests (text match, unverified -- not call edges)",
+                "",
+                "These test files mention the symbol or its file name. Nothing in the graph links them.",
+                "",
+            ]
+            out += [f"- {f}" for f in guesses[:MAX_LIST]]
+            if len(guesses) > MAX_LIST:
+                out.append(f"- ... {len(guesses) - MAX_LIST} more")
     out += [
         "",
         "## Caution",
@@ -406,7 +438,7 @@ def main() -> int:
     if args.symbol:
         lines = render_symbol(graph, root, args.symbol, args.source_lines)
     elif args.impact:
-        lines = render_impact(graph, args.impact, max(args.depth, 1))
+        lines = render_impact(graph, args.impact, max(args.depth, 1), root)
     elif args.file_query:
         lines = render_file(graph, args.file_query)
     elif args.path:

@@ -11,11 +11,20 @@ meaningful step -- a file edited, a hypothesis ruled out, a user answer received
 When the task finishes, classify the work under SESSION_PROTOCOL.md and fold
 every triggered durable fact into the implementation log, project context card,
 and/or decision log. Prompt omission is never a reason to skip a triggered
-record. Reset this file only after writing the records and Closure Receipt.
+record. Set Status to `complete` only after writing the records and Closure
+Receipt; overwrite this file when the next task begins.
 
 ## Task ID / Started
 
 `TASK-0001` / `YYYY-MM-DD`
+
+## Status
+
+`idle`
+
+One of `in-progress`, `blocked` (waiting on a user answer), `complete`, `idle`.
+`session_start.py` reads this line. Without it a finished task looks live,
+because its Next Concrete Step is still written down.
 
 ## Original Goal
 
@@ -45,6 +54,16 @@ hypothesis that was already disproved. Record every dead end with its evidence.
 ## Open Questions Awaiting User
 
 - `<question the task is blocked on -- do not guess an answer>`
+
+Write `None` when there is nothing to ask.
+
+## Standing Permissions / Notes
+
+Constraints and authorizations that persist but are not questions, for example
+"commit/push needs explicit authorization per slice set". They never block the
+task, so they do not belong under Open Questions.
+
+- `<none, or a standing permission/constraint>`
 
 ## Next Concrete Step
 

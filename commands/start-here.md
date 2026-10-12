@@ -21,7 +21,11 @@ team folder. Unless `--no-ops` was supplied, treat this as a state machine:
   detects the folder, keeps operations nested, and installs the root `.codex/`
   and `.claude/` pointers that make the subagents and team skills discoverable.
   A missing root `AGENTS.md` bridge is reported with the command that adds it;
-  that one edits a host file, so ask before running it.
+  that one edits a host file, so ask before running it. If init prints BLOCKED
+  (exit 3: the memory is not proven this project's), nothing was written: show the
+  reason and ask the user to choose `--reset-memory` (complete backup under
+  `_agent_ops/backups/<timestamp>/`, then fresh templates) or `--claim-memory`;
+  never choose for them and never resume the foreign memory.
 - The bootstrap is complete only after the new `SESSION_BRIEF.md` and
   `CURRENT_TASK.md` are filled from the user's goal, and one factual bootstrap
   entry is appended to `IMPLEMENTATION_LOG.md`. It also generates `REPO_MAP.md`
@@ -107,8 +111,9 @@ Do this:
     card for durable state, and the decision log for material trade-offs. Then
     print the Closure Receipt: one row per ops file, each resolved as
     updated-with-what or not-needed-with-a-missing-trigger. Draft it first
-    with `python _agent_ops/tools/closure_check.py --root .` and resolve every
-    MISSING/decide row. Do not stage,
+    with `python _agent_ops/tools/closure_check.py --root . --compact` and
+    resolve every MISSING/decide/unverified row (compact only folds rows proven
+    updated; exit 0 does not mean the obligations are met). Do not stage,
     commit, or push them automatically.
 
 Rules:

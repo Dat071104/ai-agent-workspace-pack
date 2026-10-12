@@ -14,6 +14,42 @@ only `_agent_ops/` session memory, then keeps using that compact state for the
 rest of the session. It does not authorize source or git changes. Add
 `--no-ops` when you want chat-only routing with no `_agent_ops/` write.
 
+## Managed Session Bootstrap (the `@start-here` state machine)
+
+`_agent_ops/SESSION_PROTOCOL.md` does not exist until this runs, so the steps
+live here. Unless `--no-ops` was given:
+
+1. If `_agent_ops/` is missing and the pack's `scripts/init_project_ops.py`
+   exists, run it **without asking** -- the writes are already authorized. From
+   the pack folder (it detects that it lives inside the project and keeps
+   everything nested):
+   `python ai-agent-workspace-pack/scripts/init_project_ops.py --target .`
+   (flat pack: `python scripts/init_project_ops.py --target .`).
+2. Handle what it prints:
+   - **Root `AGENTS.md` has no managed block**: the run says so and prints the
+     one command that installs it. That edits a host file: ask first. An
+     outdated block is refreshed automatically (generated, pack-owned text).
+   - **`BLOCKED` / exit 3 (memory not proven this project's: another project's,
+     unverifiable, a damaged `OPS_OWNER.json`, or none at all)**: nothing was
+     written. Show the user the reason and ask which to run, never pick for
+     them: `--reset-memory` (backs up every memory file to
+     `_agent_ops/backups/<timestamp>/`, gitignored, then starts from fresh
+     templates) or `--claim-memory` (keeps the records as this project's).
+     Both are the exact commands the refusal prints. Do not read the foreign
+     memory as this project's until one has run; `session_start` shows the same
+     choice and prints no brief, task or handoff until then.
+3. Bootstrap is complete only after the new `SESSION_BRIEF.md` and
+   `CURRENT_TASK.md` are filled from the user's goal and one factual bootstrap
+   entry is appended to `IMPLEMENTATION_LOG.md`. Init also builds `REPO_MAP.md`
+   and the symbol index.
+4. "Do everything" / "initialize everything" means this bootstrap only. It
+   NEVER authorizes source, configuration, dependency, git, commit, push,
+   destructive, or external-service changes.
+5. Then run `python _agent_ops/tools/session_start.py --root .` (CONTINUATION:
+   read `_agent_ops/HANDOFF.md` first, mark it `consumed`), and load the hot
+   context listed under Context Intake Tiers. `SESSION_PROTOCOL.md` is now
+   available for the full lifecycle, Closure Receipt and work modes.
+
 ## Fastest Entry: `@start-here`
 
 If you do not know which team to use, type `@start-here` plus one line about your
@@ -56,7 +92,9 @@ python _agent_ops/tools/explore.py --entrypoints       # routes and unreferenced
 ```
 
 Each relationship is tagged `exact`, `heuristic`, `ambiguous`, or `weak`. The
-last two are leads to confirm by reading code, not facts.
+last two are leads to confirm by reading code, not facts. When `--impact` finds
+no test, its separate "Candidate tests" list is a text match: unverified leads,
+not call edges.
 
 Do not read every team folder, and do not pull in `README.md` to route.
 

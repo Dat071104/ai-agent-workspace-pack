@@ -1,24 +1,24 @@
 # Repo Map / Ban do ma nguon
 
 Generated file. Do not hand-edit; regenerate with
-`python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
+`python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
 
 Read this BEFORE grepping the repository. It answers "where does the code
 live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`714ce2e`
+`a67f0d2`
 
 ## Indexed Source Fingerprint
 
-`sha256:18:4836c4110c993b1a8d51c5326ad1a0c84965add453134614c89ea6b2842faff7`
+`sha256:33:b8dbca4b323ac797224a4e8b443fed058c56777f20847c8538b96553f0797746`
 
 ## Snapshot
 
 - Branch: `main`
-- Generated: `2026-10-11`
-- Code files indexed: 18
+- Generated: `2026-10-12`
+- Code files indexed: 33
 - Stack: Unknown
 
 ## Modules
@@ -28,8 +28,8 @@ code depends on it, so changes there travel further.
 
 | Module | Files | Inbound | Entry points |
 | --- | --- | --- | --- |
-| `scripts` | 15 | 0 | - |
-| `tests` | 3 | 0 | - |
+| `scripts` | 22 | 0 | - |
+| `tests` | 11 | 0 | - |
 
 ## Hot Files (widest blast radius)
 
@@ -37,42 +37,49 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 | File | Imported by | Imports |
 | --- | --- | --- |
-| `scripts/source_state.py` | 11 | 0 |
+| `scripts/source_state.py` | 13 | 0 |
 | `scripts/scan_deps.py` | 5 | 2 |
+| `scripts/pack_manifest.py` | 4 | 0 |
 | `scripts/generate_context_card.py` | 3 | 0 |
+| `scripts/ops_gate.py` | 3 | 3 |
+| `scripts/ops_identity.py` | 3 | 1 |
 | `scripts/extract_java_csharp.py` | 2 | 0 |
+| `scripts/ops_policy.py` | 2 | 1 |
+| `scripts/pack_ownership.py` | 2 | 1 |
+| `scripts/pack_sync.py` | 2 | 2 |
+| `tests/test_ops_ownership.py` | 2 | 0 |
+| `tests/test_shipping.py` | 2 | 0 |
 | `scripts/build_code_index.py` | 1 | 4 |
 | `scripts/generate_repo_map.py` | 1 | 3 |
-| `scripts/session_start.py` | 1 | 4 |
-| `scripts/summarize_implementation_log.py` | 1 | 0 |
+| `scripts/session_start.py` | 1 | 6 |
 
 ## Symbol Graph
 
-271 symbols, 687 edges (exact 233, heuristic 202, ambiguous 252, weak 0).
+617 symbols, 1383 edges (exact 569, heuristic 550, ambiguous 264, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `ClosureCheckTests.write` | 59 | `tests/test_closure_check.py:35` |
-| `JavaCSharpGraphTests.write` | 59 | `tests/test_java_csharp.py:117` |
-| `WorkspaceToolsGoldenTests.write` | 59 | `tests/test_workspace_tools.py:42` |
-| `read_text` | 47 | `scripts/session_start.py:79` |
-| `WorkspaceToolsGoldenTests.init_project` | 26 | `tests/test_workspace_tools.py:61` |
-| `WorkspaceToolsGoldenTests.run_tool` | 24 | `tests/test_workspace_tools.py:48` |
-| `Scanner.run` | 23 | `scripts/extract_java_csharp.py:230` |
-| `run` | 23 | `scripts/refresh_repo_map.py:25` |
-| `git` | 10 | `scripts/closure_check.py:35` |
-| `ClosureCheckTests.run_check` | 10 | `tests/test_closure_check.py:40` |
-| `ClosureCheckTests.row` | 8 | `tests/test_closure_check.py:47` |
-| `build_index` | 7 | `scripts/build_code_index.py:294` |
+| `read_text` | 97 | `scripts/session_start.py:101` |
+| `run` | 46 | `tests/test_ops_ownership.py:35` |
+| `Scanner.run` | 37 | `scripts/extract_java_csharp.py:230` |
+| `run` | 37 | `scripts/refresh_repo_map.py:25` |
+| `write` | 37 | `tests/test_ops_ownership.py:49` |
+| `OpsCase.init` | 29 | `tests/test_ops_ownership.py:106` |
+| `git` | 29 | `tests/test_ops_ownership.py:43` |
+| `WorkspaceToolsGoldenTests.init_project` | 26 | `tests/test_workspace_tools.py:62` |
+| `ShippingBase.make_source` | 25 | `tests/test_shipping.py:64` |
+| `WorkspaceToolsGoldenTests.run_tool` | 24 | `tests/test_workspace_tools.py:49` |
+| `git` | 21 | `scripts/closure_check.py:43` |
+| `OpsCase.session` | 19 | `tests/test_ops_ownership.py:109` |
 
 Query it instead of grepping:
 
 ```bash
-python scripts/explore.py --root . --symbol <name>    # callers, callees, flow
-python scripts/explore.py --root . --impact <name>    # blast radius + tests
-python scripts/explore.py --root . --path <a> <b>     # how a reaches b
+python _agent_ops/tools/explore.py --root . --symbol <name>    # callers, callees, flow
+python _agent_ops/tools/explore.py --root . --impact <name>    # blast radius + tests
+python _agent_ops/tools/explore.py --root . --path <a> <b>     # how a reaches b
 ```
 
 ## Entry Points
@@ -87,18 +94,20 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
-| `tests/test_workspace_tools.py` | 1225 |
-| `scripts/init_project_ops.py` | 1020 |
-| `scripts/session_start.py` | 613 |
+| `tests/test_workspace_tools.py` | 1233 |
+| `scripts/init_project_ops.py` | 1128 |
+| `tests/test_ops_ownership.py` | 748 |
+| `scripts/session_start.py` | 592 |
+| `tests/test_ops_ownership_round2.py` | 584 |
 | `scripts/scan_deps.py` | 534 |
 | `scripts/build_code_index.py` | 506 |
-| `scripts/explore.py` | 427 |
+| `scripts/explore.py` | 459 |
 | `scripts/generate_repo_map.py` | 427 |
-| `scripts/extract_java_csharp.py` | 400 |
+| `scripts/ops_gate.py` | 424 |
 
 ## Isolated Files
 
-3 file(s) have no resolved local imports in either direction.
+5 file(s) have no resolved local imports in either direction.
 They are listed only on demand -- enumerating them here would recreate the
 context bloat this map exists to prevent.
 
@@ -107,7 +116,7 @@ context bloat this map exists to prevent.
 This map is deliberately shallow. For the affected zone of a specific change:
 
 ```bash
-python scripts/scan_deps.py --root . --seed "<keyword>" --hops 2 --output markdown
+python _agent_ops/tools/scan_deps.py --root . --seed "<keyword>" --hops 2 --output markdown
 ```
 
 ## Limits

@@ -22,3 +22,4 @@ code_index.json
 # Bytecode from running tools/. The tools themselves ARE tracked on purpose: a
 # teammate who clones this project then has working tooling without the pack.
 __pycache__/
+backups/

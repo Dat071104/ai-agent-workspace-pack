@@ -23,6 +23,7 @@ everything here defeats the purpose of the folder.
 | 3 | `phase_context_cards/` | Working inside one specific phase. | Medium |
 | 3 | `archive/` | Investigating something older than the retained log window. | Heavy |
 | ref | `SESSION_PROTOCOL.md` | Changing session behavior, or unsure about the closure gate. | Medium |
+| ref | `OPS_OWNER.json`, `OPS_POLICY.json` | Never hand-edit. The first records whose memory this is (Git root commit(s) + project id); the second records which generated policy files are still the pack's. | n/a |
 | ref | `tools/` | The scripts below. Copies of the workspace pack, so this project runs them with no pack installed. Do not hand-edit. | n/a |
 
 ## Write Triggers
@@ -52,7 +53,12 @@ Enforced by `_agent_ops/.gitignore`.
 
 | Tracked -- durable memory, should survive a clone | Ignored -- session scratch, machine-local |
 | --- | --- |
-| `INDEX.md`, `OPERATING_RULES.md`, `SESSION_PROTOCOL.md`, `PROJECT_CONTEXT_CARD.md`, `REPO_MAP.md`, `HANDOFF.md`, `IMPLEMENTATION_LOG.md`, `archive/`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, `phase_context_cards/`, `tools/` | `SESSION_BRIEF.md`, `CURRENT_TASK.md`, `LOG_SUMMARY.md`, `code_index.json`, `__pycache__/` |
+| `INDEX.md`, `OPERATING_RULES.md`, `SESSION_PROTOCOL.md`, `PROJECT_CONTEXT_CARD.md`, `REPO_MAP.md`, `HANDOFF.md`, `IMPLEMENTATION_LOG.md`, `archive/`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, `phase_context_cards/`, `tools/`, `OPS_OWNER.json`, `OPS_POLICY.json` | `SESSION_BRIEF.md`, `CURRENT_TASK.md`, `LOG_SUMMARY.md`, `code_index.json`, `backups/`, `__pycache__/` |
+
+`OPS_OWNER.json` is tracked on purpose: commit it. It is what lets a clone of this
+project keep this memory and lets a copy into another project be refused.
+`backups/` holds what `init_project_ops.py --reset-memory` saved before starting
+fresh; it is never deleted by the pack and never committed.
 
 `tools/` is tracked on purpose: a teammate who clones this project then has
 working tooling without installing the workspace pack. `code_index.json` is
@@ -73,7 +79,7 @@ python _agent_ops/tools/generate_repo_map.py --root . \
     --output _agent_ops/REPO_MAP.md --force                  # refresh the code map
 python _agent_ops/tools/build_code_index.py --root .                  # rebuild the symbol graph
 python _agent_ops/tools/explore.py --symbol <name>                    # callers, callees, flow
-python _agent_ops/tools/explore.py --impact <name>                    # blast radius + tests
+python _agent_ops/tools/explore.py --impact <name>                    # blast radius + tests ("Candidate tests" = unverified text matches)
 python _agent_ops/tools/scan_deps.py --root . --seed "<keyword>" --hops 2   # file-level zone
 python _agent_ops/tools/summarize_implementation_log.py \
     --log _agent_ops/IMPLEMENTATION_LOG.md --rotate --keep 10 \

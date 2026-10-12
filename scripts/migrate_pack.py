@@ -7,10 +7,11 @@ folders. Nothing here deletes anything: every pack file is MOVED into
 `<folder>/`, so `git status` shows renames and the whole operation is revertible
 with `git checkout`.
 
-Files are matched by their path inside this source pack, never by directory
-name. A flat install merged the pack's `scripts/*.py` into the application's own
-`scripts/`; moving that whole directory would take the application's code with
-it, which is exactly the damage the namespaced layout exists to prevent.
+A file moves only with PROOF it is the pack's: its bytes equal this source
+pack's file, or (when the source is a Git repository) a version that path held
+at some revision of the source's history. A path that merely matches a pack
+file's name -- an application's own `scripts/shared.py` -- is a conflict, and any
+conflict stops the whole migration before the first move.
 """
 
 from __future__ import annotations
@@ -25,12 +26,15 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from pack_manifest import local_tree_files, shipped_bytes, write_manifest  # noqa: E402
+from pack_ownership import history_blobs, matches_history  # noqa: E402
+from pack_sync import classify_overlap  # noqa: E402
 from source_state import looks_like_pack, pack_folder  # noqa: E402
 from source_state import worktree_is_clean  # noqa: E402
+from ops_gate import REFUSED_EXIT  # noqa: E402
 
 
 DEFAULT_FOLDER = "ai-agent-workspace-pack"
-EXCLUDED_NAMES = {".git", "_agent_ops", "__pycache__", ".pytest_cache"}
 # Entry points and host-shared names are decided by init_project_ops after the
 # move, or left alone. `LICENSE`, `.gitignore`, and `README.md` are as likely to
 # belong to the application as to the pack, and guessing wrong loses host files.
@@ -38,22 +42,6 @@ ROOT_ENTRY_POINTS = {"AGENTS.md", "CLAUDE.md", "GEMINI.md"}
 NEVER_MOVED = {"LICENSE", ".gitignore", "README.md"} | ROOT_ENTRY_POINTS
 FLAT_BRIDGE_BEGIN = "<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v1 -->"
 FLAT_BRIDGE_END = "<!-- AI_AGENT_WORKSPACE_PACK:END v1 -->"
-
-
-def pack_relative_files(source: Path) -> list[Path]:
-    """Every file this pack owns, as paths relative to the pack root."""
-
-    found: list[Path] = []
-    for path in source.rglob("*"):
-        if not path.is_file():
-            continue
-        relative = path.relative_to(source)
-        if any(part in EXCLUDED_NAMES for part in relative.parts) or path.suffix == ".pyc":
-            continue
-        if len(relative.parts) == 1 and relative.name in NEVER_MOVED:
-            continue
-        found.append(relative)
-    return sorted(found)
 
 
 def strip_flat_bridge(text: str) -> str:
@@ -66,16 +54,41 @@ def strip_flat_bridge(text: str) -> str:
     return (text[:start].rstrip("\n") + "\n" + text[end:].lstrip("\n")).lstrip("\n")
 
 
-def plan_moves(target: Path, source: Path, destination: Path) -> list[Path]:
-    """Pack-owned files that actually exist in the target, in move order."""
-
-    return [relative for relative in pack_relative_files(source) if (target / relative).is_file()]
+def _lf(data: bytes) -> bytes:
+    return data.replace(b"\r\n", b"\n")
 
 
-def prune_empty_dirs(target: Path, moved: list[Path]) -> list[Path]:
+def plan_moves(target: Path, source: Path) -> tuple[list[str], list[str]]:
+    """Split target files that share a pack path into (proven-pack, conflicts).
+
+    Candidates are the source pack's files, tests/ and examples/ included: a
+    flat install of an older revision unpacked those too, and they are exactly
+    what pollutes the host root. Both lists are sorted, posix paths.
+    """
+
+    history: dict[str, set[str]] | None = None
+    moves: list[str] = []
+    conflicts: list[str] = []
+    for rel in sorted(local_tree_files(source)):
+        if "/" not in rel and rel in NEVER_MOVED:
+            continue
+        host_file = target / rel
+        if not host_file.is_file():
+            continue
+        data = host_file.read_bytes()
+        if _lf(data) == _lf((source / rel).read_bytes()):
+            moves.append(rel)
+            continue
+        if history is None:
+            history = history_blobs(source)
+        (moves if matches_history(data, rel, history) else conflicts).append(rel)
+    return moves, conflicts
+
+
+def prune_empty_dirs(target: Path, moved: list[str]) -> list[Path]:
     """Remove directories emptied by the move, deepest first. Never removes files."""
 
-    candidates = {target / relative.parent for relative in moved if relative.parent != Path(".")}
+    candidates = {(target / rel).parent for rel in moved if "/" in rel}
     removed: list[Path] = []
     for directory in sorted(candidates, key=lambda path: len(path.parts), reverse=True):
         while directory != target and directory.is_dir() and not any(directory.iterdir()):
@@ -85,7 +98,7 @@ def prune_empty_dirs(target: Path, moved: list[Path]) -> list[Path]:
     return removed
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Move a flat workspace-pack install into one namespaced folder."
     )
@@ -105,8 +118,130 @@ def main() -> int:
         action="store_true",
         help="Proceed even though the target worktree has uncommitted changes.",
     )
-    args = parser.parse_args()
+    memory = parser.add_mutually_exclusive_group()
+    memory.add_argument("--claim-memory", action="store_true",
+                        help="Passed to init: adopt the moved memory (an install from before ownership stamps).")
+    memory.add_argument("--reset-memory", action="store_true",
+                        help="Passed to init: back up the moved memory completely, then start fresh.")
+    return parser
 
+
+def print_plan(target: Path, folder: Path, moves: list[str], conflicts: list[str],
+               strips_bridge: bool) -> None:
+    ops = target / "_agent_ops"
+    print(f"Target: {target}")
+    print(f"Destination: {target / folder}")
+    print(f"Pack files to move (content proven to be the pack's): {len(moves)}")
+    for rel in moves[:20]:
+        print(f"  {rel} -> {folder.as_posix()}/{rel}")
+    if len(moves) > 20:
+        print(f"  ... {len(moves) - 20} more")
+    print(f"Project memory: {'_agent_ops/ -> ' + folder.as_posix() + '/_agent_ops/' if ops.is_dir() else 'none found'}")
+    print(f"Root AGENTS.md: {'managed flat block removed, host text kept' if strips_bridge else 'left as is'}")
+    print("Derived artifacts rebuilt after the move: code_index.json, REPO_MAP.md")
+    print("Never moved (host-shared or regenerated): " + ", ".join(sorted(NEVER_MOVED)))
+    if conflicts:
+        print(f"\nCONFLICTS ({len(conflicts)}): same path as a pack file, but different content:")
+        for rel in conflicts:
+            print(f"  {rel}")
+
+
+def move_files(target: Path, destination: Path, moves: list[str]) -> None:
+    destination.mkdir(parents=True)
+    for rel in moves:
+        new_path = destination / rel
+        new_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(target / rel), str(new_path))
+
+
+def move_ops(target: Path, destination: Path) -> None:
+    ops = target / "_agent_ops"
+    if not ops.is_dir():
+        return
+    shutil.move(str(ops), str(destination / "_agent_ops"))
+    # Both describe the OLD layout and are derived, so they are rebuilt by the
+    # initialization below. Leaving them would keep the pack's own scripts in
+    # the project's graph -- the exact defect this migration removes. Nothing
+    # else in project memory is touched.
+    for derived in ("code_index.json", "REPO_MAP.md"):
+        stale = destination / "_agent_ops" / derived
+        if stale.is_file():
+            stale.unlink()
+            print(f"REBUILD PENDING: {derived} (described the flat layout)")
+
+
+def ensure_pack_agents(source: Path, destination: Path) -> bool:
+    """The pack root file the new bridge points at must exist even when the flat
+    install's AGENTS.md was host-owned and therefore stayed at the root."""
+
+    path = destination / "AGENTS.md"
+    if path.is_file():
+        return False
+    path.write_bytes(shipped_bytes(source, "AGENTS.md"))
+    print(f"WRITE: {path} (canonical pack instructions)")
+    return True
+
+
+def initialize(destination: Path, target: Path, folder: Path, memory_flag: str = "") -> int:
+    return subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(destination / "scripts" / "init_project_ops.py"),
+            "--target",
+            str(target),
+            "--embedded-folder",
+            folder.as_posix(),
+            "--install-agents-bridge",
+            *([memory_flag] if memory_flag else []),
+        ],
+        cwd=str(target),
+        text=True,
+        check=False,
+    ).returncode
+
+
+def apply_migration(source: Path, target: Path, folder: Path, moves: list[str],
+                    strips_bridge: bool, memory_flag: str = "") -> int:
+    destination = target / folder
+    agents = target / "AGENTS.md"
+    move_files(target, destination, moves)
+    move_ops(target, destination)
+    for removed in prune_empty_dirs(target, moves):
+        print(f"REMOVED empty directory: {removed}")
+    if strips_bridge:
+        agents.write_text(strip_flat_bridge(agents.read_text(encoding="utf-8")), encoding="utf-8")
+        print(f"UPDATED: {agents} (managed flat block removed)")
+    owned = set(moves) | ({"AGENTS.md"} if ensure_pack_agents(source, destination) else set())
+    # The moved files are proven pack content; recording them lets a later
+    # `embed_pack.py --update` retire the ones this revision no longer ships.
+    write_manifest(destination, "migrated", owned)
+
+    print(f"MOVED: {len(moves)} pack file(s) into {destination}")
+    code = initialize(destination, target, folder, memory_flag)
+    if code == REFUSED_EXIT:
+        print(
+            "BLOCKED: files were moved, but init needs an ownership choice for the moved memory "
+            "(see above). Re-run init with the printed --claim-memory or --reset-memory and "
+            "--install-agents-bridge; nothing was deleted.",
+            file=sys.stderr,
+        )
+        return code
+    if code != 0:
+        print(
+            "BLOCKED: files were moved but initialization failed. Nothing was deleted; "
+            "`git status` shows the renames and `git checkout` reverts them.",
+            file=sys.stderr,
+        )
+        return 1
+    print("MIGRATED. Review `git status`: every change is a rename plus the new root entry points.")
+    print("Next: run `embed_pack.py --target . --update` from a current pack to refresh the moved files.")
+    return 0
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
     target = Path(args.target).expanduser().resolve()
     if not target.is_dir():
         parser.error(f"Target must be an existing directory: {target}")
@@ -121,28 +256,23 @@ def main() -> int:
         parser.error("Refusing to migrate this pack's own source checkout.")
     if not looks_like_pack(target):
         parser.error(f"No flat workspace-pack install found at {target}")
-
     destination = target / folder
     if destination.exists():
         parser.error(f"Destination already exists; not merged into: {destination}")
+    if classify_overlap(source, destination) != "none":
+        parser.error(f"The source pack {source} overlaps the destination {destination}.")
 
-    moves = plan_moves(target, source, destination)
-    ops = target / "_agent_ops"
+    moves, conflicts = plan_moves(target, source)
     agents = target / "AGENTS.md"
     strips_bridge = agents.is_file() and FLAT_BRIDGE_BEGIN in agents.read_text(encoding="utf-8", errors="ignore")
-
-    print(f"Target: {target}")
-    print(f"Destination: {destination}")
-    print(f"Pack files to move: {len(moves)}")
-    for relative in moves[:20]:
-        print(f"  {relative.as_posix()} -> {folder.as_posix()}/{relative.as_posix()}")
-    if len(moves) > 20:
-        print(f"  ... {len(moves) - 20} more")
-    print(f"Project memory: {'_agent_ops/ -> ' + folder.as_posix() + '/_agent_ops/' if ops.is_dir() else 'none found'}")
-    print(f"Root AGENTS.md: {'managed flat block removed, host text kept' if strips_bridge else 'left as is'}")
-    print("Derived artifacts rebuilt after the move: code_index.json, REPO_MAP.md")
-    print("Never moved (host-shared or regenerated): " + ", ".join(sorted(NEVER_MOVED)))
-
+    print_plan(target, folder, moves, conflicts, strips_bridge)
+    if conflicts:
+        print(
+            "\nREFUSED: nothing was moved. Rename, move or reconcile the conflicting host files "
+            "(or restore them to the pack's content), then re-run.",
+            file=sys.stderr,
+        )
+        return 1
     if not args.apply:
         print("\nDRY RUN. Nothing was changed. Re-run with --apply to perform the move.")
         return 0
@@ -158,59 +288,8 @@ def main() -> int:
             "Target worktree has uncommitted changes. Commit or stash them first so this "
             "move is revertible, or pass --allow-dirty."
         )
-
-    destination.mkdir(parents=True)
-    for relative in moves:
-        new_path = destination / relative
-        new_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(target / relative), str(new_path))
-    if ops.is_dir():
-        shutil.move(str(ops), str(destination / "_agent_ops"))
-        # Both describe the OLD layout and are derived, so they are rebuilt by the
-        # initialization below. Leaving them would keep the pack's own scripts in
-        # the project's graph -- the exact defect this migration removes. Nothing
-        # else in project memory is touched.
-        for derived in ("code_index.json", "REPO_MAP.md"):
-            stale = destination / "_agent_ops" / derived
-            if stale.is_file():
-                stale.unlink()
-                print(f"REBUILD PENDING: {derived} (described the flat layout)")
-    for removed in prune_empty_dirs(target, moves):
-        print(f"REMOVED empty directory: {removed}")
-    if strips_bridge:
-        agents.write_text(strip_flat_bridge(agents.read_text(encoding="utf-8")), encoding="utf-8")
-        print(f"UPDATED: {agents} (managed flat block removed)")
-    # The pack root file the new bridge points at must exist even when the flat
-    # install's AGENTS.md was host-owned and therefore stayed at the root.
-    if not (destination / "AGENTS.md").is_file():
-        shutil.copy2(source / "AGENTS.md", destination / "AGENTS.md")
-        print(f"WRITE: {destination / 'AGENTS.md'} (canonical pack instructions)")
-
-    print(f"MOVED: {len(moves)} pack file(s) into {destination}")
-    initialize = subprocess.run(
-        [
-            sys.executable,
-            "-B",
-            str(destination / "scripts" / "init_project_ops.py"),
-            "--target",
-            str(target),
-            "--embedded-folder",
-            folder.as_posix(),
-            "--install-agents-bridge",
-        ],
-        cwd=str(target),
-        text=True,
-        check=False,
-    )
-    if initialize.returncode != 0:
-        print(
-            "BLOCKED: files were moved but initialization failed. Nothing was deleted; "
-            "`git status` shows the renames and `git checkout` reverts them.",
-            file=sys.stderr,
-        )
-        return initialize.returncode or 1
-    print("MIGRATED. Review `git status`: every change is a rename plus the new root entry points.")
-    return 0
+    flag = "--reset-memory" if args.reset_memory else "--claim-memory" if args.claim_memory else ""
+    return apply_migration(source, target, folder, moves, strips_bridge, flag)
 
 
 if __name__ == "__main__":

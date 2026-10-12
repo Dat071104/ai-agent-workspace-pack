@@ -7,26 +7,51 @@ generating starter context cards, and summarizing/rotating implementation logs.
 All scripts use the Python standard library only.
 
 `embed_pack.py` is the portable installation entry point: it copies this pack
-into `<target>/ai-agent-workspace-pack/` without `.git/` or the source pack's
-project-specific `_agent_ops/`, then initializes fresh nested operations, a
-preserving root `AGENTS.md` bridge, and the root `.codex/` and `.claude/`
-pointer files the harnesses need to discover the subagents and team skills. It
-is not copied into runtime tools because it requires the full source pack.
+into `<target>/ai-agent-workspace-pack/`, then initializes fresh nested
+operations, a preserving root `AGENTS.md` bridge, and the root `.codex/` and
+`.claude/` pointer files the harnesses need to discover the subagents and team
+skills. It is not copied into runtime tools because it requires the full source
+pack.
 
-`embed_pack.py --update` refreshes a pack already installed in a project:
-pack content is overwritten, files the current revision no longer ships are
-removed, and `_agent_ops/` is left alone. Both install and update stamp
-`<folder>/PACK_VERSION`, which `session_start.py` reports.
+- **Shipping set.** What is copied is decided in one place (`pack_manifest.py`):
+  an allowlist of pack entries (root documents, `*-team/`, `commands/`,
+  `core-context/`, `harness/`, `scripts/`, `.claude/` and `.codex/` adapter
+  sources), narrowed to Git-tracked files when the source is its own repository.
+  Never shipped: `.env` files, virtualenvs and other local state, `tests/`,
+  `examples/`, and the source's `_agent_ops/`. New pack files must be `git add`-ed
+  (staged) to ship; no commit is needed. Before writing anything, the installer
+  refuses if a file the pack needs to run is missing from the shipping set, and
+  names each one; other untracked files are reported as skipped.
+- **In place.** Run from a pack already copied to `<target>/<folder>/`
+  (`python ai-agent-workspace-pack/scripts/embed_pack.py --target .`), it copies
+  nothing: it writes `PACK_VERSION` and `PACK_MANIFEST.json`, runs init, and lists
+  files outside the shipping set (for example `tests/`) as left untouched. A
+  source nested inside the destination, or the reverse, is refused.
+- **Records.** Every install writes `<folder>/PACK_VERSION` (reported by
+  `session_start.py`) and `<folder>/PACK_MANIFEST.json` (sha256 of each shipped
+  file), the ownership proof `--update` relies on.
+- **`--update`** refreshes an installed pack and never touches `_agent_ops/`
+  records. A shipped file the host edited is saved to
+  `<folder>/.update-backup/<YYYYmmdd-HHMMSS>[-N]/` (a new folder per update,
+  git-ignored by the pack's `.gitignore`) and then overwritten; a file no longer
+  shipped is removed only if provably unmodified; unknown files are never
+  touched. It passes `--policy-history <source>` to init so unedited generated
+  policy from an older revision can be recognized and refreshed. It refuses on a
+  dirty or non-Git worktree without `--allow-dirty`.
 
 `migrate_pack.py` moves an older flat install into the namespaced folder. It is
 a dry run by default, moves rather than deletes, and refuses to touch a dirty or
-non-Git worktree without `--allow-dirty`.
+non-Git worktree without `--allow-dirty`. A file moves only with content proof
+(bytes equal the source file, or a version it held in the source's history); any
+name-only collision is a conflict and nothing is moved.
 
-`init_project_ops.py` copies every other script here into the target project as
-`_agent_ops/tools/`. Inside a project, run them as
+`init_project_ops.py` copies the runtime scripts (the `RUNTIME_TOOLS` list in it) into
+the target project as `_agent_ops/tools/`. Inside a project, run them as
 `python _agent_ops/tools/<script> ...`; the `python scripts/<script> ...` form
-below is for working on the pack itself. Only `init_project_ops.py` does not
-travel -- it needs `core-context/`.
+below is for working on the pack itself. Install/ownership tooling
+(`init_project_ops.py`, `ops_gate.py`, `ops_policy.py`, `embed_pack.py`,
+`migrate_pack.py`, `pack_*.py`) does not travel -- it needs `core-context/` or the
+full source pack.
 
 These are the deterministic half of a managed session. Running them keeps the
 model from having to remember mechanical bookkeeping, which matters most on
@@ -50,8 +75,24 @@ python scripts/init_project_ops.py --target "D:\MyProject"
 #                       existing embedded project's AGENTS.md
 #   --check-agents-bridge    read-only bridge health check
 #   --no-index      skip code_index.json    --no-repo-map  skip REPO_MAP.md
-#   --force         overwrite memory files (tools/ are always refreshed)
+#   --force         regenerate derived files (code index, repo map); never
+#                   overwrites memory records, host-owned adapters, or edited
+#                   policy files (tools/ are always refreshed)
+#   --reset-memory  memory not proven this project's (foreign, unverifiable,
+#                   damaged stamp, or unstamped): back up EVERY
+#                   file to <ops>/backups/<timestamp>/ (gitignored), then fresh
+#                   templates
+#   --claim-memory  adopt the existing memory as this project's and stamp it
+#   --policy-history <source-pack-checkout>
+#                   recognize an unedited SESSION_PROTOCOL/OPERATING_RULES/INDEX
+#                   from an older revision and refresh it
 #   --install-repo-map-hook  opt in to a managed pre-commit map refresh hook
+
+# When init finds memory that is not provably this project's -- including any
+# unstamped memory that has real records -- it exits 3 and writes nothing; it
+# prints the --reset-memory / --claim-memory commands. embed_pack.py and
+# migrate_pack.py accept the same two flags and pass them to init; embed_pack.py
+# asks the same question before it writes anything.
 
 # Start of every managed session. Read-only: git state, what changed since the
 # memory was last verified, repo-map staleness, unfilled placeholders, log size.
@@ -74,6 +115,7 @@ python scripts/refresh_repo_map.py --root . --stage
 python scripts/explore.py --symbol charge          # definitions, callers, callees, flow
 python scripts/explore.py --path checkout charge   # how control reaches a symbol
 python scripts/explore.py --impact getUser         # blast radius + tests to run
+#   (when no test is in the graph: "Candidate tests" = text-match leads, not edges)
 python scripts/explore.py --file src/auth.py       # what a file holds, who imports it
 python scripts/explore.py --entrypoints            # routes + unreferenced symbols
 
@@ -92,6 +134,23 @@ python scripts/summarize_implementation_log.py --log "_agent_ops/IMPLEMENTATION_
     --rotate --keep 10 --output "_agent_ops/LOG_SUMMARY.md" --force
 ```
 
+## Module Map (internals of install, ownership and policy)
+
+Split along one responsibility each. `ops_identity.py`, `session_state.py` and
+`source_state.py` ship into `_agent_ops/tools/` (session_start.py imports them);
+the rest stay in the pack (init, install and update need the full source pack).
+
+| Module | Role |
+| --- | --- |
+| `ops_identity.py` | Whose `_agent_ops/` memory is this: states OWNED / UNBOUND / FOREIGN / UNVERIFIABLE / LEGACY / NEW from `OPS_OWNER.json` and the Git root commit(s). Read-only; strict stamp schema (a damaged stamp is unverifiable, never bindable). |
+| `session_state.py` | Parses what the ops records say (sections, placeholders, task `## Status`, open questions); `session_start.py` prints. |
+| `ops_gate.py` | init's ownership gate: refuse (exit 3), `--reset-memory` with a sha256-verified backup, `--claim-memory`, templates-only detection; the only stamp writer; `preflight_refusal` lets embed ask before writing. |
+| `ops_policy.py` | Tracks generated policy files in `OPS_POLICY.json`; refreshes one only when provably unedited, keeps and reports customized ones. |
+| `pack_manifest.py` | The shipping set (allowlist + Git-tracked) and `PACK_MANIFEST.json` (path to sha256). |
+| `pack_ownership.py` | Proof a host file is the pack's: manifest hash, else `PACK_VERSION` revision blob, else any historical blob. |
+| `pack_sync.py` | Writes/refreshes the shipping set in a host folder: backups to `.update-backup/`, proven-only removals. |
+| `source_state.py` | Shared Git-index helpers (repo-map freshness, clean-worktree and pack-folder checks). |
+
 ## Which Script Answers Which Question
 
 | Question | Script |
@@ -105,7 +164,8 @@ python scripts/summarize_implementation_log.py --log "_agent_ops/IMPLEMENTATION_
 | Which files does *this* change touch? | `scan_deps.py` |
 | Is my memory stale relative to the code? | `session_start.py` |
 | Is the log getting expensive to read? | `summarize_implementation_log.py --rotate` |
-| Which ops records does this work still owe before closure? | `closure_check.py` |
+| Which ops records does this work still owe before closure? | `closure_check.py` (`--compact` folds proven rows; `--strict` exits 2 on MISSING) |
+| Whose `_agent_ops/` memory is this? | `session_start.py` (ownership verdict) |
 | Is this repo safe to make public? | `check_repo_hygiene.py` |
 
 ## Safety

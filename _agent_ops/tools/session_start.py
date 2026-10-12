@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -21,15 +20,38 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from generate_context_card import git_value  # noqa: E402
+from ops_identity import (  # noqa: E402
+    FOREIGN,
+    LEGACY,
+    OWNED,
+    UNBOUND,
+    UNVERIFIABLE,
+    Verdict,
+    assess,
+    init_command_hint,
+    owner_summary,
+    reason_lines,
+)
 from scan_deps import tool_prefix  # noqa: E402
-from source_state import index_source_fingerprint, is_project_code as source_is_project_code, resolve_ops_dir  # noqa: E402
+from session_state import (  # noqa: E402,F401  (closure_check imports first_value from here)
+    continuity_block,
+    count_placeholders,
+    first_value,
+    has_real_content,
+    is_placeholder_only,
+    open_questions,
+    real_items,
+    section_body,
+    task_status,
+)
+from source_state import (  # noqa: E402
+    index_source_fingerprint,
+    is_project_code as source_is_project_code,
+    resolve_ops_dir,
+)
 from summarize_implementation_log import split_entries  # noqa: E402
 
 
-PLACEHOLDER_RES = [
-    re.compile(r"`<[^`\n]*>`"),
-    re.compile(r"<fill in [^>\n]*>"),
-]
 ROTATE_THRESHOLD = 12
 
 
@@ -82,68 +104,6 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="ignore")
 
 
-def section_body(text: str, heading: str) -> str:
-    """Return the body under a `## Heading` up to the next heading of any level."""
-    lines = text.splitlines()
-    wanted = heading.strip().lower()
-    collected: list[str] = []
-    capture = False
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("#"):
-            if capture:
-                break
-            title = stripped.lstrip("#").strip().lower()
-            # Prefix match so decorated headings still resolve, e.g.
-            # "## Original Goal (do not lose)".
-            capture = title == wanted or title.startswith(wanted)
-            continue
-        if capture:
-            collected.append(line)
-    return "\n".join(collected).strip()
-
-
-def first_value(text: str, heading: str) -> str:
-    body = section_body(text, heading)
-    for line in body.splitlines():
-        if line.strip():
-            return line.strip().strip("`").strip()
-    return ""
-
-
-def count_placeholders(text: str) -> int:
-    return sum(len(pattern.findall(text)) for pattern in PLACEHOLDER_RES)
-
-
-def is_placeholder_only(line: str) -> bool:
-    """True when a bullet is still the unfilled template text, not real content."""
-    body = line.lstrip("-*").strip().strip("`").strip()
-    return not body or (body.startswith("<") and body.endswith(">"))
-
-
-def real_items(body: str) -> list[str]:
-    """Filled-in entries from a section, whether it uses bullets or a table.
-
-    Templates in this pack use both shapes, and every row still holding its
-    `<placeholder>` text is dropped so a fresh template reports zero.
-    """
-    items: list[str] = []
-    for raw in body.splitlines():
-        line = raw.strip()
-        if line.startswith(("-", "*")) and not line.startswith("---"):
-            if not is_placeholder_only(line):
-                items.append(line)
-        elif line.startswith("|"):
-            cells = [cell.strip() for cell in line.strip("|").split("|")]
-            if not cells or all(set(cell) <= {"-", ":", ""} for cell in cells):
-                continue  # separator row
-            first = cells[0].strip("`").strip()
-            if not first or first.startswith("<") or first.lower() in {"tried", "file", "risk"}:
-                continue  # header row or unfilled placeholder row
-            items.append("- " + " | ".join(cell for cell in cells if cell))
-    return items
-
-
 def commit_exists(root: Path, sha: str) -> bool:
     if not sha or sha.startswith("<"):
         return False
@@ -151,65 +111,6 @@ def commit_exists(root: Path, sha: str) -> bool:
     # non-empty stdout. `cat-file -e` succeeds silently and would be read as a
     # failure by git_value().
     return git_value(root, ["rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"]) != "not available"
-
-
-def has_real_content(text: str, headings: tuple[str, ...]) -> bool:
-    """True when at least one of the named sections is filled in, not template text.
-
-    Sections come in two shapes. For tables and bullet lists, `real_items` already
-    drops header and placeholder rows. For a plain prose section, take the first
-    line -- but never a table header row, which is boilerplate that would
-    otherwise read as real content and make an untouched template look live.
-    """
-    for heading in headings:
-        if real_items(section_body(text, heading)):
-            return True
-        value = first_value(text, heading)
-        if value and not value.startswith(("<", "|")):
-            return True
-    return False
-
-
-def continuity_block(brief: str, task: str, handoff: str) -> list[str]:
-    """Answer the first question a swapped-in agent has: am I continuing someone?
-
-    A new session should not have to be told by the user that a handoff exists.
-    This looks for one and says so before anything else runs.
-    """
-    out = ["## Session Continuity", ""]
-    status = first_value(handoff, "Status").lower() if handoff else ""
-    task_live = has_real_content(task, ("Next Concrete Step", "Files Touched So Far"))
-    brief_live = has_real_content(brief, ("Original Goal", "Active Task"))
-
-    if handoff and status != "consumed":
-        written = first_value(handoff, "Date")
-        out += [
-            "- **CONTINUATION.** A previous session left a handoff.",
-            "- READ `_agent_ops/HANDOFF.md` FIRST, before routing or touching code.",
-            f"- Handoff status: `{status or 'open'}`"
-            + (f", written {written}" if written else ""),
-            "- After absorbing it, set its Status to `consumed` so the next session",
-            "  does not replay it.",
-        ]
-    elif task_live:
-        out += [
-            "- **TASK IN PROGRESS.** No open handoff, but `CURRENT_TASK.md` has live state.",
-            "- Resume from its Next Concrete Step; honour its Ruled Out list.",
-        ]
-    elif brief_live:
-        out += [
-            "- **SESSION ESTABLISHED.** A brief exists; no task is mid-flight.",
-            "- Start the next task from the brief's Active Task.",
-        ]
-    else:
-        out += [
-            "- **FRESH.** No handoff, no live task, no filled-in brief.",
-            "- Treat this as a new session: establish the goal with the user first.",
-        ]
-    if handoff and status == "consumed":
-        out.append("- An older handoff exists but is already marked consumed.")
-    out.append("")
-    return out
 
 
 def pack_stamp(ops: Path) -> str:
@@ -226,6 +127,92 @@ def pack_stamp(ops: Path) -> str:
         if line.startswith("version:"):
             return line.split(":", 1)[1].strip()
     return ""
+
+
+def unproven_section(verdict: Verdict, root: Path, ops: Path) -> list[str]:
+    """Memory whose owner is not established: none of it is to be read as fact.
+
+    FOREIGN, UNVERIFIABLE (including an unreadable or incomplete stamp) and
+    LEGACY (no stamp) all stop here, differing only in wording. A swapped-in
+    agent that resumed another project's "task in progress" -- or one nobody can
+    vouch for -- would act on rules and decisions that were never this project's.
+    The caller prints nothing from the records after this block.
+    """
+
+    reset = init_command_hint(root, ops, "--reset-memory")
+    claim = init_command_hint(root, ops, "--claim-memory")
+    plain = init_command_hint(root, ops, "").strip()
+    headline = {
+        FOREIGN: "This ops folder does not belong to this repository.",
+        UNVERIFIABLE: "**UNVERIFIED.** This memory's owner cannot be established from this checkout.",
+        LEGACY: "**UNSTAMPED (legacy).** Memory exists but has no ownership stamp, so its owner is unproven"
+        + (" and it looks like the workspace pack's own memory." if verdict.suspect else "."),
+    }[verdict.state]
+    out = [
+        f"## !! {'FOREIGN' if verdict.foreign_like else 'UNVERIFIED'} PROJECT MEMORY -- DO NOT RESUME !!",
+        "",
+        f"- {headline}",
+        *reason_lines(verdict),
+        "- Do NOT resume its task, brief, handoff or context card, and do not treat its decisions,",
+        "  risks, Repo Map or rules as this project's. The sections that read them are skipped below.",
+        "- Ask the user which they want, then run one (nothing is lost: --reset-memory backs up every file first):",
+        f"    {reset}   # back up every file under the ops folder's backups/, start from fresh templates",
+        f"    {claim}   # these records ARE this project's (for example after a git history rewrite)",
+    ]
+    if verdict.state == LEGACY:
+        out.append(f"- If every record is still an untouched template, `{plain}` stamps the folder with no flag.")
+    return out + [""]
+
+
+def ownership_section(verdict: Verdict, root: Path, ops: Path) -> list[str]:
+    """Whose memory this is, stated before any of it is believed."""
+
+    if verdict.unproven:
+        return unproven_section(verdict, root, ops)
+    if verdict.state == OWNED:
+        lines = [f"- Owned by this project ({owner_summary(verdict.stamp)})."]
+    elif verdict.state == UNBOUND:
+        lines = [
+            "- Owned by this project, but its stamp was made before the first commit, so it names no root commit.",
+            f"- Bind it once history exists: `{init_command_hint(root, ops, '').strip()}`",
+        ]
+    else:
+        lines = ["- No project memory recorded yet."]
+    return ["## Memory Ownership", "", *lines, ""]
+
+
+def current_task_section(task: str) -> list[str]:
+    """The task record, read through its declared Status.
+
+    A completed task still has a "Next Concrete Step" and open-looking sections;
+    printing them as live instructions sent the next session back into finished
+    work. Only a task that is not done keeps its dead-end list and blockers.
+    """
+
+    out = ["## Current Task", ""]
+    if not task:
+        return out + ["- No `CURRENT_TASK.md`. Create one when a multi-step task begins.", ""]
+    state = task_status(task)
+    out.append(
+        f"- Status: {state}"
+        if state
+        else "- Status: not recorded (file predates the Status field) -- treat its state as unverified."
+    )
+    out.append(f"- Original Goal: {first_value(task, 'Original Goal') or '(empty)'}")
+    pending = open_questions(task)
+    if state in ("complete", "idle"):
+        out.append(f"- Task is {state}: its Next Concrete Step and Ruled Out list are history, not instructions.")
+        if pending:
+            out.append(f"- {len(pending)} open question(s) are still listed on a {state} task; likely stale.")
+        return out + [""]
+    out.append(f"- Next Concrete Step: {first_value(task, 'Next Concrete Step') or '(empty)'}")
+    entries = real_items(section_body(task, "Ruled Out / Already Tried"))
+    out.append(f"- Ruled out so far: {len(entries)} item(s) -- do not retry these.")
+    out += [f"    {line}" for line in entries[:8]]
+    if pending:
+        out.append(f"- BLOCKED on {len(pending)} unanswered question(s):")
+        out += [f"    {line}" for line in pending[:5]]
+    return out + [""]
 
 
 def render(root: Path, ops: Path, log_keep: int) -> str:
@@ -324,6 +311,14 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             "project with no pack present.",
             "",
         ]
+        return "\n".join(out).rstrip() + "\n"
+
+    verdict = assess(root, ops)
+    out += ownership_section(verdict, root, ops)
+    if verdict.unproven:
+        # Every section below reads memory nobody has vouched for; "TASK IN
+        # PROGRESS" and "Resume from its Next Concrete Step" under an UNVERIFIED
+        # banner would contradict it. Read-only: the user picks the init flag.
         return "\n".join(out).rstrip() + "\n"
 
     out += continuity_block(brief, task, handoff)
@@ -505,23 +500,7 @@ def render(root: Path, ops: Path, log_keep: int) -> str:
             out.append("- Constraints: none recorded (still unfilled template text).")
     out.append("")
 
-    out += ["## Current Task", ""]
-    if not task:
-        out.append("- No `CURRENT_TASK.md`. Create one when a multi-step task begins.")
-    else:
-        for heading in ("Original Goal", "Next Concrete Step"):
-            value = first_value(task, heading)
-            out.append(f"- {heading}: {value or '(empty)'}")
-        entries = real_items(section_body(task, "Ruled Out / Already Tried"))
-        out.append(f"- Ruled out so far: {len(entries)} item(s) -- do not retry these.")
-        for line in entries[:8]:
-            out.append(f"    {line}")
-        pending = real_items(section_body(task, "Open Questions Awaiting User"))
-        if pending:
-            out.append(f"- BLOCKED on {len(pending)} unanswered question(s):")
-            for line in pending[:5]:
-                out.append(f"    {line}")
-    out.append("")
+    out += current_task_section(task)
 
     out += ["## Unfilled Placeholders", ""]
     total = 0

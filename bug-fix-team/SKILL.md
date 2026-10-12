@@ -58,6 +58,9 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
    If the index is missing or stale, rebuild it:
    `python _agent_ops/tools/build_code_index.py --root .`
 
+   When `--impact` finds no test, its "Candidate tests (text match, unverified)"
+   list is a set of leads to open, not call edges.
+
    Fallback without Python: grep for the seed symbol, then follow its importers
    one hop out by hand. Either way, state which files are in the zone before
    proposing a fix, and treat an edit to a hot symbol as cross-module until
@@ -101,8 +104,14 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
     step 1, and that it did not push the affected module toward a new failure
     (under-edit). Report `git diff HEAD --shortstat -- <task files>` plus the
     count of new files.
-16. Update the implementation log. In a managed session, append it (ops writes
-    are already authorized by `@start-here`); outside one, ask first.
+16. Update the implementation log and `_agent_ops/CURRENT_TASK.md` (`## Status`,
+    files touched, ruled out). In a managed session, append/write them (ops
+    writes are already authorized by `@start-here`); outside one, ask first.
+    Then draft the Closure Receipt with
+    `python _agent_ops/tools/closure_check.py --root . --compact` (keeps the
+    receipt short on an Obvious fix). Compact only folds rows proven updated;
+    resolve every `decide`/`unverified`/`MISSING` row, and note that exit 0 does
+    not mean the obligations are met.
 17. Commit only if user allowed it.
 
 ## When to Use

@@ -414,3 +414,74 @@
 - S and Obvious never open SELF_REVIEW_CHECKLIST.md or the templates; S no longer opens the effort rubric either (only M vs L does).
 - The shortcut debt-ledger command now lives only in advisor-team/SKILL.md.
 - Savings are estimates; an exact count needs the Anthropic count_tokens API.
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0012`
+
+### Date
+
+`2026-10-12`
+
+### Context
+
+`Codex review confirmed that files and memory were trusted by path: a copied pack's memory was resumed in hosts, a name collision was enough to migrate or overwrite, and --force could replace host adapters.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Identify memory by absolute path or HEAD | Simple | Breaks every valid clone and every commit |
+| B | Git root commit(s) + project id in a tracked OPS_OWNER.json; pack files proven by manifest hash or git blob; refuse when unprovable | Clones keep memory; copies are refused; nothing deleted without proof | No-commit/shallow/zip hosts need an explicit flag; a history rewrite needs --claim-memory |
+| C | Use --force to reset foreign memory | No new flags | Also overwrites host adapters and destroys memory without backup |
+
+### Decision
+
+`Choose B. Reset only via --reset-memory after a verified complete backup; --force never touches memory, host adapters or edited policy. Update overwrites an edited shipped file only after backing it up. Ship git-tracked allowlisted files only.`
+
+### Rationale
+
+`A guessed "foreign" that deletes is worse than a refusal that asks; a half-updated pack is worse than a backed-up overwrite.`
+
+### Consequences
+
+- UNVERIFIABLE memory is refused (exit 3) like FOREIGN; a zip or shallow-clone user passes one flag.
+- Generated policy is refreshed only when its OPS_POLICY.json hash, or a historical rendering, proves it unedited.
+- New pack files must be committed before an embed from a dev checkout.
+
+## Decision Entry
+
+### Decision ID
+
+`DEC-0013`
+
+### Date
+
+`2026-10-12`
+
+### Context
+
+`A second Codex review showed DEC-0012 was not applied consistently: unverifiable memory was still resumed, a {} stamp read as owned, and unstamped memory was auto-claimed when it did not look like the pack's.`
+
+### Options
+
+| Option | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Keep auto-claim for unstamped memory without a pack signature | No step for existing installs | Adopts another project's memory unasked; contradicts DEC-0012 |
+| B | Unstamped memory with real records needs --claim-memory or --reset-memory once; untouched templates need nothing; embed asks before writing and forwards the flag | Proof everywhere; one decision point; no half-updated pack | Every pre-stamp install takes one explicit step |
+
+### Decision
+
+`Choose B. Also: a stamp must match the exact schema init writes; backups are verified by sha256 (and link target) before anything is removed.`
+
+### Rationale
+
+`Absence of evidence against ownership is not evidence for it; the one-time flag is cheaper than silently resuming another project's rules.`
+
+### Consequences
+
+- `embed_pack.py --update` on a pre-stamp install stops before changing anything and prints the command with `--claim-memory`.
+- A hand-written or extended OPS_OWNER.json reads as damaged until `--claim-memory`.
+- UNBOUND stamps remain trusted (normal first-commit flow); the copy hole is recorded in RISK-0011.

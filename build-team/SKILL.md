@@ -67,8 +67,10 @@ audits, fixes, or cleans; this is the one that writes new code.
    callers, tests, fixtures, config, exports, and any data that could be
    destroyed or exposed. When the change modifies an existing
    symbol rather than only adding one, get the radius from the graph:
-   `python _agent_ops/tools/explore.py --root . --impact <symbol>`. If the change must
-   cross a module boundary, say so before editing, not after.
+   `python _agent_ops/tools/explore.py --root . --impact <symbol>`. If it lists
+   "Candidate tests (text match, unverified)", those are leads to open, not call
+   edges. If the change must cross a module boundary, say so before editing, not
+   after.
 7. **Plan and confirm (M/L).** Present steps 3-6 as a short plan with a token/risk
    level. Get confirmation before writing code. Offer to split into slices when
    the change spans more than one module.
@@ -83,8 +85,8 @@ audits, fixes, or cleans; this is the one that writes new code.
     open the full checklist). M/L: `SELF_REVIEW_CHECKLIST.md` on the task's
     files. Fix every Must fix, list the rest. If that changed source, re-run the relevant checks
     (not necessarily the full suite) before reporting.
-11. Update `_agent_ops/CURRENT_TASK.md` as you go: files touched, approaches
-    ruled out, next step. If you added or moved files, rebuild the index and map
+11. Update `_agent_ops/CURRENT_TASK.md` as you go: `## Status`, files touched,
+    approaches ruled out, next step. If you added or moved files, rebuild the index and map
     so the next session is not reasoning on a stale graph:
     `python _agent_ops/tools/build_code_index.py --root .` and
     `python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
@@ -94,7 +96,11 @@ audits, fixes, or cleans; this is the one that writes new code.
     on what was skipped or not checked and any risk. Ask before the next slice.
 13. Before the Closure Receipt, classify actual work under
     `_agent_ops/SESSION_PROTOCOL.md`; the prompt's file list never waives a
-    triggered implementation-log, project-context, or decision record. Commit
+    triggered implementation-log, project-context, or decision record. Draft
+    the receipt with `python _agent_ops/tools/closure_check.py --root . --compact`
+    (keeps the receipt short on S work). Compact only folds rows
+    proven updated; resolve every `decide`/`unverified`/`MISSING` row, and note
+    that exit 0 does not mean the obligations are met. Commit
     only if the user allowed it. For a source-changing commit, stage source
     explicitly after tests, run refresh_repo_map.py with --stage, review the
     generated map, then commit without --no-verify.

@@ -5,6 +5,14 @@ Detects project code changed since `Last Verified Commit` and which `_agent_ops/
 records were touched, then prints one receipt row per ops file. Rows it can
 prove are filled in; rows that need judgment say `decide:`. Advisory only: the
 receipt is still the agent's statement of what it actually wrote. Writes nothing.
+
+Exit codes:
+  0  receipt printed. This does NOT mean every obligation is met: `decide:`,
+     `unverified:` and (without --strict) `MISSING:` rows still exit 0.
+  1  no repository or no ops folder under --root; nothing was checked.
+  2  only with --strict: at least one row is `MISSING:`.
+`--compact` changes presentation only: rows detected as updated fold into one
+line, every other row is still printed individually. Exit codes are unchanged.
 """
 
 from __future__ import annotations
@@ -103,11 +111,27 @@ def build_rows(root: Path, ops: Path, since: str) -> tuple[list[str], str]:
     return rows, header
 
 
+def compact_rows(rows: list[str]) -> list[str]:
+    """Fold rows proven `updated (detected)` into one line; keep every open row verbatim."""
+    done = [r for r in rows if r.endswith(": updated (detected)")]
+    open_rows = [r for r in rows if r not in done]
+    names = ", ".join(r[2:].split(":", 1)[0].strip() for r in done)
+    if not open_rows:
+        return [f"- all {len(rows)} rows updated (detected): {names}"]
+    head = f"- {len(done)} of {len(rows)} rows updated (detected)" + (f": {names}" if done else "")
+    return [head, f"- {len(open_rows)} row(s) still open, NOT resolved:", *open_rows]
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(
+        description=__doc__.splitlines()[0],
+        epilog=__doc__.split("\n\n", 2)[2],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--root", default=".")
     parser.add_argument("--since", default="", help="base commit (default: Last Verified Commit, else HEAD)")
     parser.add_argument("--strict", action="store_true", help="exit 2 when any row is MISSING")
+    parser.add_argument("--compact", action="store_true", help="fold detected-updated rows into one line; open rows stay listed")
     args = parser.parse_args()
     root = Path(args.root).resolve()
     ops = resolve_ops_dir(root)
@@ -118,7 +142,7 @@ def main() -> int:
     rows, header = build_rows(root, ops, resolve_since(root, wanted))
     print("Closure Receipt (draft from closure_check.py -- fill every \"decide\" row)")
     print(header)
-    print("\n".join(rows))
+    print("\n".join(compact_rows(rows) if args.compact else rows))
     return 2 if args.strict and any(": MISSING" in row for row in rows) else 0
 
 

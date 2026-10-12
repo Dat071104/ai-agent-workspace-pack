@@ -18,9 +18,12 @@ Vietnamese note: Thu muc nay dung de tao bo nho du an: context, log, quyet dinh,
 - `DECISION_LOG.md`
 - `RISK_REGISTER.md`
 - `PHASE_ROADMAP.md`
-- `OPERATING_RULES.md`
+- `OPERATING_RULES.md` -- project-specific rules only; universal rules live in `AGENTS.md`
+- `OPS_OWNER.json` -- memory ownership stamp (Git root commit(s) + project id); commit it
+- `OPS_POLICY.json` -- which generated policy files are still the pack's own
 - `phase_context_cards/`
 - `archive/` -- rotated log entries
+- `backups/` -- what `--reset-memory` saved before starting fresh (gitignored)
 
 `scripts/init_project_ops.py` creates all of these, generates `REPO_MAP.md`, and
 writes an `_agent_ops/.gitignore` implementing the hybrid tracking policy below.
@@ -58,6 +61,13 @@ ownership, and the closure gate for factual context updates. The root agent
 owns `_agent_ops/`; subagents never update it. Read it when initializing a
 target project or changing session behavior, not on every ordinary task.
 
+`SESSION_PROTOCOL.md`, `OPERATING_RULES.md` and `INDEX.md` are generated from these
+templates and recorded in `OPS_POLICY.json`. A re-run of init or `embed_pack.py
+--update` refreshes one only when it is provably unedited; a customized file is kept
+and reported. A template edit therefore reaches existing projects that did not
+customize the file. Keep `OPERATING_RULES.md` to project-specific rules: the
+universal ones are in `AGENTS.md`.
+
 ## Current Task and Repo Map
 
 `CURRENT_TASK.template.md` is task-level working memory: files touched, dead ends
@@ -81,12 +91,14 @@ down with `scripts/scan_deps.py --seed "<keyword>" --hops 2`.
 Durable project memory is tracked so it survives a clone -- including the
 implementation log and its archive, which are the project's real work history.
 Only machine-local scratch and derived files stay untracked: `SESSION_BRIEF.md`
-and `CURRENT_TASK.md` change every session, and `LOG_SUMMARY.md` is regenerated
-from the log.
+and `CURRENT_TASK.md` change every session, `LOG_SUMMARY.md` is regenerated
+from the log, and `backups/` is a local safety copy.
+`OPS_OWNER.json` is tracked on purpose: it is what lets a valid clone keep its
+memory and a copy into another project be refused.
 
 | Tracked | Ignored |
 | --- | --- |
-| `INDEX.md`, `OPERATING_RULES.md`, `SESSION_PROTOCOL.md`, `PROJECT_CONTEXT_CARD.md`, `REPO_MAP.md`, `HANDOFF.md`, `IMPLEMENTATION_LOG.md`, `archive/`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, `phase_context_cards/` | `SESSION_BRIEF.md`, `CURRENT_TASK.md`, `LOG_SUMMARY.md` |
+| `INDEX.md`, `OPERATING_RULES.md`, `SESSION_PROTOCOL.md`, `PROJECT_CONTEXT_CARD.md`, `REPO_MAP.md`, `HANDOFF.md`, `IMPLEMENTATION_LOG.md`, `archive/`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, `phase_context_cards/`, `OPS_OWNER.json`, `OPS_POLICY.json` | `SESSION_BRIEF.md`, `CURRENT_TASK.md`, `LOG_SUMMARY.md`, `code_index.json`, `backups/` |
 
 Tracked files are readable by anyone with repository access. Keep secrets,
 private data, and unverified claims out of all of them.

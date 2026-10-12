@@ -26,6 +26,7 @@ sys.path.insert(0, str(SCRIPTS))
 from init_project_ops import AGENTS_BRIDGE_BEGIN as BRIDGE_BEGIN  # noqa: E402
 from init_project_ops import AGENTS_BRIDGE_END as BRIDGE_END  # noqa: E402
 from init_project_ops import RUNTIME_TOOLS  # noqa: E402
+from pack_manifest import MANIFEST_FILE, sha256_file  # noqa: E402
 from scan_deps import CODE_SUFFIXES as SCANNED_SUFFIXES  # noqa: E402
 from source_state import CODE_SUFFIXES as FRESHNESS_SUFFIXES  # noqa: E402
 
@@ -187,7 +188,8 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.write("src/app.py", "def app():\n    return 1\n")
         nested_scripts = self.root / "tools" / "my-pack" / "scripts"
         nested_scripts.mkdir(parents=True, exist_ok=True)
-        for name in ("init_project_ops.py", "source_state.py"):
+        # init imports these siblings; the fixture must carry every one of them.
+        for name in ("init_project_ops.py", "source_state.py", "ops_gate.py", "ops_identity.py", "ops_policy.py"):
             shutil.copy2(SCRIPTS / name, nested_scripts / name)
         nested_init = nested_scripts / "init_project_ops.py"
 
@@ -1179,6 +1181,12 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         team_file.write_text("OUTDATED COPY\n", encoding="utf-8")
         stale = pack / "scripts" / "removed_in_a_later_revision.py"
         stale.write_text("def gone():\n    pass\n", encoding="utf-8")
+        # Removal needs proof of ownership, so simulate an earlier revision that
+        # shipped it: the install manifest is what records that.
+        manifest_path = pack / MANIFEST_FILE
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"]["scripts/removed_in_a_later_revision.py"] = sha256_file(stale)
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         card = pack / "_agent_ops" / "PROJECT_CONTEXT_CARD.md"
         card.write_text("# Card\nPROJECT MEMORY MARKER\n", encoding="utf-8")
         stamp.write_text("version: deadbee\ninstalled: 2000-01-01\n", encoding="utf-8")
@@ -1189,7 +1197,7 @@ class WorkspaceToolsGoldenTests(unittest.TestCase):
         self.assertEqual(0, updated.returncode, updated.stderr)
         self.assertIn("UPDATED PACK", updated.stdout)
         self.assertIn("deadbee ->", updated.stdout)
-        self.assertIn("stale files removed: 1", updated.stdout)
+        self.assertIn("stale pack files removed (proven unmodified): 1", updated.stdout)
 
         self.assertEqual(current, team_file.read_text(encoding="utf-8"))
         self.assertFalse(stale.exists())

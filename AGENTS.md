@@ -1,51 +1,23 @@
 # AGENTS.md
 
-## Namespaced Embedded Use
+Reusable AI-agent operating kit (Codex, Claude Code, Cursor, Gemini, DeepSeek).
+Reached as `ai-agent-workspace-pack/AGENTS.md`, that folder is the **pack root**:
+keep pack and ops paths under it (for example
+`python ai-agent-workspace-pack/_agent_ops/tools/session_start.py --root .`).
+`.codex/agents/`, `.claude/agents/` and `.claude/skills/` at the repository root
+are generated pointers: never hand-edit them; change the team file in the pack
+and re-run the installer. Install, update, migrate: `BOOTSTRAP.md`.
 
-When this file is reached through a root bridge at
-`ai-agent-workspace-pack/AGENTS.md`, that directory is the **pack root**. Keep
-all pack and project-ops paths under it: for example run
-`python ai-agent-workspace-pack/_agent_ops/tools/session_start.py --root .`.
-The root `AGENTS.md` carries a managed block between
-`AI_AGENT_WORKSPACE_PACK:BEGIN/END` markers, followed by every host-owned line
-unchanged. That block is deliberately prose rather than an `@path` import: only
-some harnesses expand one, so a link cannot be the contract. Nothing else moves
-to the application root -- never relocate the pack's teams, scripts, or
-templates there. The generated `CLAUDE.md` and `GEMINI.md` import the root
-`AGENTS.md` first and the pack second, so host governance reaches every harness
-ahead of any pack workflow.
-
-The one exception is harness discovery: `.codex/agents/` and `.claude/agents/`
-plus `.claude/skills/` must sit at the repository root, because no harness looks
-for them in a subdirectory. The installer writes them there as marked pointer
-files that resolve into the pack folder. They are generated -- change a team
-file inside the pack and re-run the installer; never hand-edit a pointer.
-When installing a fresh copy, run `scripts/embed_pack.py --target <project>`
-from a source pack instead of copying its `_agent_ops/` working memory. To pick
-up later pack fixes in a project that already has one, run the same script with
-`--update`: it refreshes pack content and never touches `_agent_ops/`. The
-revision a project runs is recorded in `<pack root>/PACK_VERSION` and reported
-by `session_start.py`.
-
-This repo is a reusable AI-agent operating kit for coding projects. It is
-portable across harnesses (Codex, Claude Code, Cursor, Gemini, DeepSeek). New to
-a repo? Run `BOOTSTRAP.md` once. Not sure which team to use? Type `@start-here`
-plus one line (see `commands/start-here.md`).
-
-For broad requests, read `START_HERE.md` and `TEAM_ROUTER.md` first. `README.md` is a human guide, not required agent context; load it only if the user asks about the pack itself. Do not load every team folder. Route the task, recommend the best team, explain why, classify token/risk level, and ask whether to proceed.
-
-Use `core-context/` templates for project memory. Use the relevant team folder only when needed.
-
-Where the tools live: `python scripts/init_project_ops.py --target <project>` copies
-the runtime tools into that project as `_agent_ops/tools/`, so every command below
-runs from the project root with no pack present. Working inside this pack repo
-itself, the same scripts are in `scripts/`. Only `init_project_ops.py` stays in the
-pack -- it needs the `core-context/` templates, which do not travel.
+Entry: unsure which team? `@start-here <one line>`. For broad requests read
+`START_HERE.md` and `TEAM_ROUTER.md`, then only the selected team's `SKILL.md`.
+`README.md` is a human guide; load it only if asked about the pack. Never load
+every team folder. Route, recommend the best team and why, classify token/risk
+level, ask whether to proceed.
 
 Behavior rules:
 
 - Chat first, files later.
-- Say what you understood and what context is missing.
+- Say what you understood, your assumptions, and what context is missing.
 - Ask clarifying questions when needed.
 - Show options, risks, expected output, and next step.
 - Ask before writing or modifying files unless autonomous mode was explicitly confirmed.
@@ -55,8 +27,7 @@ Behavior rules:
 
 Safety rules:
 
-- Never use `git add .`.
-- Stage explicit files only.
+- Never use `git add .`. Stage explicit files only.
 - For an authorized local commit containing staged project code, enforce
   **commit = repo-map update**: after tests, run the repo-map refresh helper
   with --stage before git commit. It rebuilds the code index and REPO_MAP.md
@@ -69,101 +40,54 @@ Safety rules:
 - Prefer Vietnamese if the user writes Vietnamese.
 - Keep reports concise and honest. Do not claim tests passed unless they were run.
 
-Managed-session invariants:
+Managed session (lifecycle: `_agent_ops/SESSION_PROTOCOL.md`; bootstrap: `START_HERE.md`):
 
-- `@start-here <goal>` starts one managed session. It authorizes only creation
-  and updates inside `_agent_ops/`; use `--no-ops` for router/chat-only work.
-  It does not authorize source, configuration, dependency, git, commit, push,
-  destructive, or external-service changes.
-- Treat `@start-here` as a state machine, not merely a routing hint. Unless the
-  user supplied `--no-ops`, if `_agent_ops/` is missing and this embedded pack's
-  `scripts/init_project_ops.py` exists, bootstrap it immediately with
-  `python scripts/init_project_ops.py --target .` -- do not ask first, because
-  those writes are already authorized. Run it through the pack folder --
-  `python ai-agent-workspace-pack/scripts/init_project_ops.py --target .` --
-  which detects that it lives inside the project and keeps everything nested.
-  If the root `AGENTS.md` has no managed block yet, the run says so and prints
-  the one command that installs it; that command adds text to a host file, so
-  ask first. An outdated block is refreshed automatically -- it is generated
-  pack-owned text, and leaving a project on a broken bridge is worse.
-  That bootstrap means: create the ops
-  records, build `REPO_MAP.md` and the symbol index, then fill the new session's
-  `SESSION_BRIEF.md` and `CURRENT_TASK.md` from the stated goal and append one
-  factual bootstrap entry to `IMPLEMENTATION_LOG.md`. "Do everything" in a
-  start-here request means this complete `_agent_ops/` bootstrap only; it NEVER
-  authorizes source, configuration, dependency, git, or external changes.
-- At the start of a managed session, read this file, then run the read-only
-  `python _agent_ops/tools/session_start.py --root .` for session continuity, git state,
-  memory staleness, unfilled placeholders, and log size. If it reports
-  CONTINUATION, read `_agent_ops/HANDOFF.md` before anything else and mark it
-  `consumed` once absorbed; a swapped-in session finds its own handoff rather
-  than waiting to be told. If Python is unavailable, do those checks
-  by hand as described in `_agent_ops/SESSION_PROTOCOL.md`.
-- Then load the minimal hot context: `_agent_ops/SESSION_BRIEF.md`,
-  `_agent_ops/OPERATING_RULES.md`, and `_agent_ops/CURRENT_TASK.md` when a task
-  is already in progress. If `_agent_ops/` is missing, initialize it without
-  overwriting files. Do not reload every log/card on every turn; use the Session
-  Brief pointers and `_agent_ops/INDEX.md`, and load deeper context only when
-  the task needs it.
-- Read `_agent_ops/REPO_MAP.md` before grepping the repository to locate code or
-  judge blast radius. It is a generated, size-capped map (modules, routes,
-  highest fan-in files and symbols). For anything symbol-level -- who calls this,
-  how does control reach it, what breaks if I change it -- query the graph
-  instead of grepping:
-  `python _agent_ops/tools/explore.py --symbol <name>`, `--path <a> <b>`, `--impact <name>`.
-  Every edge carries a provenance tag: `exact`, `heuristic`, `ambiguous`, `weak`.
-  Treat `ambiguous` and `weak` as leads to verify by reading code, never as fact.
-  Static analysis cannot see dynamic dispatch, DI wiring, reflection, or runtime
-  registries, so an impact result is the MINIMUM blast radius, never the maximum.
-- Keep `_agent_ops/CURRENT_TASK.md` current *during* a task, not only at the
-  end: files touched, approaches ruled out with their evidence, next step. It is
-  what survives a mid-task context compaction and stops the agent from retrying
-  a dead end.
-- Before an edit, scope expansion, or final conclusion, re-anchor to the
-  Session Brief's original goal and constraints. Before a meaningful completion
-  report, the root agent updates the smallest applicable `_agent_ops/` records
-  and prints the **Closure Receipt**: one row per ops file, each resolved as
-  updated-with-what or not-needed-with-why. Omitting a row silently is a
-  protocol violation. Read `_agent_ops/SESSION_PROTOCOL.md` for the
-  authoritative lifecycle and the receipt format.
-- A task prompt defines the requested deliverable and source scope; it never
-  waives durable agent-ops recordkeeping. Before closure, derive records from
-  the work actually performed, not from filenames listed (or omitted) in the
-  prompt. A missing file name is never a valid not-needed reason.
-- When work produces implementation, test, audit, gate, or verification
-  evidence, append the implementation log. Update the project context card for
-  durable phase/milestone state and the decision log for material trade-offs.
-  Write triggered records before the receipt; an explicit user opt-out is a
-  constraint to report, not proof that a record was unnecessary.
+- `@start-here <goal>` starts one managed session. It authorizes only writes
+  inside `_agent_ops/` (`--no-ops` = chat-only), never source, configuration,
+  dependency, git, commit, push, destructive, or external-service changes --
+  "do everything" included. If `_agent_ops/` is missing, bootstrap it without
+  asking, as `START_HERE.md` describes.
+- With `_agent_ops/` present: read this file, run the read-only
+  `python _agent_ops/tools/session_start.py --root .` (CONTINUATION: read
+  `_agent_ops/HANDOFF.md` first, mark it `consumed`; never resume memory it
+  reports as foreign or unverified), then read `_agent_ops/SESSION_BRIEF.md`,
+  `OPERATING_RULES.md`, and `CURRENT_TASK.md` if a task is in progress. Deeper
+  files only when needed (`_agent_ops/INDEX.md`).
+- Read `_agent_ops/REPO_MAP.md` before grepping to locate code or judge blast
+  radius. Symbol questions: `python _agent_ops/tools/explore.py --symbol <name>`,
+  `--path <a> <b>`, `--impact <name>`. Edges are tagged `exact`, `heuristic`,
+  `ambiguous`, `weak`; verify the last two by reading code. Static analysis
+  misses dynamic dispatch, DI, reflection and registries: impact is the MINIMUM
+  blast radius.
+- Keep `_agent_ops/CURRENT_TASK.md` current *during* a task (files touched,
+  approaches ruled out with evidence, next step). Re-anchor to the Session
+  Brief's goal and constraints before an edit, scope expansion, or conclusion.
+- A task prompt defines the deliverable, never recordkeeping: derive records
+  from work actually performed, not from filenames in the prompt. Implementation,
+  test, audit, gate, or verification evidence -> append the implementation log;
+  durable phase/milestone state -> project context card; material trade-off ->
+  decision log. Write them before the **Closure Receipt** (one row per ops file:
+  updated-with-what or not-needed-with-why; a skipped row is a protocol
+  violation; a user opt-out is "blocked by user direction"). Format:
+  `_agent_ops/SESSION_PROTOCOL.md`.
 
 Subagent policy:
 
-- Real subagents exist for four roles: `tester` and `repo_hygiene_reviewer`
-  (read-only), `bug_hunter` (read-only, probes one fix direction), and
-  `bug_fixer` (workspace-write, applies the confirmed fix).
-- Use `auto` as the default work mode. Spawn subagents only when at least two
-  independent workstreams have bounded paths and no shared write target, real
-  child-agent spawning is available, and the user confirms after a token-cost
-  warning. Otherwise use a solo or sequential role-check path and say which.
-- Treat a clear request to use/spawn subagents as `auto` with a
-  **subagent-preferred** intent; do not make the user repeat it as `@work`.
-  This includes contextual equivalents such as "spawn/use subagents", "delegate
-  to child agents", "gọi/dùng/chia agent con", or "làm/chạy song song bằng
-  agents". A mere mention or discussion of subagents is not a trigger.
-- For that intent, first report the eligible recommendation: `parallel` when
-  native spawning and independent scopes exist; `sequential` when work depends
-  on itself or spawning is unavailable; `solo` when extra roles add no value.
-  Explain the reason, token cost, and next confirmation rather than silently
-  spawning or pretending that sequential work is parallel.
-- Large audit: run `tester` + `repo_hygiene_reviewer` in parallel, then merge.
-- Hard bug: run several `bug_hunter` in parallel to probe fix directions, then a
-  single `bug_fixer` after confirmation.
-- The root agent owns user communication, git, `_agent_ops/`, evidence merging,
-  and all final decisions. Subagents receive a compact task capsule and do not
-  write `_agent_ops/`; source changes use one serialized writer lane.
-- Adapters: `.codex/agents/*.toml` for Codex, `.claude/agents/*.md` for Claude
-  Code. They point back to the team folders; the team `SKILL.md` files are the
-  single source of truth.
+- Roles: `tester`, `repo_hygiene_reviewer` (read-only), `bug_hunter` (read-only,
+  one fix direction), `bug_fixer` (writer, confirmed fix). Large audit: `tester`
+  + `repo_hygiene_reviewer` in parallel, then merge. Hard bug: several
+  `bug_hunter` in parallel, then one `bug_fixer` after confirmation.
+- Default mode `auto`. Spawn only with at least two independent workstreams
+  (bounded paths, no shared write target), real child-agent spawning, and user
+  confirmation after a token-cost warning; else go solo or sequential and say so.
+- A clear request to use/spawn subagents ("delegate to child agents", "gọi/dùng/chia
+  agent con", "làm/chạy song song bằng agents") is `auto` with **subagent-preferred**
+  intent, no `@work` needed; a mere mention is not a trigger. First report
+  `parallel`, `sequential`, or `solo` with reason, token cost, and next
+  confirmation. Never pass sequential work off as parallel.
+- Root owns user communication, git, `_agent_ops/`, evidence merging, and final
+  decisions. Subagents get a compact task capsule, never write `_agent_ops/`;
+  source changes use one serialized writer lane.
 
 Coding standard (always on, applies to every team that writes code):
 
@@ -177,14 +101,12 @@ Coding standard (always on, applies to every team that writes code):
 - Reuse existing logic instead of duplicating it; check for an existing
   function/util first. For deeper cleanup, use `clean-code-team/`.
 - Keep files small enough to reason about. Split a file before it passes ~400
-  lines and a function before ~50. Left unchecked, an agent grows one file until
-  nobody -- human or model -- can hold it in context, and unrelated
-  responsibilities quietly collect in it.
+  lines and a function before ~50, or one file grows until nobody -- human or
+  model -- can hold it in context. `_agent_ops/REPO_MAP.md` lists files already
+  past that threshold under **Oversized Files**; check it before adding to one.
 - Split along a responsibility boundary and name the boundary you used. Never
   split by line count alone: a file cut in half at line 300 produces two files
   that must both be read to understand either.
-- `_agent_ops/REPO_MAP.md` lists the files already past that threshold under
-  **Oversized Files**. Check it before adding to one of them.
 - New code goes in the module that owns the concept, not in whichever file is
   already open.
 
@@ -203,20 +125,3 @@ Advisor persona (how to communicate):
 - Before acting on ambiguous or high-stakes input, ask the single most important
   clarifying question. One question, not five.
 - No filler. Professional disagreement is not hostility; stay collaborative.
-
-<!-- AI_AGENT_WORKSPACE_PACK:BEGIN v2 -->
-## AI Agent Workspace Pack
-
-Generated block. Instructions outside it remain authoritative: this is a
-narrowly scoped amendment that may add workflow and may never weaken a rule
-stated elsewhere in this file.
-
-This repository is the workspace pack itself.
-
-When a user message starts with `@start-here`, read `START_HERE.md` and
-`TEAM_ROUTER.md`, then load only the selected team's `SKILL.md`.
-
-`@start-here` authorizes only `_agent_ops/` writes defined by the pack.
-Source, configuration, dependencies, git, destructive actions, and external
-services remain governed by this repository's own rules.
-<!-- AI_AGENT_WORKSPACE_PACK:END v2 -->

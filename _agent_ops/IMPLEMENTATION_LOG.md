@@ -1170,3 +1170,154 @@ python -B scripts/embed_pack.py --target <scratch repo>   # adapter pointers res
 ### Next Step
 
 `User review; commit and push on approval.`
+
+## Entry
+
+### Date
+
+`2026-10-12`
+
+### Task ID
+
+`TASK-0011`
+
+### Scope
+
+`Fix the Codex-verified installer, memory-isolation, session-lifecycle and fixed-context-cost defects (DEC-0012), via Sonnet subagent lanes K/E/M (wave 1, isolated worktrees), root wiring (wave 2) and lane D docs (wave 3); root merged, re-tested and measured.`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `scripts/pack_manifest.py`, `pack_ownership.py`, `pack_sync.py` (new) | one shipping set (allowlist; git-tracked only for a git source; denylist for .env/venvs/caches/.git file); PACK_MANIFEST.json; content-proof ownership; overlap classifier; in-place install |
+| `scripts/embed_pack.py`, `scripts/migrate_pack.py` | install/update/migrate through the shared modules; update backs up edited shipped files and removes unshipped files only when provably unmodified; migrate stops on any name-only collision; `--update` passes `--policy-history <git source>` |
+| `scripts/ops_identity.py`, `ops_gate.py`, `ops_policy.py`, `session_state.py` (new) | OPS_OWNER.json root-commit identity; OWNED/UNBOUND/FOREIGN/UNVERIFIABLE/LEGACY/NEW; refusal exit 3; `--reset-memory` (verified backup) / `--claim-memory`; OPS_POLICY.json generated-policy refresh; task Status and real-question parsing |
+| `scripts/init_project_ops.py`, `scripts/session_start.py` | wiring; no self-bridge on the pack source; `--force` spares memory, host adapters and edited policy; ownership block; foreign memory never resumed |
+| `scripts/explore.py`, `scripts/closure_check.py` | candidate tests (text match, unverified) when the graph finds none; `--compact` receipt keeping every open row; exit codes documented |
+| `AGENTS.md` | self-bridge block removed; split to the always-on core, 13188 -> 7670 chars (nothing dropped; bootstrap moved to START_HERE.md) |
+| `START_HERE.md`, `BOOTSTRAP.md`, `README.md`, `scripts/README.md`, `commands/start-here.md`, `build-team/SKILL.md`, `bug-fix-team/SKILL.md`, `core-context/*.template.md`, `core-context/README.md` | bootstrap state machine, install/copy-paste/BLOCKED flow, update/migrate ownership, `--compact`, candidate tests, Status; OPERATING_RULES template 6206 -> 2004 chars |
+| `tests/` | 5 new files plus additions to test_closure_check.py (72 new tests); 2 existing tests adjusted for intended behavior |
+| `_agent_ops/` | init on the pack source: OPS_OWNER.json, OPS_POLICY.json, policy refreshed (INDEX, SESSION_PROTOCOL, OPERATING_RULES), tools resynced, .gitignore backups/ |
+
+### Why
+
+`A raw copy of the pack carried its own memory into hosts and was resumed as the host's; the embedded AGENTS.md carried a pack-self bridge imported every session; local files shipped; migrate and --force could overwrite host files; policy fixes never reached old projects; session_start reported finished tasks as in progress.`
+
+### Commands Run
+
+```bash
+python -B -m unittest discover -s tests -q            # in a temp clone with every change committed
+python -B scripts/init_project_ops.py --target .       # twice; the second run refreshes no policy
+python -B <scratchpad>/measure_ctx.py <fresh host>     # before (a67f0d2) and after
+```
+
+### Results
+
+`Committed temp clone: Ran 137 tests, OK (65 before this task). Hygiene PASS; git diff --check clean. Uncommitted working tree: 3 embed/update tests fail only because new modules are untracked. Mutation checks: lane M broke 5 behaviors one at a time and each was caught; root broke the --update history wiring and test_update_policy failed. Context on a fresh embed, chars (chars/4 estimate): quick question 15007 -> 9020 (-40%); new S task 64322 -> 59218 (-8%); continuation 54461 -> 47174 (-13%). Raw-copy repro now exits 3 BLOCKED; --reset-memory backed up 34 files, then re-initialized.`
+
+### Bugs Found
+
+- `Foreign memory trusted; pack-self bridge shipped; .env/.venv shippable; migrate by name; --force over host adapters; stale tests/examples kept; policy never refreshed; false TASK IN PROGRESS / BLOCKED.`
+
+### Root Cause
+
+`No notion of ownership: files and memory were trusted by path or name, and shipping copied the directory tree.`
+
+### Fix Applied
+
+`Ownership proven by content (manifest, git blobs) for pack files and by git root commit for memory; refuse when unprovable.`
+
+### Git Commit
+
+`None yet -- awaiting user authorization.`
+
+### Push Result
+
+`None.`
+
+### Remaining Risks
+
+- `Embedding from a dev checkout ships git-tracked files only: new files must be staged (git add; a commit is not needed) -- the 4 working-tree failures were exactly this. Round 2 adds a preflight that refuses before writing.`
+- `Identity limits in RISK-0011.`
+- `The new-S-task path fell only 8%: START_HERE.md gained the bootstrap section and SESSION_PROTOCOL.md (14.3K chars) is still read whole at closure. Figures are chars/4 estimates.`
+- `scripts/init_project_ops.py is 1127 lines (oversized; was 1020).`
+
+### Next Step
+
+`User review; commit and push on approval.`
+
+## Entry
+
+### Date
+
+`2026-10-12`
+
+### Task ID
+
+`TASK-0011 (round 2)`
+
+### Scope
+
+`Close the six gaps a second Codex review found in round 1 (DEC-0013): lane O (ownership), lane S (shipping/backup) as Sonnet subagents in the main tree, root wiring of embed/migrate to the ownership gate.`
+
+### Files Changed
+
+| File | Change |
+| --- | --- |
+| `scripts/ops_identity.py` | strict OPS_OWNER.json schema (`{}`, missing/unknown keys, bad types, unknown schema -> UNVERIFIABLE); `Verdict.unproven` covers UNVERIFIABLE and LEGACY; read-only |
+| `scripts/ops_gate.py` | stamp writers moved in; sha256 + symlink-target verified backup before clear; exclusive backup folder; legacy auto-claim removed (templates-only folders still need no flag); `preflight_refusal` shared with embed |
+| `scripts/session_start.py` | any unproven memory prints only the ownership block and commands, never brief/task/handoff/resume |
+| `scripts/pack_manifest.py` | `git_tracked` returns `set()` for an empty index, `None` only when git is unusable |
+| `scripts/pack_sync.py`, `scripts/embed_pack.py`, `.gitignore` | exclusive `.update-backup/<ts>[-N]/`, ignored by the pack `.gitignore`; required-file preflight (import closure + RUNTIME_TOOLS + templates) before any write; untracked WARN before init; ownership preflight before update/in-place writes; `--claim-memory`/`--reset-memory` forwarded |
+| `scripts/migrate_pack.py` | forwards the memory flags; accurate exit-3 message |
+| `tests/test_ops_ownership_round2.py`, `tests/test_shipping_round2.py` (new), `tests/test_update_policy.py`, `tests/test_ops_ownership.py`, `tests/test_shipping.py` | acceptance tests; legacy tests moved to the explicit-claim contract |
+| `tests/measure_context.py` (new, not shipped) | reproducible per-scenario context measurement (was a scratch script) |
+| `README.md`, `BOOTSTRAP.md`, `START_HERE.md`, `commands/start-here.md`, `scripts/README.md`, `core-context/SESSION_PROTOCOL.template.md` | "not proven" wording, embed flags, backup naming, staging is enough |
+
+### Why
+
+`Round 1 still resumed unverifiable memory, accepted a {} stamp, auto-claimed unstamped memory without proof, could lose a same-second backup, verified backups by size only, and fell back to a filesystem walk on an empty git index.`
+
+### Commands Run
+
+```bash
+python -B -m unittest discover -s tests -q
+python -B <scratchpad>/counterexamples.py        # independent re-run of Codex counterexamples 1,2,3,5,6 + owned control
+python -B scripts/init_project_ops.py --target .  # twice; second run refreshes nothing
+python -B tests/measure_context.py <fresh host>
+```
+
+### Results
+
+`Full suite in the main tree (new files intent-to-add): Ran 184 tests, OK (skipped=1: symlink test, no privilege on this Windows account); hygiene PASS; git diff --check clean. Context (tests/measure_context.py, fresh embed, chars): quick 15007 -> 9020 (-40%), new S 64322 -> 59643 (-7%), continuation 54461 -> 47426 (-13%). Counterexamples: all 5 blocked; owned control still resumes. Lane mutation checks: O 12+ mutations each caught; S 8 mutations each caught; root ownership-preflight mutation caught. Intent-to-add (git add -N) was enough for tracked-only shipping, confirming staging suffices.`
+
+### Bugs Found
+
+- `See Why.`
+
+### Root Cause
+
+`Round 1 treated "no evidence against" as ownership in three places (UNVERIFIABLE resume, empty stamp, legacy claim) and trusted copies and git output without checking them.`
+
+### Fix Applied
+
+`Proof required everywhere; refusal is decided once (ops_gate) and asked before any write.`
+
+### Git Commit
+
+`None yet -- awaiting user authorization.`
+
+### Push Result
+
+`None.`
+
+### Remaining Risks
+
+- `RISK-0011 (updated): an UNBOUND stamp (written before a project's first commit) copied into another repository is still trusted and bound.`
+- `Every pre-stamp install needs one --claim-memory on its next init/--update (intended; documented).`
+- `ops_gate.py (~424 lines) and ops_identity.py (~411) sit at the size limit; init_project_ops.py is 1128 lines.`
+- `The symlink backup test is skipped on this Windows account (no symlink privilege).`
+
+### Next Step
+
+`User review; commit and push on approval.`

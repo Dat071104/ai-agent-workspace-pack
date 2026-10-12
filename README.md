@@ -86,11 +86,37 @@ When the full pack should travel with a project, materialize a clean directory
 python D:\path\to\ai-agent-workspace-pack\scripts\embed_pack.py --target .
 ```
 
-This creates `ai-agent-workspace-pack/`, excluding the source `.git/` and its
-project-specific `_agent_ops/`, then creates fresh project state inside the new
-folder. It keeps team instructions, scripts, templates, phase cards, and the
-project `_agent_ops/` state under that one folder. The only root-level integration files
-are the lightweight harness entry points.
+This creates `ai-agent-workspace-pack/` and ships only an explicit allowlist of
+pack files (root documents, the nine `*-team/` folders, `commands/`,
+`core-context/`, `harness/`, `scripts/`, and the `.claude/` / `.codex/` adapter
+sources). When the source is its own Git repository only its **tracked** files
+ship, so a local `.env`, virtualenv or editor state never travels. `tests/`,
+`examples/` and the source's own `_agent_ops/` are never shipped. Fresh project
+state is created inside the new folder, and `PACK_VERSION` plus
+`PACK_MANIFEST.json` (sha256 of every shipped file) are written next to it. The
+only root-level integration files are the lightweight harness entry points.
+
+**Copy-paste works too.** Copy the pack folder to `<project>/ai-agent-workspace-pack/`
+(without the source `_agent_ops/`), then from the project root:
+
+```bash
+python ai-agent-workspace-pack/scripts/embed_pack.py --target .
+```
+
+Run from the copy, it installs **in place**: nothing is copied, the manifest,
+memory, `AGENTS.md` block and adapters are created, and anything outside the
+shipping set (`tests/`, `examples/`) is reported and left alone. A source nested
+inside the destination, or the destination inside the source, is refused.
+
+**`BLOCKED` (exit 3)?** The `_agent_ops/` it found is not proven to be this project's (copied from another project, history unverifiable, a damaged `OPS_OWNER.json`, or an install from before stamps existed, which has none). Nothing was
+written. Re-run the command it prints (`embed_pack.py` accepts the same two
+flags and passes them to init):
+`init_project_ops.py --target . --embedded-folder ai-agent-workspace-pack
+--reset-memory` (complete backup under `_agent_ops/backups/<timestamp>/`, then
+fresh templates) or `--claim-memory` (keep the records as this project's). See
+`BOOTSTRAP.md` for the step-by-step. `embed_pack.py --update` on a pre-stamp
+install stops here once, before changing anything: re-run it with
+`--claim-memory`. A folder of untouched templates needs no flag.
 
 #### One canonical entry point, three harnesses
 
@@ -133,10 +159,23 @@ stays live in every project that copied an earlier revision. Refresh one with:
 python D:\path\to\ai-agent-workspace-pack\scripts\embed_pack.py --target . --update
 ```
 
-That overwrites pack content, removes files the current revision no longer
-ships, and **never touches `_agent_ops/`** -- your project memory, logs and
-decisions survive. It refuses on a dirty worktree, or outside Git, unless you
-pass `--allow-dirty`, so the change is always reviewable as a diff.
+That overwrites pack content and **never touches `_agent_ops/` records** -- your
+project memory, logs and decisions survive. It refuses on a dirty worktree, or
+outside Git, unless you pass `--allow-dirty`, so the change is always reviewable
+as a diff. Ownership is decided by content, never by file name, using
+`PACK_MANIFEST.json` (what the install wrote, with sha256):
+
+- A shipped file you edited is first copied to
+  `<folder>/.update-backup/<YYYYmmdd-HHMMSS>[-N]/<path>`, then overwritten. Each
+  update gets its own folder (a same-second update adds `-N`, never overwrites),
+  and the pack's own `.gitignore` keeps `.update-backup/` out of Git.
+- A file the new revision no longer ships is removed **only** if it is provably an
+  unmodified pack file. A modified one is kept and reported; a file no record
+  mentions is never touched.
+- `--update` passes `--policy-history <source>` to init, so an unedited
+  `SESSION_PROTOCOL.md`, `OPERATING_RULES.md` or `INDEX.md` from an older revision
+  is refreshed, while a customized one is kept and reported.
+  `_agent_ops/OPS_POLICY.json` records which generated files are still the pack's.
 
 Every install writes `<folder>/PACK_VERSION` recording the source revision and
 install date, and an update records the revision it replaced. `session_start.py`
@@ -157,12 +196,14 @@ is deleted: every pack file is *moved*, so `git status` shows renames and
 `git checkout` reverts the whole thing. `--apply` refuses on a dirty worktree,
 or outside Git, unless you pass `--allow-dirty`.
 
-Files are matched by their path inside the source pack, never by directory name.
-A flat install merged the pack's `scripts/*.py` into the application's own
-`scripts/`, so moving that directory wholesale would carry application code with
-it. `LICENSE`, `.gitignore`, and `README.md` are never moved -- at the root they
-are as likely to be the application's as the pack's, so review those three by
-hand. `_agent_ops/` moves into the pack folder with its history intact;
+A file moves only with **content proof**: its bytes equal the source pack's file,
+or (when the source is a Git repository) a version that path held at some
+revision of the source's history. A flat install merged the pack's `scripts/*.py`
+into the application's own `scripts/`, so a name match alone proves nothing: any
+name-only collision is reported as a **conflict**, and a conflict stops the whole
+migration before the first move. `LICENSE`, `.gitignore`, and `README.md` are
+never moved -- at the root they are as likely to be the application's as the
+pack's, so review those three by hand. `_agent_ops/` moves into the pack folder with its history intact;
 `REPO_MAP.md` and `code_index.json` are rebuilt, because they described the old
 layout.
 
@@ -327,7 +368,9 @@ on the call path. **Where a bug shows up is rarely where it lives.**
 This is deliberate. A static analyzer **cannot** see dynamic dispatch, DI
 wiring, reflection, or runtime registries. So:
 
-- `--impact` gives the **minimum** blast radius, never the maximum
+- `--impact` gives the **minimum** blast radius, never the maximum; when it finds
+  no test, its separate "Candidate tests" list is a text match -- unverified
+  leads, not call edges
 - "nothing calls this" is a **candidate** for dead code, never a verdict
 
 Python is parsed with a real AST parser and is accurate. JS/TS, Java and C#
@@ -355,6 +398,14 @@ Three layers, each with a different lifetime:
 | **Task** | `CURRENT_TASK.md` | Files touched, **dead ends**, next step | Overwritten each task |
 | **Project** | `PROJECT_CONTEXT_CARD.md`, `DECISION_LOG.md`, `RISK_REGISTER.md` | Durable facts and decisions | Grows with the project |
 
+Ownership files live beside the memory: `OPS_OWNER.json` (tracked -- commit it)
+records the project's identity, the Git root commit(s) plus a generated id, so a
+clone keeps its memory and a copy into another project is refused; `OPS_POLICY.json`
+(tracked) records which generated policy files are still the pack's own;
+`backups/` (gitignored) holds what `--reset-memory` saved. `session_start.py`
+prints the ownership verdict, and no brief, task, handoff or resume guidance
+unless the memory is proven this project's.
+
 `CURRENT_TASK.md` is the one that matters most. Its **"Ruled Out / Already
 Tried"** section is what stops an agent from re-testing a hypothesis it already
 disproved after its context gets compacted.
@@ -371,7 +422,7 @@ a material trade-off belongs in the decision log.
 
 | Committed (survives a clone) | Local only |
 | --- | --- |
-| `REPO_MAP.md`, `IMPLEMENTATION_LOG.md`, `archive/`, `HANDOFF.md`, `PROJECT_CONTEXT_CARD.md`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, `OPERATING_RULES.md`, `SESSION_PROTOCOL.md`, `INDEX.md` | `SESSION_BRIEF.md`, `CURRENT_TASK.md`, `LOG_SUMMARY.md`, `code_index.json` |
+| `REPO_MAP.md`, `IMPLEMENTATION_LOG.md`, `archive/`, `HANDOFF.md`, `PROJECT_CONTEXT_CARD.md`, `DECISION_LOG.md`, `RISK_REGISTER.md`, `PHASE_ROADMAP.md`, `OPERATING_RULES.md`, `SESSION_PROTOCOL.md`, `INDEX.md`, `OPS_OWNER.json`, `OPS_POLICY.json` | `SESSION_BRIEF.md`, `CURRENT_TASK.md`, `LOG_SUMMARY.md`, `code_index.json`, `backups/` |
 
 Project history is shared; per-machine scratch and rebuildable artifacts are not.
 
@@ -471,8 +522,10 @@ Two teams have safety gates worth knowing about:
 
 All standard-library Python, cross-platform, no install. After step 2 of the
 install they live in your project at `_agent_ops/tools/`, so run them from your
-project root: `python _agent_ops/tools/<script> ...`. Only `init_project_ops.py`
-stays in the pack -- it needs the pack's templates.
+project root: `python _agent_ops/tools/<script> ...`. Install and ownership tooling
+(`init_project_ops.py`, `embed_pack.py`, `migrate_pack.py`, `ops_*`, `pack_*`)
+stays in the pack -- it needs the pack's templates or full source; see
+`scripts/README.md`.
 
 | Question | Command |
 | --- | --- |
@@ -481,6 +534,7 @@ stays in the pack -- it needs the pack's templates.
 | Build/refresh the code graph | `build_code_index.py --root .` |
 | Who calls this? How do I get here? | `explore.py --symbol` / `--path` |
 | What breaks if I change this? | `explore.py --impact` |
+| Which ops records does this work still owe? | `closure_check.py --root . --compact` |
 | Refresh the human-readable map | `generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force` |
 | Which files does this change touch? | `scan_deps.py --seed "<keyword>" --hops 2` |
 | Is this repo safe to publish? | `check_repo_hygiene.py --root .` |
@@ -574,9 +628,9 @@ Being straight with you:
 ## Repository layout
 
 ```
-START_HERE.md        Entry guide for humans
-AGENTS.md            Always-on rules every agent reads
-BOOTSTRAP.md         One-time setup prompt
+START_HERE.md        Entry guide, incl. the @start-here bootstrap steps
+AGENTS.md            Always-on rules every agent reads (kept short)
+BOOTSTRAP.md         Install + one-time setup prompt
 TEAM_ROUTER.md       Which team for which task
 
 <name>-team/         Nine teams, one SKILL.md each
@@ -584,7 +638,8 @@ core-context/        Templates copied into your project's _agent_ops/
 commands/            Copy-paste prompts
 harness/             Checklists and risk matrices
 scripts/             Python helpers (stdlib only); copied into each project
-examples/            Neutral, public-safe examples
+tests/               Source repository only -- NOT shipped to projects
+examples/            Source repository only -- NOT shipped to projects
 
 .claude/  .codex/    Thin adapters — the team folders are the source of truth
 ```

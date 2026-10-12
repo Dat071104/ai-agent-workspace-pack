@@ -24,8 +24,18 @@ not create or update `_agent_ops/`.
    ```
 
    It reports git state, what changed since the memory was last verified,
-   whether `REPO_MAP.md` is stale, unfilled template placeholders, and whether
-   the implementation log needs rotating.
+   whether `REPO_MAP.md` is stale, unfilled template placeholders, whether the
+   implementation log needs rotating, and **who owns this memory**. Unless it
+   says the memory is owned by this project (or the folder is new), the memory
+   is unproven -- FOREIGN, UNVERIFIED (history cannot be shown, or the stamp is
+   damaged) or UNSTAMPED (legacy) -- and it prints only that block and the init
+   commands, skipping every section that would read the memory:
+   do not resume that task, brief, handoff or rules. Ask the user, then run the
+   `init_project_ops.py ... --reset-memory` (complete backup under
+   `_agent_ops/backups/<timestamp>/`, then fresh templates) or `--claim-memory`
+   command it prints. Nothing is lost: reset backs up every file first.
+   If it reports CONTINUATION, read `_agent_ops/HANDOFF.md` before anything else
+   and set its Status to `consumed` once absorbed.
 
    **Fallback when Python is unavailable** -- do these by hand:
    `git status --short`; `git rev-parse --short HEAD`; compare HEAD against the
@@ -77,6 +87,16 @@ fan-out still follows the confirmation rule above.
 
 ## Subagent Contract
 
+Real subagents exist for four roles: `tester` and `repo_hygiene_reviewer`
+(read-only), `bug_hunter` (read-only, probes one fix direction), and `bug_fixer`
+(workspace-write, applies the confirmed fix). Large audit: run `tester` +
+`repo_hygiene_reviewer` in parallel, then merge. Hard bug: run several
+`bug_hunter` in parallel to probe fix directions, then a single `bug_fixer` after
+confirmation. Adapters: `.codex/agents/*.toml` for Codex and
+`.claude/agents/*.md` for Claude Code; they point back to the team folders, whose
+`SKILL.md` files are the single source of truth. Never present sequential role
+checks as parallel work.
+
 The root agent owns planning, user communication, git, external side effects,
 context updates, evidence synthesis, and the final recommendation. It sends
 each subagent a compact context capsule:
@@ -102,6 +122,7 @@ Update it after each meaningful step, not only at the end:
 
 | Event | What to record |
 | --- | --- |
+| The task starts, waits on a user answer, or finishes | set `## Status`: `in-progress`, `blocked` (waiting on the user), `complete`, or `idle`; `session_start.py` reads it, and a `complete` task is not resumed as live work |
 | A file was edited | add it to Files Touched So Far |
 | A hypothesis or approach was disproved | add it to Ruled Out / Already Tried, with the evidence |
 | The user answered a question | remove it from Open Questions and record the answer's effect |
@@ -168,12 +189,19 @@ this completion order instead: classify actual work against the table, write
 every triggered durable record, then print this block before any meaningful
 completion report.
 
-Before printing it, run `python _agent_ops/tools/closure_check.py --root .`. It
-is read-only: it drafts the rows it can prove (code changed since
-`Last Verified Commit`, which ops files were touched) and marks the rest
-`MISSING` or `decide`. Resolve every `MISSING` and `decide` row, writing the
-record first when a trigger fired. The tool is advisory; the receipt remains
-the agent's statement of what was actually written.
+Before printing it, run `python _agent_ops/tools/closure_check.py --root .`
+(add `--compact` for a short task). It is read-only: it drafts the rows it can
+prove (code changed since `Last Verified Commit`, which ops files were touched)
+and marks the rest `MISSING`, `decide` or `unverified`. Resolve every such row,
+writing the record first when a trigger fired.
+
+- `--compact` changes presentation only: rows proven updated fold into one line;
+  every `decide`, `unverified` and `MISSING` row is still listed and still has to
+  be resolved.
+- Exit 0 does NOT mean the obligations are met; `--strict` exits 2 while any row
+  is `MISSING`.
+- The tool is advisory; the receipt remains the agent's statement of what was
+  actually written.
 
 ```text
 Closure Receipt

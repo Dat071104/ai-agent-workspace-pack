@@ -16,6 +16,8 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from ops_gate import BACKUP_DIR, REFUSED_EXIT, apply_ownership, command_for, is_pack_source  # noqa: E402
+from ops_policy import POLICY_TEMPLATES, ensure_ignored, policy_history_root, refresh_generated_policy  # noqa: E402
 from source_state import DEFAULT_OPS_FOLDER, pack_folder  # noqa: E402
 
 
@@ -47,6 +49,8 @@ RUNTIME_TOOLS = [
     "extract_java_csharp.py",
     "refresh_repo_map.py",
     "explore.py",
+    "ops_identity.py",  # imported by session_start.py, with session_state.py
+    "session_state.py",
     "session_start.py",
     "closure_check.py",
     "summarize_implementation_log.py",
@@ -87,6 +91,11 @@ code_index.json
 # Bytecode from running tools/. The tools themselves ARE tracked on purpose: a
 # teammate who clones this project then has working tooling without the pack.
 __pycache__/
+
+# Complete copies of memory that init replaced (--reset-memory). Kept, never
+# deleted, but they hold another project's records and must not enter this
+# project's history by accident. The folder is skipped by every code scanner.
+backups/
 """
 
 
@@ -120,8 +129,14 @@ def detect_embedded_folder(target: Path) -> Path | None:
     return Path(relative.as_posix()) if relative.parts else None
 
 
-def copy_template(source: Path, destination: Path, force: bool, ops_relative: str) -> str:
-    if destination.exists() and not force:
+def copy_template(source: Path, destination: Path, ops_relative: str) -> str:
+    """Write a project-memory record from its template, only when absent.
+
+    There is deliberately no overwrite switch: these files ARE the project's
+    memory once written, and the one sanctioned way to replace them is
+    --reset-memory, which backs everything up first.
+    """
+    if destination.exists():
         return f"SKIP existing: {destination}"
     destination.parent.mkdir(parents=True, exist_ok=True)
     content = source.read_text(encoding="utf-8")
@@ -671,10 +686,12 @@ def stamp_adapter(text: str, suffix: str) -> str:
     return comment + "\n\n" + text
 
 
-def install_root_adapters(
-    target: Path, pack_root: Path, embedded_folder: Path, force: bool
-) -> list[str]:
-    """Install root pointers for the harnesses that only auto-discover at the root."""
+def install_root_adapters(target: Path, pack_root: Path, embedded_folder: Path) -> list[str]:
+    """Install root pointers for the harnesses that only auto-discover at the root.
+
+    A file without ADAPTER_MARKER is the host's, whatever flags were passed:
+    `--force` used to overwrite a host-owned `.claude/agents/tester.md` here.
+    """
 
     sources = adapter_sources(pack_root)
     if not sources:
@@ -694,7 +711,7 @@ def install_root_adapters(
         )
         if destination.exists():
             existing = destination.read_text(encoding="utf-8", errors="ignore")
-            if ADAPTER_MARKER not in existing and not force:
+            if ADAPTER_MARKER not in existing:
                 messages.append("SKIP host-owned adapter (not overwritten): " + str(destination))
                 continue
             if existing == content:
@@ -759,6 +776,45 @@ def write_repo_map(target: Path, ops_dir: Path, force: bool) -> str:
         )
 
 
+# The pack's own AGENTS.md IS the pack's instructions. A generated self-bridge
+# there shipped to every host inside the embedded copy and was imported each
+# session, contradicting the host bridge (wrong paths, wrong identity).
+PACK_SOURCE_BRIDGE_NOTE = (
+    "AGENTS BRIDGE: NOT APPLICABLE (this is the workspace pack source; its AGENTS.md is the "
+    "pack's own instructions, so no self-bridge is generated)"
+)
+
+
+def agents_entry_lines(
+    args: argparse.Namespace, target: Path, embedded_folder: Path | None, ops_relative: str, flat_embedded: bool
+) -> list[str]:
+    """Create or refresh the root AGENTS.md entry and report the bridge state."""
+
+    lines: list[str] = []
+    agents_existed = (target / "AGENTS.md").exists()
+    if embedded_folder is None:
+        lines.append(write_target_agents_md(target, ops_relative))
+    # One bridge owner for both layouts. A missing bridge adds text to a
+    # host file, so it needs --install-agents-bridge; refreshing a bridge
+    # the project already accepted is regenerating pack-owned text, which
+    # is what lets `embed_pack.py --update` carry a bridge fix into an
+    # installed project at all.
+    status, detail = agents_bridge_status(target, embedded_folder)
+    forced = args.install_agents_bridge or (embedded_folder is not None and not agents_existed)
+    if forced or status == "OUTDATED":
+        lines.append(install_agents_bridge(target, embedded_folder))
+    elif status == "MISSING" and (embedded_folder or flat_embedded):
+        pack_scripts = (embedded_folder.as_posix() + "/scripts") if embedded_folder else "scripts"
+        lines.append(
+            "WARN workspace pack detected but the AGENTS.md bridge is missing, so no "
+            "harness is told to read it. Install it without touching your own text:\n"
+            f"         python {pack_scripts}/init_project_ops.py --target . --install-agents-bridge"
+        )
+    else:
+        lines.append(f"AGENTS BRIDGE: {status} ({detail})")
+    return lines
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Create project memory files in a target project."
@@ -785,7 +841,36 @@ def main() -> int:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite existing ops files.",
+        help=(
+            "Regenerate derived files that already exist (code index, repo map). Never overwrites "
+            "project memory, host-owned adapters, or an edited policy file; see --reset-memory."
+        ),
+    )
+    ownership = parser.add_mutually_exclusive_group()
+    ownership.add_argument(
+        "--reset-memory",
+        action="store_true",
+        help=(
+            "Memory that is not provably this project's (foreign, unverifiable or unstamped): back up "
+            "EVERY file under <ops>/backups/<timestamp>/, then start from fresh templates. Does nothing "
+            "to memory this project already owns."
+        ),
+    )
+    ownership.add_argument(
+        "--claim-memory",
+        action="store_true",
+        help=(
+            "Adopt the existing memory as this project's and stamp it (for example after a git history "
+            "rewrite changed the root commit). Keeps every record."
+        ),
+    )
+    parser.add_argument(
+        "--policy-history",
+        default=None,
+        help=(
+            "A git checkout of the source pack. Lets init recognize an unedited SESSION_PROTOCOL.md, "
+            "OPERATING_RULES.md or INDEX.md from an older pack revision and refresh it."
+        ),
     )
     parser.add_argument(
         "--no-repo-map",
@@ -891,7 +976,11 @@ def main() -> int:
         ops_relative_path = ops_relative_path or Path(DEFAULT_OPS_FOLDER)
     ops_relative = ops_relative_path.as_posix()
     flat_embedded = (target / "TEAM_ROUTER.md").is_file()
+    pack_source = is_pack_source(target, repo_root())
     if args.check_agents_bridge:
+        if pack_source and embedded_folder is None:
+            print(PACK_SOURCE_BRIDGE_NOTE)
+            return 0
         status, detail = agents_bridge_status(target, embedded_folder)
         print(f"AGENTS BRIDGE: {status} ({detail})")
         return 0 if status == "INSTALLED" else 1
@@ -903,17 +992,45 @@ def main() -> int:
         parser.error(f"Cannot find template directory: {templates_dir}")
 
     ops_dir = target / ops_relative_path
+    passthrough = [
+        f"{flag} {value}"
+        for flag, value in (("--embedded-folder", args.embedded_folder), ("--ops-folder", args.ops_folder))
+        if value
+    ]
+    gate = apply_ownership(
+        target,
+        ops_dir,
+        claim=args.claim_memory,
+        reset=args.reset_memory,
+        pack_source=pack_source,
+        command=command_for(target, Path(__file__), passthrough),
+        templates=templates_dir,
+        ops_relative=ops_relative,
+    )
+    if not gate.ok:
+        print("\n".join(gate.errors), file=sys.stderr)
+        return REFUSED_EXIT
     ops_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Target: {target}")
     print(f"Ops folder: {ops_dir}")
+    for line in gate.lines:
+        print(line)
 
     for template_name, output_name in TEMPLATE_MAP.items():
+        if template_name in POLICY_TEMPLATES:
+            continue  # generated policy: refreshed below, only where ownership is provable
         source = templates_dir / template_name
         if not source.exists():
             print(f"WARN missing template: {source}")
             continue
-        print(copy_template(source, ops_dir / output_name, args.force, ops_relative))
+        print(copy_template(source, ops_dir / output_name, ops_relative))
+    for result in refresh_generated_policy(
+        ops_dir, templates_dir, ops_relative, history_root=policy_history_root(args.policy_history, repo_root())
+    ):
+        print(result.message)
+    if args.force:
+        print("NOTE: --force regenerated derived files only; project memory is never overwritten by it.")
 
     phase_dir = ops_dir / "phase_context_cards"
     phase_dir.mkdir(exist_ok=True)
@@ -923,7 +1040,7 @@ def main() -> int:
             "# Phase Context Cards\n\n"
             "Store one phase context card per completed or active phase.\n\n"
             "Suggested name: `PHASE_001_<short-name>.md`.\n",
-            args.force,
+            False,
         )
     )
 
@@ -936,11 +1053,14 @@ def main() -> int:
             "Rotated implementation-log entries land here so the active log stays\n"
             "small enough to read cheaply. Read these only when investigating\n"
             "something older than the retained window.\n",
-            args.force,
+            False,
         )
     )
 
-    print(write_if_absent(ops_dir / ".gitignore", OPS_GITIGNORE.replace("_agent_ops", ops_relative), args.force))
+    gitignore = ops_dir / ".gitignore"
+    print(write_if_absent(gitignore, OPS_GITIGNORE.replace("_agent_ops", ops_relative), False))
+    for line in ensure_ignored(gitignore, (f"{BACKUP_DIR}/",)):
+        print(line)
 
     if args.no_tools:
         print(f"SKIP tools (--no-tools): {ops_dir / 'tools'}")
@@ -962,30 +1082,14 @@ def main() -> int:
     else:
         print(write_repo_map(target, ops_dir, args.force))
 
-    agents_existed = (target / "AGENTS.md").exists()
     if args.no_agents_md:
         print(f"SKIP AGENTS.md (--no-agents-md): {target / 'AGENTS.md'}")
     else:
-        if embedded_folder is None:
-            print(write_target_agents_md(target, ops_relative))
-        # One bridge owner for both layouts. A missing bridge adds text to a
-        # host file, so it needs --install-agents-bridge; refreshing a bridge
-        # the project already accepted is regenerating pack-owned text, which
-        # is what lets `embed_pack.py --update` carry a bridge fix into an
-        # installed project at all.
-        status, detail = agents_bridge_status(target, embedded_folder)
-        forced = args.install_agents_bridge or (embedded_folder is not None and not agents_existed)
-        if forced or status == "OUTDATED":
-            print(install_agents_bridge(target, embedded_folder))
-        elif status == "MISSING" and (embedded_folder or flat_embedded):
-            pack_scripts = (embedded_folder.as_posix() + "/scripts") if embedded_folder else "scripts"
-            print(
-                "WARN workspace pack detected but the AGENTS.md bridge is missing, so no "
-                "harness is told to read it. Install it without touching your own text:\n"
-                f"         python {pack_scripts}/init_project_ops.py --target . --install-agents-bridge"
-            )
+        if pack_source and embedded_folder is None:
+            print(PACK_SOURCE_BRIDGE_NOTE)
         else:
-            print(f"AGENTS BRIDGE: {status} ({detail})")
+            for line in agents_entry_lines(args, target, embedded_folder, ops_relative, flat_embedded):
+                print(line)
 
         # Every harness resolves the same root AGENTS.md, then the pack behind it.
         pack_suffix = f"{embedded_folder.as_posix()}/AGENTS.md" if embedded_folder else ""
@@ -1000,14 +1104,18 @@ def main() -> int:
             if args.no_root_adapters:
                 print("SKIP root harness adapters (--no-root-adapters): subagents and team skills stay undiscovered.")
             else:
-                for line in install_root_adapters(target, embedded_root, embedded_folder, args.force):
+                for line in install_root_adapters(target, embedded_root, embedded_folder):
                     print(line)
 
     print("")
-    print("Done. Existing files were preserved unless --force was used.")
+    if gate.backup:
+        print(f"Done. Previous memory was backed up to {gate.backup}, then replaced by fresh templates.")
+    else:
+        print("Done. Existing project memory was preserved; --force never overwrites it.")
     print(f"Session-scoped files are gitignored by {ops_relative}/.gitignore:")
     print("  " + ", ".join(SESSION_SCOPED))
-    print(f"Everything else in {ops_relative}/ is tracked on purpose.")
+    print(f"Everything else in {ops_relative}/ is tracked on purpose, including OPS_OWNER.json: commit it,")
+    print("because it is what lets a clone of this repository keep this memory (and lets a copy elsewhere be refused).")
     print("")
     print("Next steps, run from inside the project (no pack needed):")
     print(f"  cd {target}")

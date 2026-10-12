@@ -139,6 +139,57 @@ class ClosureCheckTests(unittest.TestCase):
         self.assertIn("MISSING", log)
         self.assertIn("absent", log)
 
+    OPS = ("CURRENT_TASK", "IMPLEMENTATION_LOG", "SESSION_BRIEF", "PROJECT_CONTEXT_CARD",
+           "DECISION_LOG", "RISK_REGISTER", "REPO_MAP")
+
+    def test_compact_all_resolved_is_one_line(self) -> None:
+        for name in ("PROJECT_CONTEXT_CARD", "RISK_REGISTER"):
+            self.write(f"_agent_ops/{name}.md", f"# {name}\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "more ops")
+        for name in self.OPS:
+            self.write(f"_agent_ops/{name}.md", f"# {name}\n\nnew\n")
+        full = self.run_check("--since", self.head).stdout
+        self.assertEqual(7, full.count("updated (detected)"))
+        compact = self.run_check("--since", self.head, "--compact")
+        self.assertEqual(0, compact.returncode, compact.stderr)
+        body = compact.stdout.splitlines()[2:]
+        self.assertEqual(1, len(body), compact.stdout)
+        self.assertIn("all 7 rows updated (detected)", body[0])
+
+    def test_compact_keeps_open_rows_and_claims_nothing_done(self) -> None:
+        self.write("app.py", "print('v2')\n")
+        self.write("_agent_ops/CURRENT_TASK.md", "# CURRENT_TASK\n\nnew\n")
+        result = self.run_check("--since", self.head, "--compact", "--strict")
+        self.assertEqual(2, result.returncode)  # exit semantics identical to full mode
+        out = result.stdout
+        self.assertIn("1 of 7 rows updated (detected): CURRENT_TASK.md", out)
+        self.assertIn("MISSING", self.row(out, "IMPLEMENTATION_LOG.md"))
+        self.assertIn("decide:", self.row(out, "DECISION_LOG.md"))
+        self.assertNotIn("all ", out.split("\n", 2)[2])
+        self.assertNotIn("clean", out)
+
+    def test_compact_keeps_unverified_row(self) -> None:
+        self.write(".gitignore", "_agent_ops/CURRENT_TASK.md\n")
+        self.git("rm", "-q", "--cached", "_agent_ops/CURRENT_TASK.md")
+        self.git("add", ".gitignore")
+        self.git("commit", "-q", "-m", "ignore")
+        head = self.git("rev-parse", "HEAD")
+        stamp = int(self.git("show", "-s", "--format=%ct", head)) + 100
+        os.utime(self.root / "_agent_ops" / "CURRENT_TASK.md", (stamp, stamp))
+        out = self.run_check("--since", head, "--compact").stdout
+        self.assertIn("unverified", self.row(out, "CURRENT_TASK.md"))
+        self.assertIn("NOT resolved", out)
+
+    def test_full_mode_is_unchanged_by_the_flag_existing(self) -> None:
+        out = self.run_check("--since", self.head).stdout
+        self.assertEqual(7, sum(1 for line in out.splitlines() if line.startswith("- ")))
+        self.assertNotIn("NOT resolved", out)
+
+    def test_help_states_exit_code_meaning(self) -> None:
+        out = subprocess.run([sys.executable, "-B", str(SCRIPT), "--help"], text=True, capture_output=True).stdout
+        self.assertIn("does NOT mean every obligation is met", out)
+
 
 if __name__ == "__main__":
     unittest.main()
