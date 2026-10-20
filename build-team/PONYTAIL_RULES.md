@@ -12,7 +12,9 @@ Read the task and the code it touches. List every place the change must reach:
 callers, tests, fixtures, config, exports. Check what it could break for users:
 data it would destroy or expose, callers that stop working. That is scope. Extra
 features are not. Get callers with `explore.py --impact <symbol>` (a minimum
-blast radius), not grep.
+blast radius; an ambiguous name is refused, pass `Cls.method` or `file::qualname`).
+It is a lead for where to look: for a refactor or rename confirm with a text
+search, since static analysis misses dynamic dispatch.
 
 ## The Smallest Complete Change
 

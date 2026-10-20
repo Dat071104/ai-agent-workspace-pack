@@ -12,6 +12,7 @@ useful answer is almost always "the connected subgraph", not a single lookup.
     explore.py --symbol charge          definitions, callers, callees, source
     explore.py --path checkout charge   how control actually reaches a symbol
     explore.py --impact getUser         blast radius + which tests to run
+                                        (several definitions: refused; pass Cls.method or file::qualname)
     explore.py --file src/auth.py       what a file holds and who depends on it
     explore.py --entrypoints            routes and unreferenced entry symbols
 
@@ -104,7 +105,8 @@ class Graph:
         if not info:
             return f"{ident} (file)"
         route = f"  [{info['route']}]" if info.get("route") else ""
-        return f"{info['file']}:{info['line']}  {info['kind']:<8} {info['qualname']}{route}"
+        merged = f"  [{info['overloads']} overloads merged]" if info.get("overloads", 0) >= 2 else ""
+        return f"{info['file']}:{info['line']}  {info['kind']:<8} {info['qualname']}{route}{merged}"
 
     def callers_transitive(self, start: str, depth: int) -> dict[str, tuple[int, str]]:
         """BFS over callers. Returns {ident: (hop, conf)} where `conf` is the
@@ -267,18 +269,32 @@ def candidate_tests(graph: Graph, root: Path, name: str, defining_file: str) -> 
     return found
 
 
-def render_impact(graph: Graph, query: str, depth: int, root: Path | None = None) -> list[str]:
+def ambiguous_impact(graph: Graph, query: str, matches: list[str]) -> list[str]:
+    """Refusal text: a blast radius for one of several definitions would be silently partial."""
+    out = [
+        f"# Impact: `{query}` is ambiguous ({len(matches)} definitions) -- no impact computed",
+        "",
+    ]
+    for ident in matches[:MAX_LIST]:
+        out.append(f"- {graph.label(ident)}  id: {ident}")
+    if len(matches) > MAX_LIST:
+        out.append(f"- ... {len(matches) - MAX_LIST} more")
+    out += ["", "Re-run --impact with a qualname (e.g. `Cache.save`) or the full id above.", ""]
+    return out
+
+
+def render_impact(graph: Graph, query: str, depth: int, root: Path | None = None) -> tuple[list[str], int]:
+    """Returns (lines, exit code); an ambiguous query exits 2 instead of guessing."""
     matches = graph.find(query)
     if not matches:
-        return [f"No symbol matches `{query}`."]
+        return [f"No symbol matches `{query}`."], 0
+    if len(matches) > 1:
+        return ambiguous_impact(graph, query, matches), 2
     target = matches[0]
     out = [f"# Impact: {graph.symbols[target]['qualname']}", ""]
-    if len(matches) > 1:
-        out += [
-            f"NOTE: {len(matches)} definitions share this name; showing the first.",
-            "Blast radius for the others may differ.",
-            "",
-        ]
+    overloads = graph.symbols[target].get("overloads", 0)
+    if overloads >= 2:
+        out += [f"NOTE: blast radius covers all {overloads} overloads; the index cannot tell them apart.", ""]
     dependents = graph.callers_transitive(target, depth)
     if not dependents:
         out += ["Nothing in the index reaches this symbol.", ""]
@@ -337,7 +353,7 @@ def render_impact(graph: Graph, query: str, depth: int, root: Path | None = None
         "registries. Treat this as the minimum blast radius, never the maximum.",
         "",
     ]
-    return out
+    return out, 0
 
 
 def render_file(graph: Graph, query: str) -> list[str]:
@@ -435,10 +451,11 @@ def main() -> int:
         index_path = resolve_ops_dir(root) / "code_index.json"
     graph = Graph(load_index(index_path, root))
 
+    code = 0
     if args.symbol:
         lines = render_symbol(graph, root, args.symbol, args.source_lines)
     elif args.impact:
-        lines = render_impact(graph, args.impact, max(args.depth, 1), root)
+        lines, code = render_impact(graph, args.impact, max(args.depth, 1), root)
     elif args.file_query:
         lines = render_file(graph, args.file_query)
     elif args.path:
@@ -452,7 +469,7 @@ def main() -> int:
     print("\n".join(lines).rstrip())
     print(f"\n---\nIndex built at commit `{stamp}` ({graph.index.get('generated')}). "
           f"Rebuild after code changes: python {tool_prefix(root)}/build_code_index.py --root .")
-    return 0
+    return code
 
 
 if __name__ == "__main__":

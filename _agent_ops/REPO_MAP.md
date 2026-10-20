@@ -1,24 +1,24 @@
 # Repo Map / Ban do ma nguon
 
 Generated file. Do not hand-edit; regenerate with
-`python _agent_ops/tools/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
+`python scripts/generate_repo_map.py --root . --output _agent_ops/REPO_MAP.md --force`.
 
 Read this BEFORE grepping the repository. It answers "where does the code
 live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`a67f0d2`
+`d3f03cb`
 
 ## Indexed Source Fingerprint
 
-`sha256:33:b8dbca4b323ac797224a4e8b443fed058c56777f20847c8538b96553f0797746`
+`sha256:37:de9a8fcbb2176db5fbac424d5e43927afd17ec1fbc1dfe54e12868e3fed18330`
 
 ## Snapshot
 
 - Branch: `main`
-- Generated: `2026-10-12`
-- Code files indexed: 33
+- Generated: `2026-10-20`
+- Code files indexed: 37
 - Stack: Unknown
 
 ## Modules
@@ -29,7 +29,7 @@ code depends on it, so changes there travel further.
 | Module | Files | Inbound | Entry points |
 | --- | --- | --- | --- |
 | `scripts` | 22 | 0 | - |
-| `tests` | 11 | 0 | - |
+| `tests` | 15 | 0 | - |
 
 ## Hot Files (widest blast radius)
 
@@ -43,33 +43,33 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 | `scripts/generate_context_card.py` | 3 | 0 |
 | `scripts/ops_gate.py` | 3 | 3 |
 | `scripts/ops_identity.py` | 3 | 1 |
+| `tests/test_shipping.py` | 3 | 0 |
 | `scripts/extract_java_csharp.py` | 2 | 0 |
 | `scripts/ops_policy.py` | 2 | 1 |
 | `scripts/pack_ownership.py` | 2 | 1 |
 | `scripts/pack_sync.py` | 2 | 2 |
 | `tests/test_ops_ownership.py` | 2 | 0 |
-| `tests/test_shipping.py` | 2 | 0 |
 | `scripts/build_code_index.py` | 1 | 4 |
 | `scripts/generate_repo_map.py` | 1 | 3 |
 | `scripts/session_start.py` | 1 | 6 |
 
 ## Symbol Graph
 
-617 symbols, 1383 edges (exact 569, heuristic 550, ambiguous 264, weak 0).
+692 symbols, 1512 edges (exact 438, heuristic 756, ambiguous 318, weak 0).
 
 ### Most-called symbols
 
 | Symbol | Called by | Where |
 | --- | --- | --- |
-| `read_text` | 97 | `scripts/session_start.py:101` |
-| `run` | 46 | `tests/test_ops_ownership.py:35` |
-| `Scanner.run` | 37 | `scripts/extract_java_csharp.py:230` |
-| `run` | 37 | `scripts/refresh_repo_map.py:25` |
+| `read_text` | 98 | `scripts/session_start.py:101` |
+| `run` | 49 | `tests/test_ops_ownership.py:35` |
+| `Scanner.run` | 40 | `scripts/extract_java_csharp.py:235` |
+| `run` | 40 | `scripts/refresh_repo_map.py:25` |
 | `write` | 37 | `tests/test_ops_ownership.py:49` |
 | `OpsCase.init` | 29 | `tests/test_ops_ownership.py:106` |
 | `git` | 29 | `tests/test_ops_ownership.py:43` |
+| `ShippingBase.make_source` | 26 | `tests/test_shipping.py:64` |
 | `WorkspaceToolsGoldenTests.init_project` | 26 | `tests/test_workspace_tools.py:62` |
-| `ShippingBase.make_source` | 25 | `tests/test_shipping.py:64` |
 | `WorkspaceToolsGoldenTests.run_tool` | 24 | `tests/test_workspace_tools.py:49` |
 | `git` | 21 | `scripts/closure_check.py:43` |
 | `OpsCase.session` | 19 | `tests/test_ops_ownership.py:109` |
@@ -77,9 +77,9 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 Query it instead of grepping:
 
 ```bash
-python _agent_ops/tools/explore.py --root . --symbol <name>    # callers, callees, flow
-python _agent_ops/tools/explore.py --root . --impact <name>    # blast radius + tests
-python _agent_ops/tools/explore.py --root . --path <a> <b>     # how a reaches b
+python scripts/explore.py --root . --symbol <name>    # callers, callees, flow
+python scripts/explore.py --root . --impact <name>    # blast radius + tests (ambiguous: use Cls.method)
+python scripts/explore.py --root . --path <a> <b>     # how a reaches b
 ```
 
 ## Entry Points
@@ -97,17 +97,17 @@ boundary before adding to one of these.
 | `tests/test_workspace_tools.py` | 1233 |
 | `scripts/init_project_ops.py` | 1128 |
 | `tests/test_ops_ownership.py` | 748 |
+| `scripts/build_code_index.py` | 595 |
 | `scripts/session_start.py` | 592 |
 | `tests/test_ops_ownership_round2.py` | 584 |
 | `scripts/scan_deps.py` | 534 |
-| `scripts/build_code_index.py` | 506 |
-| `scripts/explore.py` | 459 |
+| `scripts/explore.py` | 476 |
 | `scripts/generate_repo_map.py` | 427 |
 | `scripts/ops_gate.py` | 424 |
 
 ## Isolated Files
 
-5 file(s) have no resolved local imports in either direction.
+8 file(s) have no resolved local imports in either direction.
 They are listed only on demand -- enumerating them here would recreate the
 context bloat this map exists to prevent.
 
@@ -116,7 +116,7 @@ context bloat this map exists to prevent.
 This map is deliberately shallow. For the affected zone of a specific change:
 
 ```bash
-python _agent_ops/tools/scan_deps.py --root . --seed "<keyword>" --hops 2 --output markdown
+python scripts/scan_deps.py --root . --seed "<keyword>" --hops 2 --output markdown
 ```
 
 ## Limits

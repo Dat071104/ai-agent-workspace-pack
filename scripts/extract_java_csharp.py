@@ -13,6 +13,10 @@ Choices that keep the index honest:
     - Every type (class, interface, enum, record, struct) is kind `class`, because
       EXTENDS resolution only looks at classes. Methods are `Type.method`.
     - Constructors are `Type.<init>`, so `new Foo()` resolves to the class once.
+    - Overloads are merged into one `Type.method` node and marked, never split:
+      regex call sites cannot tell `save(int)` from `save(String)`, so the node
+      keeps the first declaration's `line` and gains `"overloads": N` (N >= 2
+      distinct declarations; absent for a single declaration).
     - Routes ride on the method symbol, as Python decorator routes do.
     - Generic arguments nest one level (`A<B<C>>`); deeper nesting is not seen as a call.
     - Java `import a.b.C;` becomes an IMPORTS lead. C# `using` names namespaces,
@@ -195,6 +199,7 @@ class Scanner:
         self.outside_parens = neutralize_paren_braces(self.blank)  # `@Get({"/a"})` is not a block
         self.newlines = [i for i, ch in enumerate(text) if ch == "\n"]
         self.symbols: dict[str, dict] = {}
+        self.declarations: dict[str, set[int]] = {}  # method qualname -> declaration offsets
         self.raw_calls: list[dict] = []
         self.class_base: dict[str, str] = {}  # type qualname -> class-level route prefix
         self.expr_ranges: list[tuple[int, int, str]] = []  # C# `=>` bodies: (start, end, owner)
@@ -314,6 +319,10 @@ class Scanner:
         info = self.symbols.setdefault(qual, {
             "kind": "method", "name": member, "line": self.line_at(start), "bases": [],
         })
+        starts = self.declarations.setdefault(qual, set())
+        starts.add(start)
+        if len(starts) > 1:  # merged, not split: mark it so consumers can tell
+            info["overloads"] = len(starts)
         route = parse_route(self.annotations(start), self.lang)
         if route and "route" not in info:
             prefix = self.class_base.get(type_qual, "")

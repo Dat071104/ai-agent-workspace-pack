@@ -82,8 +82,9 @@ SHIPPED_TREES = (
 # Deliberately NOT shipped: `tests/` (a host's `pytest` would collect the pack's
 # own suite), `examples/` (illustrations, never read at runtime -- the only
 # mention is a directory listing in README.md), `_agent_ops/` (the SOURCE's
-# working memory, never a host's starting memory).
-NOT_SHIPPED_TOP_LEVEL = ("tests", "examples", "_agent_ops")
+# working memory, never a host's starting memory), `.github/` (the pack's own CI;
+# a host has its own).
+NOT_SHIPPED_TOP_LEVEL = ("tests", "examples", "_agent_ops", ".github")
 
 DENIED_DIRS = {
     ".git", "_agent_ops", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",

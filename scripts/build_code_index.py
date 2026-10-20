@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import argparse
 import ast
+import bisect
+import builtins
 import json
 import re
 import sys
@@ -60,7 +62,11 @@ HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "rou
 # agent nothing it can act on.
 AMBIGUITY_CAP = 4
 
-# Calls to these resolve nowhere useful and would only add noise.
+# Attribute calls (`d.get()`, `items.append()`) to these names are dropped:
+# they are overwhelmingly container/builtin methods and would flood the index
+# with ambiguous edges. Trade-off: a real `obj.update()` into project code is
+# lost too. Bare calls (`update()`) are never filtered -- a bare name only makes
+# an edge if the project defines it, so builtins like `print` create nothing.
 CALL_NOISE = {
     "print", "len", "str", "int", "float", "bool", "list", "dict", "set", "tuple",
     "range", "enumerate", "zip", "map", "filter", "sorted", "sum", "min", "max",
@@ -69,6 +75,9 @@ CALL_NOISE = {
     "join", "split", "strip", "format", "replace", "startswith", "endswith",
     "console", "log", "require", "then", "catch", "push", "toString", "JSON",
 }
+# A bare builtin call binds to a project definition only through the file's own
+# scope (same-file def or an import), never by a repo-wide name match.
+BUILTIN_NAMES = frozenset(dir(builtins))
 
 JS_FUNC_RE = re.compile(
     r"^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)",
@@ -131,7 +140,9 @@ def extract_python(root: Path, path: Path, rel: str) -> dict:
     symbols: dict[str, dict] = {}
     raw_calls: list[dict] = []
     imports: list[str] = []
-    import_names: dict[str, str] = {}
+    # local name -> (module, original name): `from m import save as persist`
+    # binds `persist` to `m.save`, so resolution needs both halves.
+    import_names: dict[str, tuple[str, str]] = {}
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -141,7 +152,7 @@ def extract_python(root: Path, path: Path, rel: str) -> dict:
             module = "." * node.level + (node.module or "")
             imports.append(module)
             for alias in node.names:
-                import_names[alias.asname or alias.name] = module
+                import_names[alias.asname or alias.name] = (module, alias.name)
 
     def scope_walk(node: ast.AST):
         """Like `ast.walk`, but prunes nested FunctionDef/AsyncFunctionDef/ClassDef
@@ -165,7 +176,7 @@ def extract_python(root: Path, path: Path, rel: str) -> dict:
             for node in scope_walk(statement):
                 if isinstance(node, ast.Call):
                     found = call_name(node)
-                    if found and found[0] not in CALL_NOISE:
+                    if found and not (found[1] and found[0] in CALL_NOISE):
                         raw_calls.append(
                             {
                                 "from": owner,
@@ -176,6 +187,7 @@ def extract_python(root: Path, path: Path, rel: str) -> dict:
                         )
 
     def visit(node: ast.AST, prefix: str) -> None:
+        in_class = isinstance(node, ast.ClassDef)
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.ClassDef):
                 qual = f"{prefix}{child.name}"
@@ -198,7 +210,7 @@ def extract_python(root: Path, path: Path, rel: str) -> dict:
                 for decorator in child.decorator_list:
                     route = route or route_from_decorator(decorator)
                 symbols[qual] = {
-                    "kind": "method" if prefix else "function",
+                    "kind": "method" if in_class else "function",
                     "name": child.name,
                     "line": child.lineno,
                     "bases": [],
@@ -228,37 +240,53 @@ def extract_python(root: Path, path: Path, rel: str) -> dict:
 # JS/TS extraction (regex -- deliberately marked weak)
 # --------------------------------------------------------------------------- #
 
-def line_of(text: str, index: int) -> int:
-    return text.count("\n", 0, index) + 1
+def newline_offsets(text: str) -> list[int]:
+    return [match.start() for match in re.finditer("\n", text)]
+
+
+def line_of(offsets: list[int], index: int) -> int:
+    """1-based line of `index`; O(log n) so long files do not go quadratic."""
+    return bisect.bisect_left(offsets, index) + 1
+
+
+def is_js_attribute_call(text: str, start: int) -> bool:
+    """True when the name at `start` is reached through `.` (but not a `...` spread)."""
+    while start > 0 and text[start - 1].isspace():
+        start -= 1
+    return start > 0 and text[start - 1] == "." and text[start - 2:start] != ".."
 
 
 def extract_js(path: Path, rel: str) -> dict:
     text = path.read_text(encoding="utf-8", errors="ignore")
     symbols: dict[str, dict] = {}
     raw_calls: list[dict] = []
+    offsets = newline_offsets(text)
+    declared: set[int] = set()  # name offsets of definitions: `function f(` is not a call
 
     for match in JS_CLASS_RE.finditer(text):
         name = match.group(1)
         symbols[name] = {
             "kind": "class",
             "name": name,
-            "line": line_of(text, match.start()),
+            "line": line_of(offsets, match.start()),
             "bases": [match.group(2)] if match.group(2) else [],
         }
     for regex in (JS_FUNC_RE, JS_ARROW_RE):
         for match in regex.finditer(text):
             name = match.group(1)
+            declared.add(match.start(1))
             symbols.setdefault(
                 name,
-                {"kind": "function", "name": name, "line": line_of(text, match.start()), "bases": []},
+                {"kind": "function", "name": name, "line": line_of(offsets, match.start()), "bases": []},
             )
     for match in JS_METHOD_RE.finditer(text):
         name = match.group(1)
         if name in {"if", "for", "while", "switch", "catch", "function", "return"}:
             continue
+        declared.add(match.start(1))
         symbols.setdefault(
             name,
-            {"kind": "method", "name": name, "line": line_of(text, match.start()), "bases": []},
+            {"kind": "method", "name": name, "line": line_of(offsets, match.start()), "bases": []},
         )
     for match in JS_ROUTE_RE.finditer(text):
         verb, route_path = match.group(1).upper(), match.group(2)
@@ -266,7 +294,7 @@ def extract_js(path: Path, rel: str) -> dict:
         symbols[key] = {
             "kind": "route",
             "name": key,
-            "line": line_of(text, match.start()),
+            "line": line_of(offsets, match.start()),
             "bases": [],
             "route": f"{verb} {route_path}",
         }
@@ -274,10 +302,15 @@ def extract_js(path: Path, rel: str) -> dict:
     # Without scope analysis, attribute every call to the file. Coarse but honest.
     for match in JS_CALL_RE.finditer(text):
         name = match.group(1)
-        if name in CALL_NOISE or name in {"if", "for", "while", "switch", "catch", "function", "return", "typeof"}:
+        if name in {"if", "for", "while", "switch", "catch", "function", "return", "typeof"}:
+            continue
+        if match.start(1) in declared:
+            continue
+        attr = is_js_attribute_call(text, match.start(1))
+        if attr and name in CALL_NOISE:
             continue
         raw_calls.append(
-            {"from": "<module>", "name": name, "attr": False, "line": line_of(text, match.start())}
+            {"from": "<module>", "name": name, "attr": attr, "line": line_of(offsets, match.start())}
         )
 
     imports = []
@@ -290,6 +323,71 @@ def extract_js(path: Path, rel: str) -> dict:
 # --------------------------------------------------------------------------- #
 # Index assembly
 # --------------------------------------------------------------------------- #
+
+def bind_python_imports(root: Path, rel: str, import_names: dict) -> dict:
+    """alias -> (project file or None, resolver conf, original name, module).
+
+    `None` means the resolver could not place the module in this repo: an
+    external package, or a repo file reached through a `sys.path` insert.
+    """
+    bound = {}
+    for alias, (module, original) in import_names.items():
+        target, conf = resolve_import(root, root / rel, module)
+        target_rel = target.relative_to(root).as_posix() if target else None
+        bound[alias] = (target_rel, conf, original, module)
+    return bound
+
+
+def resolve_python_bare_call(
+    rel: str,
+    name: str,
+    bound: dict,
+    imported_files: set[str],
+    symbols: dict[str, dict],
+    by_name: dict[str, list[str]],
+) -> tuple[list[str], str]:
+    """Targets for `name()` in a Python file. A bare name never binds to a method.
+
+    `exact` only where a binding is shown: an import resolved to a project
+    file, or exactly one same-file definition. Empty targets means no edge.
+    """
+    if name in bound:
+        target_rel, conf, original, module = bound[name]
+        if target_rel is None:
+            # Unplaced is not proof of external (`sys.path.insert` + `from tools
+            # import x`). Only a file named after the module counts, so a real
+            # external package (no such file here) still yields no edge.
+            stem = module.rsplit(".", 1)[-1]
+            hits = [
+                c for c in by_name.get(original, [])
+                if Path(symbols[c]["file"]).stem == stem and "." not in symbols[c]["qualname"]
+            ]
+            return hits, "heuristic" if len(hits) == 1 else "ambiguous"
+        hits = [
+            c for c in by_name.get(original, [])
+            if symbols[c]["file"] == target_rel and "." not in symbols[c]["qualname"]
+        ]
+        if len(hits) == 1:
+            return hits, "exact" if conf == "exact" else "heuristic"
+        if hits:
+            return hits, "ambiguous"
+        # A project module that does not define it: usually a package
+        # `__init__` re-export, so the original name repo-wide is still a lead.
+        candidates = [c for c in by_name.get(original, []) if symbols[c]["kind"] != "method"]
+        return candidates, "heuristic" if len(candidates) == 1 else "ambiguous"
+
+    candidates = [c for c in by_name.get(name, []) if symbols[c]["kind"] != "method"]
+    same_file = [c for c in candidates if symbols[c]["file"] == rel]
+    from_import = [c for c in candidates if symbols[c]["file"] in imported_files]
+    if same_file:
+        return same_file, "exact" if len(same_file) == 1 else "ambiguous"
+    if from_import:  # e.g. `from m import *`: reachable, but never named
+        return from_import, "heuristic" if len(from_import) == 1 else "ambiguous"
+    if name in BUILTIN_NAMES:
+        return [], ""  # `list()` with no local or imported `list` is the builtin
+    # Unique name repo-wide: likely right, but nothing proved it.
+    return candidates, "heuristic" if len(candidates) == 1 else "ambiguous"
+
 
 def build_index(root: Path, max_files: int = 0) -> dict:
     files = iter_code_files(root)
@@ -375,18 +473,17 @@ def build_index(root: Path, max_files: int = 0) -> dict:
     # CALLS: resolve each raw call name to one or more definitions.
     for rel, data in per_file.items():
         weak = data["lang"] != "python"  # regex-extracted: never exact
-        local = {
-            info["name"]: sym_id(rel, qual)
-            for qual, info in data["symbols"].items()
-        }
+        bound = bind_python_imports(root, rel, data["import_names"]) if not weak else {}
         imported_files = import_targets.get(rel, set())
         seen: set[tuple[str, str]] = set()
 
         for call in data["raw_calls"]:
             source_id = sym_id(rel, call["from"]) if call["from"] != "<module>" else rel
             name = call["name"]
-            candidates = by_name.get(name)
-            if not candidates:
+            candidates = by_name.get(name, [])
+            bare = not weak and not call["attr"]
+            # An aliased import is found by its alias, which no definition carries.
+            if not candidates and not (bare and name in bound):
                 continue
 
             same_file = [c for c in candidates if symbols[c]["file"] == rel]
@@ -394,7 +491,7 @@ def build_index(root: Path, max_files: int = 0) -> dict:
 
             if weak:
                 chosen, conf = (from_import or same_file or candidates), "weak"
-            elif call["attr"]:
+            elif not bare:
                 # `obj.save()`: same-file or same-import name proximity is not
                 # proof, because the receiver's type was never resolved -- a
                 # name match here is coincidence, not evidence. Cap at
@@ -403,18 +500,10 @@ def build_index(root: Path, max_files: int = 0) -> dict:
                     chosen, conf = candidates, "heuristic"
                 else:
                     chosen, conf = candidates, "ambiguous"
-            elif name in local and same_file:
-                chosen, conf = same_file[:1], "exact"
-            elif from_import:
-                chosen, conf = from_import, "exact" if len(from_import) == 1 else "ambiguous"
-            elif same_file:
-                chosen, conf = same_file[:1], "exact"
-            elif len(candidates) == 1:
-                # Unique name repo-wide: likely right, but nothing proved it.
-                chosen, conf = candidates, "heuristic"
             else:
-                # Classic dynamic dispatch: obj.save() with many save() defs.
-                chosen, conf = candidates, "ambiguous"
+                chosen, conf = resolve_python_bare_call(
+                    rel, name, bound, imported_files, symbols, by_name
+                )
 
             if len(chosen) > AMBIGUITY_CAP:
                 continue  # too ambiguous to be a lead

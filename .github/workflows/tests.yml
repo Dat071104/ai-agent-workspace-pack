@@ -1,0 +1,42 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unittest:
+    name: ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        # 3.9 is the API floor (str.removesuffix, Path.is_relative_to); the docs
+        # state no floor. "3.x" resolves to the latest stable release.
+        python: ["3.9", "3.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # Some tests run `git init` / `git commit` in temporary repositories.
+      - name: Set a generic git identity
+        run: |
+          git config --global user.name "ci"
+          git config --global user.email "ci@example.invalid"
+
+      - name: Run the unittest suite
+        run: python -B -m unittest discover -s tests

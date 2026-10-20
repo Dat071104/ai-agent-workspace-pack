@@ -79,7 +79,7 @@ python _agent_ops/tools/generate_repo_map.py --root . \
     --output _agent_ops/REPO_MAP.md --force                  # refresh the code map
 python _agent_ops/tools/build_code_index.py --root .                  # rebuild the symbol graph
 python _agent_ops/tools/explore.py --symbol <name>                    # callers, callees, flow
-python _agent_ops/tools/explore.py --impact <name>                    # blast radius + tests ("Candidate tests" = unverified text matches)
+python _agent_ops/tools/explore.py --impact <name>                    # blast radius + tests; ambiguous name refused: pass Cls.method or file::qualname ("Candidate tests" = unverified text matches)
 python _agent_ops/tools/scan_deps.py --root . --seed "<keyword>" --hops 2   # file-level zone
 python _agent_ops/tools/summarize_implementation_log.py \
     --log _agent_ops/IMPLEMENTATION_LOG.md --rotate --keep 10 \

@@ -14,6 +14,9 @@ Ownership rules, applied identically to install and update:
   copied to `.update-backup/<timestamp>/<path>` so no edit is ever lost.
 * `_agent_ops/` (project memory), PACK_VERSION, the manifest and the backup
   folder are never candidates for either action.
+* Nothing is written or read through a symlink or junction below the pack
+  folder (UnsafePathError, checked for every target before the first write). A
+  link at a stale path is kept and reported as a conflict, never followed.
 """
 
 from __future__ import annotations
@@ -202,8 +205,46 @@ def missing_required(source: Path) -> dict[str, str]:
     return missing
 
 
+class UnsafePathError(OSError):
+    """A write target is, or sits below, a link: refused, never followed."""
+
+
+def _is_link(path: Path) -> bool:
+    # `is_junction` is 3.12+; a Windows junction is not reported by `is_symlink`.
+    return path.is_symlink() or getattr(path, "is_junction", lambda: False)()
+
+
+def _safe_target(root: Path, rel: str) -> Path:
+    """`root / rel`, proven not to pass through any link below `root`.
+
+    Links are refused, not followed and not deleted -- even one that points back
+    inside `root`, since writing through it would overwrite some other file. The
+    root itself may be a link: the user chose it. Components that do not exist
+    yet cannot be links, so a fresh install passes.
+    """
+
+    path = root
+    for part in rel.split("/"):
+        path = path / part
+        if _is_link(path):
+            raise UnsafePathError(f"refusing to write through a link: {path} (inside {root})")
+    if not _inside(path.resolve(), root.resolve()):
+        raise UnsafePathError(f"refusing a path that leaves {root}: {path}")
+    return path
+
+
+def _check_targets(root: Path, rels: set[str]) -> None:
+    """Refuse an unsafe target BEFORE the first file is written, not midway."""
+
+    for rel in sorted(rels | RESERVED_FILES | {BACKUP_DIR}):
+        _safe_target(root, rel)
+
+
 def materialize(source: Path, rel: str, target: Path) -> None:
-    """Write one shipped file, keeping timestamps and mode where it is a plain copy."""
+    """Write one shipped file, keeping timestamps and mode where it is a plain copy.
+
+    `target` must come from `_safe_target`.
+    """
 
     target.parent.mkdir(parents=True, exist_ok=True)
     data = shipped_bytes(source, rel)
@@ -218,8 +259,9 @@ def install_pack(source: Path, destination: Path, version: str) -> int:
     """Fresh install: write every shipped file, then record what was written."""
 
     shipped = shipping_set(source)
+    _check_targets(destination, shipped)
     for rel in sorted(shipped):
-        materialize(source, rel, destination / rel)
+        materialize(source, rel, _safe_target(destination, rel))
     write_manifest(destination, version, shipped)
     return len(shipped)
 
@@ -251,7 +293,7 @@ def new_backup_root(destination: Path) -> Path:
     already exist, so a backup file is never overwritten either.
     """
 
-    parent = destination / BACKUP_DIR
+    parent = _safe_target(destination, BACKUP_DIR)
     parent.mkdir(parents=True, exist_ok=True)
     stamp = _timestamp()
     for attempt in range(10_000):
@@ -265,15 +307,15 @@ def new_backup_root(destination: Path) -> Path:
 
 
 def _backup(destination: Path, backup_root: Path, rel: str) -> None:
-    saved = backup_root / rel
+    saved = _safe_target(backup_root, rel)
     saved.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(destination / rel, saved)
+    shutil.copy2(_safe_target(destination, rel), saved)
 
 
 def _refresh_shipped(source: Path, destination: Path, shipped: set[str],
                      baseline: Baseline, report: SyncReport) -> None:
     for rel in sorted(shipped):
-        target = destination / rel
+        target = _safe_target(destination, rel)
         new = shipped_bytes(source, rel)
         if target.is_file():
             current = target.read_bytes()
@@ -313,7 +355,13 @@ def _remove_stale(destination: Path, shipped: set[str], baseline: Baseline,
                   report: SyncReport) -> None:
     removed_dirs: set[Path] = set()
     for rel in _stale_candidates(destination, shipped, baseline):
-        path = destination / rel
+        try:
+            path = _safe_target(destination, rel)
+        except UnsafePathError:
+            # A link is not a pack file: reading it would follow it, so it is kept
+            # and reported like any other file we cannot prove ours.
+            report.conflicts.append(rel)
+            continue
         if baseline.unmodified(rel, path.read_bytes()):
             path.unlink()
             report.removed.append(rel)
@@ -338,6 +386,7 @@ def update_pack(source: Path, destination: Path, version: str, previous: str) ->
 
     report = SyncReport()
     shipped = shipping_set(source)
+    _check_targets(destination, shipped)  # before the manifest is even read
     baseline = load_baseline(destination, source, previous)
     report.baseline = baseline.label
     _refresh_shipped(source, destination, shipped, baseline, report)

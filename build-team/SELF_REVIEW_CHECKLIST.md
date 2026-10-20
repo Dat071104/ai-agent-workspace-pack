@@ -16,7 +16,8 @@ line must be read, tested, and fixed later.
 - Input: the task's files, from `git status --short` (staged, unstaged,
   untracked), limited to what this task touched. Review tracked files with
   `git diff HEAD -- <file>`; read new files in full; never stage just to review.
-  Then run `python _agent_ops/tools/explore.py --root . --impact <symbol>` for
+  Then run `python _agent_ops/tools/explore.py --root . --impact <symbol>` (qualname
+  if ambiguous) for
   each changed symbol and read those callers, the functions the change calls,
   and the tests.
 - Trace the real flow: where data comes in, what is stored, what goes out.

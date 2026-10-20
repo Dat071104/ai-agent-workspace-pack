@@ -87,7 +87,7 @@ For symbol-level questions, query the code graph instead of grepping:
 ```bash
 python _agent_ops/tools/explore.py --symbol <name>     # definitions, callers, callees, flow
 python _agent_ops/tools/explore.py --path <a> <b>      # how control reaches a symbol
-python _agent_ops/tools/explore.py --impact <name>     # blast radius + tests to run
+python _agent_ops/tools/explore.py --impact <name>     # blast radius + tests to run (ambiguous name refused: pass Cls.method or file::qualname)
 python _agent_ops/tools/explore.py --entrypoints       # routes and unreferenced symbols
 ```
 

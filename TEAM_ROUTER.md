@@ -35,7 +35,7 @@ files and symbols with the widest blast radius. For symbol-level questions:
 ```bash
 python _agent_ops/tools/explore.py --symbol <name>   # definitions, callers, callees, flow
 python _agent_ops/tools/explore.py --path <a> <b>  # how control reaches a symbol
-python _agent_ops/tools/explore.py --impact <name>   # blast radius + tests to run
+python _agent_ops/tools/explore.py --impact <name>   # blast radius + tests to run (ambiguous: pass Cls.method or file::qualname)
 ```
 
 Edges are tagged `exact` / `heuristic` / `ambiguous` / `weak`; the last two need

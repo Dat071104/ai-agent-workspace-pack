@@ -67,7 +67,8 @@ audits, fixes, or cleans; this is the one that writes new code.
    callers, tests, fixtures, config, exports, and any data that could be
    destroyed or exposed. When the change modifies an existing
    symbol rather than only adding one, get the radius from the graph:
-   `python _agent_ops/tools/explore.py --root . --impact <symbol>`. If it lists
+   `python _agent_ops/tools/explore.py --root . --impact <symbol>` (ambiguous
+   name: pass `Cls.method` or `file::qualname`). If it lists
    "Candidate tests (text match, unverified)", those are leads to open, not call
    edges. If the change must cross a module boundary, say so before editing, not
    after.

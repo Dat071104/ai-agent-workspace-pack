@@ -202,7 +202,7 @@ the code graph instead of grepping:
 ```bash
 python _agent_ops/tools/explore.py --symbol <name>   # definitions, callers, callees
 python _agent_ops/tools/explore.py --path <a> <b>    # how control reaches a symbol
-python _agent_ops/tools/explore.py --impact <name>   # blast radius + tests to run
+python _agent_ops/tools/explore.py --impact <name>   # blast radius + tests to run (ambiguous: use Cls.method)
 python _agent_ops/tools/explore.py --entrypoints     # routes and unreferenced symbols
 ```
 

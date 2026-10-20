@@ -202,7 +202,7 @@ def symbol_section(root: Path, index_path: Path | None = None) -> list[str]:
         "",
         "```bash",
         f"python {tools}/explore.py --root . --symbol <name>    # callers, callees, flow",
-        f"python {tools}/explore.py --root . --impact <name>    # blast radius + tests",
+        f"python {tools}/explore.py --root . --impact <name>    # blast radius + tests (ambiguous: use Cls.method)",
         f"python {tools}/explore.py --root . --path <a> <b>     # how a reaches b",
         "```",
         "",

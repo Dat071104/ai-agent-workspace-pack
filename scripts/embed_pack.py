@@ -30,7 +30,7 @@ from pack_manifest import STAMP_FILE as PACK_VERSION_FILE  # noqa: E402
 from pack_manifest import git_tracked, is_git_root, repo_files, shipping_set  # noqa: E402
 from pack_manifest import unshipped_untracked, write_manifest  # noqa: E402
 from pack_sync import SyncReport, classify_overlap, install_pack, missing_required  # noqa: E402
-from pack_sync import strip_in_place, update_pack  # noqa: E402
+from pack_sync import UnsafePathError, strip_in_place, update_pack  # noqa: E402
 from source_state import looks_like_pack, pack_folder  # noqa: E402
 from source_state import worktree_is_clean  # noqa: E402
 from ops_gate import REFUSED_EXIT, command_for, preflight_refusal  # noqa: E402
@@ -297,7 +297,11 @@ def run_update(parser: argparse.ArgumentParser, args: argparse.Namespace, source
     if previous == version:
         print(f"UP TO DATE: {destination} already runs pack version {version}.")
         print("Refreshing content anyway is safe: re-run after committing if you edited the pack in place.")
-    report = update_pack(source, destination, version, previous)
+    try:
+        report = update_pack(source, destination, version, previous)
+    except UnsafePathError as error:
+        print(f"BLOCKED: {error}; the pack folder was not changed.", file=sys.stderr)
+        return 1
     write_stamp(destination, version, previous)
     print(f"UPDATED PACK: {destination}")
     print(f"  version: {previous or 'unstamped'} -> {version}")

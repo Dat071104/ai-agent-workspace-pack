@@ -43,6 +43,7 @@ Verify reported issues before changing code. Fix only the minimal affected zone 
    python _agent_ops/tools/explore.py --root . --impact <symbol you intend to change>
    ```
 
+   `--impact` refuses an ambiguous name: pass `Cls.method` or `file::qualname`.
    `--symbol` returns definitions, callers, callees, and the path from an entry
    point. `--path` shows how control actually reaches the failing code -- the
    middleware or hook sitting on that path is frequently the real cause and

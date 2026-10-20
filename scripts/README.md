@@ -114,7 +114,7 @@ python scripts/refresh_repo_map.py --root . --stage
 # The one query tool. Structural retrieval instead of grep -> read -> grep.
 python scripts/explore.py --symbol charge          # definitions, callers, callees, flow
 python scripts/explore.py --path checkout charge   # how control reaches a symbol
-python scripts/explore.py --impact getUser         # blast radius + tests to run
+python scripts/explore.py --impact getUser         # blast radius + tests to run (ambiguous name: pass Cls.method or file::qualname)
 #   (when no test is in the graph: "Candidate tests" = text-match leads, not edges)
 python scripts/explore.py --file src/auth.py       # what a file holds, who imports it
 python scripts/explore.py --entrypoints            # routes + unreferenced symbols
@@ -206,7 +206,8 @@ Python is parsed with `ast`, so its symbols and local calls are trustworthy.
 JS/TS is regex-only. Nothing here sees dynamic dispatch, DI wiring, reflection,
 or runtime registries, so:
 
-- an `--impact` result is the MINIMUM blast radius, never the maximum;
+- an `--impact` result is the MINIMUM blast radius, never the maximum; a name with
+  several definitions is refused (exit 2) -- pass a qualname or full id;
 - `--impact` groups its transitively affected symbols by the WORST edge
   confidence on the path back to the target, not just hop count: "Confirmed
   impact" is exact-only, "Probable impact" includes a heuristic edge, and

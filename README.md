@@ -334,7 +334,7 @@ Then:
 ```bash
 python _agent_ops/tools/explore.py --symbol charge          # who calls it, what it calls
 python _agent_ops/tools/explore.py --path checkout charge   # how control actually gets there
-python _agent_ops/tools/explore.py --impact getUser         # what breaks + which tests to run
+python _agent_ops/tools/explore.py --impact getUser         # what breaks + which tests to run (ambiguous name: pass Cls.method or file::qualname)
 python _agent_ops/tools/explore.py --entrypoints            # all routes, and unused-looking code
 python _agent_ops/tools/explore.py --file src/auth.py       # what is inside, who imports it
 ```
@@ -368,7 +368,8 @@ on the call path. **Where a bug shows up is rarely where it lives.**
 This is deliberate. A static analyzer **cannot** see dynamic dispatch, DI
 wiring, reflection, or runtime registries. So:
 
-- `--impact` gives the **minimum** blast radius, never the maximum; when it finds
+- `--impact` gives the **minimum** blast radius, never the maximum; an ambiguous name
+  is refused (pass a qualname or full id); when it finds
   no test, its separate "Candidate tests" list is a text match -- unverified
   leads, not call edges
 - "nothing calls this" is a **candidate** for dead code, never a verdict
