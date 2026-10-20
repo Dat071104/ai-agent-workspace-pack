@@ -34,7 +34,8 @@ from source_state import CODE_SUFFIXES as FRESHNESS_SUFFIXES  # noqa: E402
 class WorkspaceToolsGoldenTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory(prefix="workspace-tools-golden-")
-        self.root = Path(self.temp_dir.name) / "project"
+        # Tools print resolved paths; Windows may hand out 8.3 names (RUNNER~1).
+        self.root = Path(self.temp_dir.name).resolve() / "project"
         self.root.mkdir()
 
     def tearDown(self) -> None:

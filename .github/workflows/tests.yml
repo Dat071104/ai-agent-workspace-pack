@@ -22,9 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        # 3.9 is the API floor (str.removesuffix, Path.is_relative_to); the docs
-        # state no floor. "3.x" resolves to the latest stable release.
-        python: ["3.9", "3.x"]
+        # 3.11 is the supported floor (README); "3.x" is the latest stable.
+        python: ["3.11", "3.x"]
     steps:
       - uses: actions/checkout@v4
 

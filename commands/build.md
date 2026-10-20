@@ -10,8 +10,11 @@ Follow build-team/SKILL.md exactly. Do not write code yet.
 
 1. Restate the goal and non-goals. Read _agent_ops/SESSION_BRIEF.md for
    constraints and _agent_ops/CURRENT_TASK.md for work already in flight.
-   Check git state; warn if dirty or behind the base branch.
-2. Business rules gate: read `Business Rules & Acceptance Criteria` in
+   Check git state; warn if dirty or behind the base branch. Size it (see
+   build-team/SKILL.md): S (one file, no new public interface, no business-rule
+   change) skips steps 2, 5 and 7 and uses a 5-line inline plan with one
+   confirmation. M/L run every step.
+2. (M/L) Business rules gate: read `Business Rules & Acceptance Criteria` in
    _agent_ops/PROJECT_CONTEXT_CARD.md. If it does not cover this feature, STOP
    and ask me for the acceptance criteria. Do not invent them.
 3. Placement: use _agent_ops/REPO_MAP.md to say which module owns this concern

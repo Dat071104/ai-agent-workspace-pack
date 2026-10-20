@@ -8,11 +8,11 @@ live" and "what breaks if I touch this" in one Tier-1 read.
 
 ## Last Verified Commit
 
-`d3f03cb`
+`5648e9b`
 
 ## Indexed Source Fingerprint
 
-`sha256:37:de9a8fcbb2176db5fbac424d5e43927afd17ec1fbc1dfe54e12868e3fed18330`
+`sha256:37:5023c11ca76641da0101ae3086aff133d58c552ed934841cf13ddd716ceab36a`
 
 ## Snapshot
 
@@ -55,7 +55,7 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 
 ## Symbol Graph
 
-692 symbols, 1512 edges (exact 438, heuristic 756, ambiguous 318, weak 0).
+693 symbols, 1514 edges (exact 438, heuristic 756, ambiguous 320, weak 0).
 
 ### Most-called symbols
 
@@ -69,8 +69,8 @@ Ranked by fan-in. Treat an edit here as cross-module until proven otherwise.
 | `OpsCase.init` | 29 | `tests/test_ops_ownership.py:106` |
 | `git` | 29 | `tests/test_ops_ownership.py:43` |
 | `ShippingBase.make_source` | 26 | `tests/test_shipping.py:64` |
-| `WorkspaceToolsGoldenTests.init_project` | 26 | `tests/test_workspace_tools.py:62` |
-| `WorkspaceToolsGoldenTests.run_tool` | 24 | `tests/test_workspace_tools.py:49` |
+| `WorkspaceToolsGoldenTests.init_project` | 26 | `tests/test_workspace_tools.py:63` |
+| `WorkspaceToolsGoldenTests.run_tool` | 24 | `tests/test_workspace_tools.py:50` |
 | `git` | 21 | `scripts/closure_check.py:43` |
 | `OpsCase.session` | 19 | `tests/test_ops_ownership.py:109` |
 
@@ -94,7 +94,7 @@ boundary before adding to one of these.
 
 | File | Lines |
 | --- | --- |
-| `tests/test_workspace_tools.py` | 1233 |
+| `tests/test_workspace_tools.py` | 1234 |
 | `scripts/init_project_ops.py` | 1128 |
 | `tests/test_ops_ownership.py` | 748 |
 | `scripts/build_code_index.py` | 595 |

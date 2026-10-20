@@ -284,10 +284,10 @@ def ambiguous_impact(graph: Graph, query: str, matches: list[str]) -> list[str]:
 
 
 def render_impact(graph: Graph, query: str, depth: int, root: Path | None = None) -> tuple[list[str], int]:
-    """Returns (lines, exit code); an ambiguous query exits 2 instead of guessing."""
+    """Returns (lines, exit code): 1 = no such symbol, 2 = ambiguous (never guessed)."""
     matches = graph.find(query)
     if not matches:
-        return [f"No symbol matches `{query}`."], 0
+        return [f"No symbol matches `{query}`. This is not 'no impact'; check the name or rebuild the index."], 1
     if len(matches) > 1:
         return ambiguous_impact(graph, query, matches), 2
     target = matches[0]

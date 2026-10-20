@@ -34,7 +34,8 @@ team folder. Unless `--no-ops` was supplied, treat this as a state machine:
   only. It NEVER authorizes source, configuration, dependency, git, commit,
   push, destructive, or external-service changes.
 
-Then run the deterministic checks:
+Then run the deterministic checks (in a namespaced install prefix every
+`_agent_ops/` path with the pack folder, e.g. `ai-agent-workspace-pack/`):
 
   python _agent_ops/tools/session_start.py --root .
 

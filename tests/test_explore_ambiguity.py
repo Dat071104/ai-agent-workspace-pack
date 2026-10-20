@@ -64,6 +64,12 @@ class ExploreAmbiguityTests(unittest.TestCase):
         self.assertNotIn(AFFECTED, result.stdout)
         self.assertNotIn("showing the first", result.stdout)
 
+    def test_unknown_symbol_is_an_error_not_no_impact(self) -> None:
+        result = self.impact("does_not_exist")
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("No symbol matches", result.stdout)
+        self.assertNotIn(AFFECTED, result.stdout)
+
     def test_unique_qualname_runs_impact(self) -> None:
         result = self.impact("Repo.save")
         self.assertEqual(0, result.returncode, result.stderr)

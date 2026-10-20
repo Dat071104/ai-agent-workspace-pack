@@ -3,7 +3,7 @@
 A drop-in operating kit that gives coding agents — Claude Code, Codex, Cursor,
 Gemini, Windsurf — **memory, a code map, and safe defaults** in any repository.
 
-No dependencies. No cloud. Python standard library only. Everything stays local.
+No dependencies. No cloud. Python 3.11+ standard library only. Everything stays local.
 
 > **Tiếng Việt:** Đây là bộ công cụ dùng lại cho mọi dự án code với AI agent.
 > Bạn có thể mô tả bằng tiếng Việt bình thường — agent sẽ trả lời tiếng Việt,
@@ -66,16 +66,11 @@ Step 2 puts four things in your project:
 | The tools themselves | `_agent_ops/tools/` | So the project runs on its own |
 | Agent instructions | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` at your project root | Codex/Cursor/Windsurf auto-load `AGENTS.md`; Claude Code and Gemini CLI don't -- `CLAUDE.md`/`GEMINI.md` are thin adapters that `@`-import it |
 
-`AGENTS.md` is the single canonical entry point. The generated `CLAUDE.md` and
-`GEMINI.md` adapters import it first, so a rule you write there is in context
-whichever of those tools the session runs under. A `CLAUDE.md` or `GEMINI.md`
-your project already had is host-owned: it is preserved untouched, and the
-installer warns rather than editing it if it does not import `AGENTS.md`.
-
-It never replaces host-owned instruction content. `CLAUDE.md` and `GEMINI.md`
-are written only if your project does not already have one. An existing
-`AGENTS.md` keeps every line you wrote; the only thing the installer may add or
-refresh there is the marked workspace-pack bridge block.
+`AGENTS.md` is the single entry point; the generated `CLAUDE.md` and `GEMINI.md`
+import it. Host-owned instruction files are never overwritten: existing
+`CLAUDE.md`/`GEMINI.md` are kept (the installer warns if they do not import
+`AGENTS.md`), and in an existing `AGENTS.md` only the marked bridge block is
+added or refreshed.
 
 ### Namespaced embedded pack: one copied folder
 
@@ -108,15 +103,13 @@ memory, `AGENTS.md` block and adapters are created, and anything outside the
 shipping set (`tests/`, `examples/`) is reported and left alone. A source nested
 inside the destination, or the destination inside the source, is refused.
 
-**`BLOCKED` (exit 3)?** The `_agent_ops/` it found is not proven to be this project's (copied from another project, history unverifiable, a damaged `OPS_OWNER.json`, or an install from before stamps existed, which has none). Nothing was
-written. Re-run the command it prints (`embed_pack.py` accepts the same two
-flags and passes them to init):
-`init_project_ops.py --target . --embedded-folder ai-agent-workspace-pack
---reset-memory` (complete backup under `_agent_ops/backups/<timestamp>/`, then
-fresh templates) or `--claim-memory` (keep the records as this project's). See
-`BOOTSTRAP.md` for the step-by-step. `embed_pack.py --update` on a pre-stamp
-install stops here once, before changing anything: re-run it with
-`--claim-memory`. A folder of untouched templates needs no flag.
+**`BLOCKED` (exit 3)?** The `_agent_ops/` found is not proven to be this
+project's (copied from another project, unverifiable history, damaged or missing
+`OPS_OWNER.json`). Nothing was written. Re-run with `--reset-memory` (backup to
+`_agent_ops/backups/<timestamp>/`, then fresh templates) or `--claim-memory`
+(keep the records as this project's); `embed_pack.py` passes both to init. A
+pre-stamp install stops here once on `--update`: re-run with `--claim-memory`.
+Step-by-step: `BOOTSTRAP.md`.
 
 #### One canonical entry point, three harnesses
 

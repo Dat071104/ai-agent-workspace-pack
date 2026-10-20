@@ -24,6 +24,8 @@ token-cost warning. Otherwise the root recommends solo or sequential roles.
 When native spawning is unavailable or the model is weaker/less-suited, use
 `sequential`: exactly one selected team, one bounded slice, and one explicit
 stop gate before source-changing work.
+Empty or near-empty repo with an unclear spec: `analyze-team/` first (minimal
+design and acceptance criteria), then `build-team/` for the smallest slice.
 Not sure which team? Type `@start-here <one line>`.
 
 ## Before Reading Code
